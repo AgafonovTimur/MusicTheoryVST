@@ -1,0 +1,4756 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>
+/* ===== Мост между приложением и оболочкой index.html =====
+   Наружу уходят: выбранный язык, положение панели настроек и запрос
+   переключения уровня. Внутрь принимаются язык и положение настроек
+   от оболочки. Флаг __bridgeSuppress не даёт зациклить обмен. */
+(function(){
+  var inShell = false;
+  try { inShell = !!(window.parent && window.parent !== window); } catch(e){ inShell = false; }
+  window.__inShell = inShell;
+  window.__bridgeSuppress = false;
+
+  function raw(msg){
+    if(!inShell) return;
+    try { window.parent.postMessage(msg, '*'); } catch(e){}
+  }
+  window.__appBridgeSend = function(msg){
+    if(window.__bridgeSuppress) return;
+    raw(msg);
+  };
+
+  window.addEventListener('message', function(e){
+    var d = e.data;
+    if(!d || typeof d !== 'object') return;
+    if(d.type === 'requestState'){
+      var st = (typeof window.__appGetState === 'function') ? (window.__appGetState() || {}) : {};
+      raw({ type:'appState', lang: st.lang, pos: st.pos });
+      return;
+    }
+    if(d.type !== 'uiLang' && d.type !== 'settingsPosition') return;
+    window.__bridgeSuppress = true;
+    try {
+      if(d.type === 'uiLang' && d.lang && typeof window.__setUiLangExternal === 'function'){
+        window.__setUiLangExternal(d.lang);
+      }
+      if(d.type === 'settingsPosition' && d.value && typeof window.__setSettingsPositionExternal === 'function'){
+        window.__setSettingsPositionExternal(d.value);
+      }
+    } catch(err){}
+    window.__bridgeSuppress = false;
+  });
+
+  // кнопки переключения уровней (Квинтовый круг / Ноты / Слух)
+  document.addEventListener('click', function(e){
+    var b = e.target && e.target.closest ? e.target.closest('[data-switch-level]') : null;
+    if(!b) return;
+    raw({ type:'switchLevel', target: b.getAttribute('data-switch-level') });
+  });
+
+  window.addEventListener('load', function(){
+    var st = (typeof window.__appGetState === 'function') ? (window.__appGetState() || {}) : {};
+    raw({ type:'appReady', lang: st.lang, pos: st.pos });
+  });
+})();
+</script>
+
+<title data-i18n="pageTitle">Тренировка слуха</title>
+<style>
+  /* ===== Темы ===== */
+  /* Тема №2 — серо-жёлтая, перенесена из Circle of Fifths (тема №2 в списке).
+     Цвета ответа (--ok-color/--bad-color и свечение) не менялись. */
+  :root, [data-theme="2"] {
+    --bg-color: #141414;
+    --panel-bg: #232326;
+    --panel-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+
+    --chip-bg: #3a3a40;
+    --chip-border: #43434a;
+    --chip-text: #e4e4e7;
+    --chip-hover-bg: #4a4a52;
+    --chip-hover-text: #ffffff;
+    --chip-selected-bg: #c9a04a;
+    --chip-selected-border: #8d6f2f;
+    --chip-selected-text: #221c0c;
+
+    --btn-bg: #3a3a40;
+    --btn-border: #43434a;
+    --btn-text: #e4e4e7;
+    --btn-hover-bg: #4a4a52;
+    --btn-hover-text: #ffffff;
+    --btn-active-bg: #c9a04a;
+    --btn-active-text: #221c0c;
+
+    --segment-bg: #232326;
+    --divider-color: #2f2f33;
+    --text-muted: #a9a9b0;
+    --title-color: #d8ad51;
+    --text-hint: #85858e;
+    --select-bg: #2b2b30;
+
+    --fg-text: #e4e4e7;
+    --fg-dim: #c7c7cc;
+    --slider-thumb: #d8ad51;
+
+    --bad-color: rgba(235, 75, 75, 0.8);
+    --ok-color: rgba(85, 214, 110, 0.7);
+    --bad-glow-filter: none;
+    --ok-glow-filter: none;
+    --ok-text-glow: none;
+    --bad-text-glow: none;
+    --ok-box-glow: none;
+    --bad-box-glow: none;
+    --badge-ok: rgba(85, 214, 110, 0.7);
+    --badge-bad: rgba(235, 75, 75, 0.8);
+  }
+
+  [data-theme="1"] {
+    --bg-color: #181818;
+    --panel-bg: #212121;
+    --panel-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+
+    --chip-bg: #2e2e2e;
+    --chip-border: #383838;
+    --chip-text: #a8a8a8;
+    --chip-hover-bg: #383838;
+    --chip-hover-text: #ffffff;
+    --chip-selected-bg: #4a4a4a;
+    --chip-selected-border: #5a5a5a;
+    --chip-selected-text: #ffffff;
+
+    --btn-bg: #2b2b2b;
+    --btn-border: #363636;
+    --btn-text: #999999;
+    --btn-hover-bg: #363636;
+    --btn-hover-text: #ffffff;
+    --btn-active-bg: #424242;
+    --btn-active-text: #ffffff;
+
+    --segment-bg: #262626;
+    --divider-color: #2c2c2c;
+    --text-muted: #7d7d7d;
+    --title-color: #7d7d7d;
+    --text-hint: #5c5c5c;
+    --select-bg: #2a2a2a;
+    --bad-color: rgba(235, 75, 75, 0.8);
+    --ok-color: rgba(85, 214, 110, 0.7);
+    --bad-glow-filter: none;
+    --ok-glow-filter: none;
+    --ok-text-glow: none;
+    --bad-text-glow: none;
+    --ok-box-glow: none;
+    --bad-box-glow: none;
+    --badge-ok: rgba(85, 214, 110, 0.7);
+    --badge-bad: rgba(235, 75, 75, 0.8);
+  }
+
+  [data-theme="3"] {
+    --bg-color: #0b0e14;
+    --panel-bg: #131722;
+    --panel-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+
+    --chip-bg: #1c2230;
+    --chip-border: #273044;
+    --chip-text: #a0aec0;
+    --chip-hover-bg: #252d40;
+    --chip-hover-text: #ffffff;
+    --chip-selected-bg: #1b212f;
+    --chip-selected-border: #e58e38;
+    --chip-selected-text: #f59e0b;
+
+    --btn-bg: #1c2230;
+    --btn-border: #273044;
+    --btn-text: #a0aec0;
+    --btn-hover-bg: #252d40;
+    --btn-hover-text: #ffffff;
+    --btn-active-bg: #1b212f;
+    --btn-active-text: #f59e0b;
+
+    --segment-bg: #10141d;
+    --divider-color: #1f2738;
+    --text-muted: #718096;
+    --title-color: #f59e0b;
+    --text-hint: #516075;
+    --select-bg: #181f2c;
+    --bad-color: rgba(235, 75, 75, 0.8);
+    --ok-color: rgba(85, 214, 110, 0.7);
+    --bad-glow-filter: none;
+    --ok-glow-filter: none;
+    --ok-text-glow: none;
+    --bad-text-glow: none;
+    --ok-box-glow: none;
+    --bad-box-glow: none;
+    --badge-ok: rgba(85, 214, 110, 0.7);
+    --badge-bad: rgba(235, 75, 75, 0.8);
+  }
+
+  [data-theme="4"] {
+    --bg-color: #121212;
+    --panel-bg: #1e1e1e;
+    --panel-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+
+    --chip-bg: #2b2b2b;
+    --chip-border: #3a3a3a;
+    --chip-text: #b0b0b0;
+    --chip-hover-bg: #353535;
+    --chip-hover-text: #ffffff;
+    --chip-selected-bg: #25221e;
+    --chip-selected-border: #e58e38;
+    --chip-selected-text: #f59e0b;
+
+    --btn-bg: #2d2d2d;
+    --btn-border: #3d3d3d;
+    --btn-text: #a0a0a0;
+    --btn-hover-bg: #383838;
+    --btn-hover-text: #ffffff;
+    --btn-active-bg: #28241e;
+    --btn-active-text: #f59e0b;
+
+    --segment-bg: #282828;
+    --divider-color: #2a2a2a;
+    --text-muted: #888888;
+    --title-color: #f59e0b;
+    --text-hint: #666666;
+    --select-bg: #2b2b2b;
+    --bad-color: rgba(235, 75, 75, 0.8);
+    --ok-color: rgba(85, 214, 110, 0.7);
+    --bad-glow-filter: none;
+    --ok-glow-filter: none;
+    --ok-text-glow: none;
+    --bad-text-glow: none;
+    --ok-box-glow: none;
+    --bad-box-glow: none;
+    --badge-ok: rgba(85, 214, 110, 0.7);
+    --badge-bad: rgba(235, 75, 75, 0.8);
+  }
+
+  /* Тема №5 — светлая, перенесена из Circle of Fifths (тема №5 в списке).
+     Цвета ответа (красный/зелёный, обычный и неон) и иконка галочки/крестика
+     оставлены без изменений — они наследуются из :root / colormode. */
+  [data-theme="5"] {
+    --bg-color: #f4f3f0;
+    --panel-bg: #ffffff;
+    --panel-shadow: 0 10px 30px rgba(0, 0, 0, 0.14);
+
+    --chip-bg: #c7c7c7;
+    --chip-border: #d3d2cc;
+    --chip-text: #1b1b1b;
+    --chip-hover-bg: #dcdbd4;
+    --chip-hover-text: #1b1b1b;
+    --chip-selected-bg: #2f2f2f;
+    --chip-selected-border: #2f2f2f;
+    --chip-selected-text: #ffffff;
+
+    --btn-bg: #c7c7c7;
+    --btn-border: #d3d2cc;
+    --btn-text: #1b1b1b;
+    --btn-hover-bg: #dcdbd4;
+    --btn-hover-text: #1b1b1b;
+    --btn-active-bg: #2f2f2f;
+    --btn-active-text: #ffffff;
+
+    --segment-bg: #eceae5;
+    --divider-color: #d3d2cc;
+    --text-muted: #4a4a4a;
+    --title-color: #1b1b1b;
+    --text-hint: #6b6b6b;
+    --select-bg: #ffffff;
+
+    --fg-text: #1b1b1b;
+    --fg-dim: #333333;
+    --slider-thumb: #2f2f2f;
+  }
+
+  [data-theme="2"] .toggle-chip,
+  [data-theme="2"] .btn-action,
+  [data-theme="2"] .tab-btn,
+  [data-theme="2"] .segment-btn {
+    border-radius: 8px;
+  }
+
+  /* colormode: neon — цвета и свечение подписей нот, скопировано 1 в 1 из гуслей */
+  html[data-colormode="neon"], body[data-colormode="neon"]{
+    --bad-color: #eb4b4b;
+    --ok-color: #55d66e;
+    --bad-glow-filter: none;
+    --ok-glow-filter: none;
+    --ok-text-glow: 0 0 2px rgba(85, 214, 110, 0.9), 0 0 8px rgba(85, 214, 110, 0.55), 0 0 16px rgba(85, 214, 110, 0.3);
+    --bad-text-glow: 0 0 2px rgba(235, 75, 75, 0.9), 0 0 8px rgba(235, 75, 75, 0.55), 0 0 16px rgba(235, 75, 75, 0.3);
+    --ok-box-glow: 0 0 6px rgba(85, 214, 110, 0.35), inset 0 0 8px rgba(85, 214, 110, 0.15);
+    --bad-box-glow: 0 0 6px rgba(235, 75, 75, 0.35), inset 0 0 8px rgba(235, 75, 75, 0.15);
+    --badge-ok: #55d66e;
+    --badge-bad: #eb4b4b;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  }
+
+  html, body {
+    height: 100%;
+  }
+
+  button, button:focus, button:focus-visible,
+  [role="button"], [role="button"]:focus, [role="button"]:focus-visible {
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  input, textarea, select {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+
+  body {
+    background-color: var(--bg-color);
+    color: var(--fg-text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  .app-layout {
+    position: static;
+    width: 100%;
+  }
+
+  /* Главное меню — всегда строго по центру экрана, не двигается при скролле */
+  .menu-panel.left-panel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    /* Подложка увеличена вверх на 25px: сверху добавлено 25px,
+       а сама панель сдвинута вверх на 12.5px, чтобы содержимое
+       и остальной интерфейс остались на своих местах. */
+    transform: translate(-50%, calc(-50% - 12.5px));
+    width: 960px;
+    max-height: 90vh;
+    overflow-y: auto;
+    background-color: var(--panel-bg);
+    border-radius: 12px;
+    padding: 45px 20px 20px;
+    box-shadow: var(--panel-shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    border: 1px solid var(--chip-border);
+    z-index: 1;
+  }
+
+  /* Отладочный лог нажатых нот — фиксированная панель справа от меню ответов */
+  .debug-log-panel {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: calc(50% + 500px);
+    transform: translateY(-50%);
+    width: 260px;
+    max-height: 90vh;
+    overflow-y: auto;
+    background-color: var(--panel-bg);
+    border: 1px solid var(--chip-border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    box-shadow: var(--panel-shadow);
+    z-index: 50;
+    font-size: 12px;
+    color: var(--text-hint);
+  }
+
+  .debug-log-panel.visible {
+    display: block;
+  }
+
+  .debug-log-panel h4 {
+    margin: 0 0 6px 0;
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+
+  .debug-log-entry {
+    padding: 2px 0;
+    border-bottom: 1px solid var(--divider-color);
+    color: var(--fg-dim);
+    white-space: nowrap;
+    font-size: 30px;
+  }
+
+  .menu-panel.right-panel {
+    position: fixed;
+    top: 50%;
+    right: calc(50% + 440px);
+    width: 540px;
+    height: 90vh;
+    overflow-y: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    background-color: var(--panel-bg);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: var(--panel-shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    border: 1px solid var(--chip-border);
+    z-index: 2;
+    opacity: 0;
+    visibility: hidden;
+    transform: translate(-30px, -50%);
+    transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s ease;
+  }
+
+  .menu-panel.right-panel.visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(0, -50%);
+  }
+
+  .menu-panel.right-panel::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* ===== Режим "по центру экрана" (галочка "Настройки сбоку от меню" выключена).
+     Панель настроек вместо позиции сбоку от основного меню становится
+     обычным модальным окном по центру экрана, а фон под ней затемняется
+     (#settingsBackdrop). Включается/выключается классом .centered. ===== */
+  .menu-panel.right-panel.centered {
+    top: 50%;
+    left: 50%;
+    right: auto;
+    transform: translate(-50%, -50%) scale(0.96);
+  }
+
+  .menu-panel.right-panel.centered.visible {
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  /* Отключает анимацию перехода при переключении галочки "Настройки сбоку",
+     чтобы панель настроек просто появлялась по центру без скольжения. */
+  .menu-panel.right-panel.no-position-transition {
+    transition: none !important;
+  }
+
+  /* ===== Позиция панели настроек: слева / по центру / справа =====
+     .right-side — зеркальное отражение обычного "бокового" положения
+     (которое задаётся базовым правилом .menu-panel.right-panel выше). */
+  .menu-panel.right-panel.right-side {
+    left: calc(50% + 440px);
+    right: auto;
+    transform: translate(30px, -50%);
+  }
+
+  .menu-panel.right-panel.right-side.visible {
+    transform: translate(0, -50%);
+  }
+
+  /* Надпись "Отображать настройки:" и 3 галки — в две строки: сверху
+     надпись, снизу галки со сдвигом вправо на 24px (как подпункты под
+     галкой в квинтовом круге). */
+  .settings-position-row {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .settings-position-title {
+    white-space: nowrap;
+  }
+
+  .settings-position-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    margin-left: 24px;
+  }
+
+  #settingsBackdrop {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+  }
+
+  #settingsBackdrop.visible {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .settings-position-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+    margin-bottom: 0 !important;
+  }
+
+  .nav-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 4px;
+  }
+
+  .tab-btn {
+    background-color: var(--btn-bg);
+    color: var(--btn-text);
+    border: 1px solid var(--btn-border);
+    padding: 10px 0;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    text-align: center;
+  }
+
+  .tab-btn:hover {
+    background-color: var(--btn-hover-bg);
+    color: var(--btn-hover-text);
+  }
+
+  .tab-btn.active {
+    background-color: var(--btn-active-bg);
+    color: var(--btn-active-text);
+    border-color: var(--chip-selected-border);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  }
+
+  .section {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .section-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--title-color);
+    font-weight: 700;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    min-height: 18px;
+  }
+
+  .quick-actions-left {
+    display: flex;
+    justify-content: flex-start;
+    gap: 16px;
+  }
+
+  /* Блок настройки: заголовок + сетка кнопок, отступы как в блоке октав */
+  .section-block {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .quick-actions-inline {
+    display: flex;
+    gap: 16px;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  /* ===== Сетка пианино (14 колонок, как в новом дизайне) ===== */
+  .piano-grid {
+    display: grid;
+    grid-template-columns: repeat(14, 1fr);
+    column-gap: 4px;
+    row-gap: 8px;
+  }
+
+  .piano-grid .toggle-chip {
+    height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    padding: 0;
+  }
+
+  .piano-grid .toggle-chip.black-key {
+    height: 42px;
+    font-size: 10.5px;
+  }
+
+  /* ===== Сетка интервалов (2 колонки) ===== */
+  .intervals-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  /* ===== Сетка аккордов (4 колонки) ===== */
+  .chords-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+
+  .chords-grid .toggle-chip,
+  .intervals-grid .toggle-chip {
+    width: auto;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    border-radius: 6px;
+    font-size: 12px;
+  }
+
+  /* ===== Октавы ===== */
+  .octaves-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .octaves-row .toggle-chip {
+    flex: 1 1 calc(14.28% - 7px);
+    padding: 10px 6px;
+    text-align: center;
+  }
+
+  /* ===== Вывод звука ===== */
+  .audio-output-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .lang-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+  }
+
+  /* ===== Блок группировки настроек (аналог midi-box) ===== */
+  .settings-box {
+    background-color: var(--segment-bg);
+    border: 1px solid var(--divider-color);
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  #onlineFields {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .midi-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  /* ===== Блок MIDI-настроек (вход/выход/подключение) — внешний вид
+     как в приложении "Circle of Fifths": подписанные строки label+select
+     (select прижат вправо и занимает половину ширины), кнопка подключения
+     на всю ширину под ними. ===== */
+  .midiPanel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .midiPanelRow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .midiPanelRow select,
+  .midiPanelRow input[type="number"] {
+    width: 50%;
+    margin-left: auto;
+    padding: 6px 8px;
+  }
+
+  .midiPanelRow input[type="number"] {
+    background-color: var(--select-bg);
+    color: var(--fg-text);
+    border: 1px solid var(--chip-border);
+    border-radius: 6px;
+    font-size: 13px;
+    outline: none;
+    text-align: right;
+  }
+
+  .midiPanelRow input#minVelocityInput {
+    width: 12.5%;
+    margin-left: 0;
+  }
+
+  .midiPanel .btn-action {
+    width: 100%;
+  }
+
+  .theme-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .theme-row select {
+    flex: 0 0 50%;
+    width: 50%;
+    margin-left: auto;
+    padding: 6px 10px;
+  }
+
+  .colormode-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1 1 100%;
+    width: 100%;
+    min-width: 220px;
+  }
+
+  .colormode-row .segmented-control {
+    flex: 1;
+  }
+
+  .colormode-row .segment-btn {
+    padding: 10px 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    min-width: max-content;
+  }
+
+  .text-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 12px;
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 0;
+  }
+
+  .text-btn:hover {
+    color: var(--fg-dim);
+  }
+
+  .grid-chips {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 6px;
+  }
+
+  .toggle-chip {
+    background-color: var(--chip-bg);
+    border: 2px solid var(--chip-border);
+    color: var(--chip-text);
+    padding: 8px 2px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: center;
+    user-select: none;
+    white-space: nowrap;
+  }
+
+  .note-chip {
+    width: 48px;
+    flex: 0 0 48px;
+    padding: 8px 0;
+  }
+
+  .left-note-chip:focus { outline: none; }
+
+  .left-note-chip {
+    position: relative;
+    width: 119px;
+    height: 66px;
+    flex: 0 0 119px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .left-note-chip.black-key {
+    height: 62px;
+  }
+
+  .toggle-chip:hover {
+    background-color: var(--chip-hover-bg);
+    color: var(--chip-hover-text);
+  }
+
+  .toggle-chip.selected {
+    background-color: var(--chip-selected-bg);
+    border-color: var(--chip-selected-border);
+    color: var(--chip-selected-text);
+    font-weight: 600;
+  }
+
+  .toggle-chip.correct,
+  #pianoAnswer .toggle-chip.correct,
+  #chipAnswer .toggle-chip.correct,
+  #octaveAnswerRow .toggle-chip.correct {
+    background-color: var(--chip-bg) !important;
+    border-width: 2px !important;
+    border-style: solid !important;
+    border-color: var(--ok-color) !important;
+    color: var(--ok-color) !important;
+    font-weight: 600 !important;
+    opacity: 1 !important;
+  }
+
+  .toggle-chip.incorrect,
+  #pianoAnswer .toggle-chip.incorrect,
+  #chipAnswer .toggle-chip.incorrect,
+  #octaveAnswerRow .toggle-chip.incorrect {
+    background-color: var(--chip-bg) !important;
+    border-width: 2px !important;
+    border-style: solid !important;
+    border-color: var(--bad-color) !important;
+    color: var(--bad-color) !important;
+    font-weight: 600 !important;
+    opacity: 1 !important;
+  }
+
+  .toggle-chip.disabled {
+    pointer-events: none;
+    opacity: 0.6;
+  }
+
+  .notes-flex-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .notes-flex-container.chord-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px 10px;
+  }
+
+  .chord-chip {
+    width: auto;
+    padding: 10px 6px;
+    border-radius: 18px;
+    font-size: 12.5px;
+  }
+
+  .piano-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  .white-keys-row {
+    display: flex;
+    gap: 7px;
+    justify-content: center;
+  }
+
+  .black-keys-row {
+    position: relative;
+    width: 875px;
+    height: 62px;
+  }
+
+  .black-keys-row .black-key {
+    position: absolute;
+    top: 0;
+  }
+
+  .answer-group-box {
+    width: 100%;
+    background: transparent;
+    padding: 15px;
+    border-radius: 8px;
+    border: none;
+  }
+
+  .answer-chip-title {
+    text-align: center;
+    font-size: 13px;
+    margin-bottom: 8px;
+  }
+
+  .answer-chip-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .answer-chip-grid .toggle-chip {
+    padding: 0;
+    font-size: 13px;
+    text-align: center;
+    flex-grow: 0;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Размеры кнопок в окне ответа (перенесено из макета) */
+  .answer-chip-grid.mode-intervals .toggle-chip { width: 213px; flex: 0 0 213px; }
+  .answer-chip-grid.mode-chords .toggle-chip { width: 213px; flex: 0 0 213px; }
+
+  /* Подпись «Сыграно» — показывается, когда сыгранный набор нот не совпал ни с одним аккордом из списка */
+  .played-notes-info {
+    display: none;
+    width: 100%;
+    margin-top: 8px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--bad-color);
+    text-shadow: var(--bad-text-glow);
+  }
+  .played-notes-info.visible { display: block; }
+
+  /* Номер порядка нажатия ноты при наборе интервала/аккорда нотами */
+  .left-note-chip[data-seq]::after {
+    content: attr(data-seq);
+    position: absolute;
+    top: 3px;
+    right: 7px;
+    font-size: 11px;
+    font-weight: 700;
+    opacity: 0.9;
+  }
+
+  /* Подпись под пианино при наборе интервала/аккорда нотами */
+  .note-seq-info {
+    display: block;
+    width: 100%;
+    margin-top: 2px;
+    text-align: center;
+    font-size: 13px;
+    line-height: 1.3;
+    min-height: 1.3em;
+    color: var(--text-hint);
+    visibility: hidden;
+  }
+  .note-seq-info.visible { visibility: visible; }
+  .note-seq-info.bad {
+    color: var(--bad-color);
+    text-shadow: var(--bad-text-glow);
+  }
+  .note-seq-info.press-new-question {
+    color: var(--ok-color);
+    text-shadow: var(--ok-text-glow, none);
+  }
+  .note-seq-info .seq-ok { color: var(--ok-color); text-shadow: var(--ok-text-glow, none); }
+  .note-seq-info .seq-bad { color: var(--bad-color); text-shadow: var(--bad-text-glow, none); }
+
+  .answer-octaves-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    justify-content: center;
+    width: 100%;
+    margin-top: 8px;
+  }
+
+  .answer-octaves-row .toggle-chip {
+    width: 83px;
+    flex: 0 0 83px;
+    height: 51px;
+    padding: 0;
+    font-size: 12px;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Кнопки обращений и направления интервала в окне ответа — ширина как у кнопок аккордов/интервалов */
+  #directionAnswerRow.answer-octaves-row .toggle-chip,
+  #inversionAnswerRow.answer-octaves-row .toggle-chip {
+    width: 213px;
+    flex: 0 0 213px;
+    height: 48px;
+    font-size: 13px;
+  }
+
+  .segmented-control {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .segment-btn {
+    background-color: var(--btn-bg);
+    color: var(--btn-text);
+    border: 1px solid var(--btn-border);
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: center;
+  }
+
+  .segment-btn:hover {
+    background-color: var(--btn-hover-bg);
+    color: var(--btn-hover-text);
+  }
+
+  .segment-btn.active {
+    background-color: var(--btn-active-bg);
+    color: var(--btn-active-text);
+    border-color: var(--chip-selected-border);
+    font-weight: 600;
+  }
+
+  .volume-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 2px;
+  }
+
+  .volume-slider {
+    flex: 1;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--chip-bg);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .volume-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--slider-thumb);
+    cursor: pointer;
+  }
+
+  .volume-value {
+    font-size: 12px;
+    color: var(--text-muted);
+    min-width: 32px;
+    text-align: right;
+  }
+
+  .field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .field-label {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .label-with-info {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+  }
+
+  .info-icon {
+    position: relative;
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1px solid var(--chip-border);
+    background: var(--select-bg);
+    color: var(--text-muted);
+    font-size: 11px;
+    font-style: italic;
+    font-family: Georgia, 'Times New Roman', serif;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: help;
+    user-select: none;
+  }
+
+  .info-icon:hover {
+    color: var(--fg-text);
+  }
+
+  .info-icon .info-tip {
+    display: none;
+  }
+
+  .info-tip-float {
+    position: fixed;
+    width: 260px;
+    background: var(--select-bg);
+    border: 1px solid var(--chip-border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 12px;
+    font-style: normal;
+    font-family: inherit;
+    line-height: 1.4;
+    color: var(--fg-text);
+    text-align: left;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity .12s ease;
+    z-index: 9999;
+    box-shadow: 0 6px 18px rgba(0,0,0,.45);
+    pointer-events: none;
+  }
+
+  .info-tip-float.visible {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  select {
+    width: 100%;
+    background-color: var(--select-bg);
+    color: var(--fg-text);
+    border: 1px solid var(--chip-border);
+    padding: 9px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 14px;
+  }
+
+  .hint-text {
+    font-size: 11px;
+    color: var(--text-hint);
+    line-height: 1.4;
+  }
+
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .checkbox-row input {
+    display: none;
+  }
+
+  .custom-checkbox {
+    width: 16px;
+    height: 16px;
+    background-color: var(--chip-bg);
+    border: 1px solid var(--chip-border);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .checkbox-row input:checked + .custom-checkbox {
+    background-color: var(--chip-selected-bg);
+    border-color: var(--chip-selected-border);
+  }
+
+  .checkbox-row input:checked + .custom-checkbox::after {
+    content: "✓";
+    color: var(--chip-selected-text);
+    font-size: 11px;
+    font-weight: bold;
+  }
+
+  .checkbox-label {
+    font-size: 13px;
+    color: var(--fg-dim);
+  }
+
+  .action-row {
+    display: flex;
+    gap: 10px;
+    width: 320px;
+    margin: 0 auto;
+  }
+
+  .btn-action {
+    flex: 1;
+    background-color: var(--btn-bg);
+    color: var(--btn-text);
+    border: 1px solid var(--btn-border);
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-weight: 500;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  .btn-action:hover {
+    background-color: var(--btn-hover-bg);
+    color: var(--btn-hover-text);
+  }
+
+  .feedback-indicator {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    padding: 0 0 6px;
+    min-height: 120px;
+  }
+
+  .debug-answer {
+    font-size: 26px;
+    color: #4caf50;
+    margin-bottom: 18px;
+    display: none;
+    text-align: center;
+    position: relative;
+    top: -25px;
+  }
+
+  .debug-answer.visible {
+    display: block;
+  }
+
+  .feedback-icon {
+    position: relative;
+    top: -25px;
+    width: 100px;
+    height: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'PT Serif', serif;
+    font-weight: 700;
+    font-size: 85px;
+    line-height: 1;
+    color: var(--text-hint);
+    opacity: 0.35;
+    transition: color 0.2s ease, opacity 0.2s ease;
+  }
+
+  .feedback-icon.state-correct {
+    color: var(--badge-ok);
+    opacity: 0.7;
+  }
+
+  .feedback-icon.state-incorrect {
+    color: var(--badge-bad);
+    opacity: 0.7;
+  }
+
+  .feedback-hint {
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-hint);
+    margin-top: -6px;
+  }
+
+  .status-line {
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-muted);
+    min-height: 16px;
+  }
+
+  .divider {
+    height: 1px;
+    background-color: var(--divider-color);
+    margin: 2px 0;
+  }
+
+  details {
+    font-size: 12px;
+    color: var(--text-hint);
+  }
+
+  details summary {
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 12px;
+    margin-bottom: 6px;
+  }
+
+  details p, details li {
+    color: var(--text-hint);
+    line-height: 1.5;
+    margin-left: 14px;
+  }
+
+  details code {
+    background: var(--select-bg);
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: var(--fg-text);
+  }
+
+  /* ===================================================================
+     МОБИЛЬНАЯ ВЕРСТКА
+     Все правила ниже действуют только на экранах шириной до 900px,
+     поэтому вид и поведение версии для ПК не меняются.
+     Масштабирование щипком (pinch to zoom) не отключается.
+     =================================================================== */
+  @media (max-width: 900px) {
+
+    /* Главное меню — во всю ширину экрана */
+    .menu-panel.left-panel {
+      width: calc(100vw - 10px);
+      max-width: calc(100vw - 10px);
+      max-height: 96vh;
+      padding: 16px 8px 12px;
+      gap: 12px;
+      border-radius: 10px;
+    }
+
+    /* Панель настроек всегда по центру и во всю ширину,
+       независимо от выбранного положения (слева/по центру/справа) */
+    .menu-panel.right-panel,
+    .menu-panel.right-panel.centered,
+    .menu-panel.right-panel.right-side {
+      width: calc(100vw - 10px);
+      max-width: calc(100vw - 10px);
+      height: 92vh;
+      top: 50%;
+      left: 50%;
+      right: auto;
+      padding: 14px 10px;
+      gap: 14px;
+      transform: translate(-50%, -50%) scale(0.97);
+    }
+    .menu-panel.right-panel.visible,
+    .menu-panel.right-panel.centered.visible,
+    .menu-panel.right-panel.right-side.visible {
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    /* Пианино в окне ответа — масштабируется скриптом под ширину экрана */
+    .piano-container {
+      transform-origin: top center;
+    }
+
+    /* Кнопки интервалов/аккордов в окне ответа — по 2 в ряд */
+    .answer-chip-grid.mode-intervals .toggle-chip,
+    .answer-chip-grid.mode-chords .toggle-chip,
+    #directionAnswerRow.answer-octaves-row .toggle-chip,
+    #inversionAnswerRow.answer-octaves-row .toggle-chip {
+      width: auto;
+      flex: 1 1 calc(50% - 8px);
+      min-width: 0;
+      max-width: calc(50% - 4px);
+    }
+
+    .answer-octaves-row .toggle-chip {
+      width: auto;
+      flex: 1 1 calc(25% - 7px);
+      max-width: calc(25% - 6px);
+      height: 46px;
+    }
+
+    .answer-group-box { padding: 8px 2px; }
+
+    .action-row { width: 100%; max-width: 340px; }
+
+    .feedback-indicator { min-height: 96px; }
+    .feedback-icon { width: 74px; height: 74px; font-size: 62px; }
+    .debug-answer { font-size: 20px; }
+    .note-seq-info { font-size: 12px; }
+
+    /* Настройки: сетки поплотнее, чтобы всё влезало */
+    .notes-flex-container.chord-grid { grid-template-columns: repeat(3, 1fr); }
+    .chords-grid { grid-template-columns: repeat(3, 1fr); }
+    /* Пианино в настройках: верхний ряд — 5 диезов/бемолей одного размера,
+       нижний ряд — 7 белых нот одного размера */
+    .piano-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .piano-grid .toggle-chip.black-key {
+      flex: 0 0 calc(20% - 5px);
+      max-width: calc(20% - 5px);
+    }
+    .piano-grid .toggle-chip:not(.black-key) {
+      flex: 0 0 calc(14.2857% - 6px);
+      max-width: calc(14.2857% - 6px);
+    }
+    .octaves-row .toggle-chip { flex: 1 1 calc(25% - 8px); }
+    .nav-tabs { gap: 6px; }
+    .tab-btn { font-size: 13px; padding: 10px 2px; }
+    .section-title { flex-wrap: wrap; gap: 4px 10px; }
+    .quick-actions-inline { gap: 12px; }
+    .theme-row select { max-width: 100%; }
+    .midiPanelRow { flex-wrap: wrap; }
+    .settings-box { padding: 12px; gap: 14px; }
+    .info-tip-float { max-width: calc(100vw - 20px); }
+
+    /* Отладочная панель нажатых нот (открывается клавишей Z) */
+    .debug-log-panel {
+      left: auto;
+      right: 5px;
+      width: 42vw;
+      max-height: 60vh;
+    }
+  }
+
+
+  /* =====================================================================
+     ЕДИНЫЙ ДИЗАЙН НАСТРОЕК — всё взято из «Квинтового круга» (эталон):
+       панель ........ 520px, padding 14/18/18, radius 8, gap 10
+       кнопка ........ padding 9/4, шрифт 14px, radius 6, без рамки
+       кнопка в сетке  padding 9/2, шрифт 13px
+       верхние вкладки padding 10/4, шрифт 13px
+       заголовок ..... 16px жирный
+       строка с галкой шрифт 16px
+       чекбокс ....... 16x16, radius 3, серая заливка
+       select ........ 50% ширины, справа, padding 8/6, 13px
+       значок (i) .... 22px
+       отступы ....... 8px в рядах, 10/8px в сетках
+     Цвета кнопок в тёмной теме — как в круге: #333333 / #D0D0D0 / #5a5a5a.
+     Кнопки «Выбрать все» / «Снять всё» остаются текстовыми, цветом темы.
+     ===================================================================== */
+
+  .menu-panel.right-panel{
+    width:520px;
+    padding:14px 18px 18px;
+    border-radius:8px;
+    gap:10px;
+    box-shadow:0 10px 30px rgba(0,0,0,.75);
+  }
+
+  #right-panel{
+    --set-btn-bg: var(--chip-bg);
+    --set-btn-text: var(--chip-text);
+    --set-btn-active-bg: var(--chip-selected-bg);
+    --set-btn-active-text: var(--chip-text);
+    --set-title: var(--fg-text);
+  }
+  [data-theme="1"] #right-panel{
+    --set-btn-bg:#333333;
+    --set-btn-text:#D0D0D0;
+    --set-btn-active-bg:#5a5a5a;
+    --set-btn-active-text:#D0D0D0;
+    --set-title:#D0D0D0;
+    background-color:#1e1e1e;
+    border-color:#333333;
+  }
+  [data-theme="5"] #right-panel{
+    --set-btn-active-text: var(--chip-selected-text);
+  }
+
+  #right-panel .section,
+  #right-panel .section-block{
+    gap:10px;
+  }
+
+  /* ---- Заголовки блоков ---- */
+  /* как надпись «Вариант 1» в круге: 13px, жирный, основной цвет текста */
+  #right-panel .section-title,
+  #right-panel .label-with-info .field-label{
+    font-size:13px;
+    font-weight:bold;
+    text-transform:none;
+    letter-spacing:0;
+    color:var(--set-title);
+    min-height:20px;
+  }
+  #right-panel .field-label{ font-size:16px; color:var(--set-title); font-weight:normal; }
+  #right-panel .hint-text{ font-size:12px; }
+  #right-panel .label-with-info{ gap:6px; }
+
+  /* ---- «Выбрать все» / «Снять всё» — цветом под тему ---- */
+  #right-panel .quick-actions-inline,
+  #right-panel .quick-actions-left{ gap:12px; }
+  #right-panel .text-btn{
+    color:var(--title-color);
+    font-size:13px;
+    text-decoration:none;
+    padding:0;
+    font-weight:normal;
+  }
+  #right-panel .text-btn:hover{
+    color:var(--fg-text);
+    text-decoration:underline;
+  }
+
+  /* ---- Кнопки ---- */
+  #right-panel .tab-btn,
+  #right-panel .segment-btn,
+  #right-panel .toggle-chip,
+  #right-panel .btn-action{
+    border:none;
+    border-radius:6px;
+    padding:9px 4px;
+    font-size:14px;
+    font-weight:normal;
+    line-height:1.2;
+    background-color:var(--set-btn-bg);
+    color:var(--set-btn-text);
+    box-shadow:none;
+    box-sizing:border-box;
+    min-width:0;
+    white-space:normal;
+    text-align:center;
+    /* надпись всегда по центру кнопки, даже если соседняя кнопка в ряду
+       переносится на две строки и ряд становится выше */
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  #right-panel .tab-btn{
+    padding:10px 4px;
+    font-size:13px;
+    font-weight:500;
+  }
+  #right-panel .tab-btn:hover,
+  #right-panel .segment-btn:hover,
+  #right-panel .toggle-chip:hover,
+  #right-panel .btn-action:hover{
+    background-color:var(--chip-hover-bg);
+    color:var(--set-btn-text);
+  }
+  #right-panel .tab-btn.active,
+  #right-panel .segment-btn.active,
+  #right-panel .toggle-chip.selected{
+    background-color:var(--set-btn-active-bg);
+    color:var(--set-btn-active-text);
+    border:none;
+    box-shadow:none;
+    font-weight:600;
+  }
+  #right-panel .toggle-chip.correct,
+  #right-panel .toggle-chip.incorrect{
+    border:none !important;
+  }
+
+  /* ---- Сетки ---- */
+  /* Расстояние между кнопками по ширине уменьшено вдвое */
+  #right-panel .nav-tabs{
+    gap:4px;
+    margin-bottom:0;
+  }
+  #right-panel .segmented-control{ gap:4px; }
+  #right-panel .lang-row,
+  #right-panel .audio-output-row{ gap:4px; }
+
+  /* пианино: чёрные клавиши сверху между белыми (14 колонок) */
+  #right-panel .piano-grid{
+    column-gap:4px;
+    row-gap:5px;
+  }
+  #right-panel .piano-grid .toggle-chip{
+    height:auto;
+    padding:9px 2px;
+    font-size:13px;
+  }
+  #right-panel .piano-grid .toggle-chip.black-key{
+    height:auto;
+    font-size:12px;
+  }
+
+  /* интервалы / аккорды / ширина — 3 колонки */
+  #right-panel .intervals-grid,
+  #right-panel .chords-grid{
+    grid-template-columns:repeat(3, 1fr);
+    gap:5px 4px;
+  }
+  #right-panel .chords-grid .toggle-chip,
+  #right-panel .intervals-grid .toggle-chip{
+    width:auto;
+    height:auto;
+    padding:9px 2px;
+    font-size:13px;
+  }
+  /* обращения — 4 колонки, направление интервала — 2 */
+  #right-panel #inversion-grid{ grid-template-columns:repeat(4, 1fr); }
+  #right-panel #direction-grid{ grid-template-columns:repeat(2, 1fr); }
+
+  /* октавы — 7 в ряд */
+  #right-panel .octaves-row{
+    display:grid;
+    grid-template-columns:repeat(7, 1fr);
+    gap:5px 4px;
+  }
+  #right-panel .octaves-row .toggle-chip{
+    flex:none;
+    padding:9px 2px;
+    font-size:13px;
+  }
+
+  /* ---- Строки с галками ---- */
+  #right-panel .checkbox-row{ gap:8px; }
+  #right-panel .checkbox-label{ font-size:16px; color:var(--fg-text); }
+  #right-panel .settings-position-row{ gap:6px; }
+  #right-panel .settings-position-options{ gap:8px 12px; }
+  #right-panel .settings-position-option{ gap:8px; }
+
+  /* ---- Чекбокс ---- */
+  #right-panel .custom-checkbox{
+    width:16px;
+    height:16px;
+    border-radius:3px;
+  }
+  #right-panel .checkbox-row input:checked + .custom-checkbox{
+    background-color:#5a5a5a;
+    border-color:#5a5a5a;
+  }
+  #right-panel .checkbox-row input:checked + .custom-checkbox::after{
+    color:#fff;
+    font-size:11px;
+  }
+  [data-theme="5"] #right-panel .checkbox-row input:checked + .custom-checkbox{
+    background-color:#2f2f2f;
+    border-color:#2f2f2f;
+  }
+
+  /* ---- Слайдер громкости ---- */
+  #right-panel .volume-row{ gap:8px; margin-top:0; }
+  #right-panel .volume-slider{ height:4px; background:var(--set-btn-bg); }
+  #right-panel .volume-slider::-webkit-slider-thumb{
+    width:14px;
+    height:14px;
+    background:var(--set-btn-active-bg);
+  }
+  #right-panel .volume-slider::-moz-range-thumb{
+    width:14px;
+    height:14px;
+    border:none;
+    border-radius:50%;
+    background:var(--set-btn-active-bg);
+  }
+  #right-panel .volume-value{ font-size:14px; }
+
+  /* ---- Выпадающие списки и поля ---- */
+  #right-panel select{
+    padding:8px 28px 8px 10px;
+    border:none;
+    border-radius:6px;
+    font-size:13px;
+    box-sizing:border-box;
+    background-color:var(--set-btn-bg);
+    color:var(--set-btn-text);
+  }
+  #right-panel .theme-row{
+    gap:8px;
+    font-size:16px;
+    color:var(--fg-text);
+  }
+  #right-panel .theme-row select,
+  #right-panel .midiPanelRow select{
+    flex:0 0 50%;
+    width:50%;
+    max-width:50%;
+    margin-left:auto;
+  }
+  #right-panel .midiPanelRow{ gap:8px; }
+  #right-panel .midiPanelRow input[type="number"]{
+    padding:8px 6px;
+    border:none;
+    border-radius:6px;
+    font-size:13px;
+    box-sizing:border-box;
+    background-color:var(--set-btn-bg);
+    color:var(--set-btn-text);
+  }
+  #right-panel .midiPanel{ gap:10px; }
+  #right-panel .settings-box{
+    padding:14px;
+    gap:10px;
+    border-radius:8px;
+  }
+  [data-theme="1"] #right-panel .settings-box{
+    background-color:#1e1e1e;
+    border-color:#333333;
+  }
+  #right-panel #onlineFields{ gap:10px; }
+  #right-panel .field-group{ gap:8px; }
+  #right-panel .colormode-row{ gap:8px; }
+  #right-panel .colormode-row .segment-btn{
+    padding:9px 4px;
+    font-size:14px;
+  }
+  /* «Цвет ответа» и «Названия нот» — кнопки одной ширины (половина панели,
+     прижаты вправо, как выпадашка «Тема:» над ними) */
+  #right-panel .colormode-row .segmented-control{
+    flex:0 0 50%;
+    width:50%;
+    max-width:50%;
+    margin-left:auto;
+  }
+
+  /* ---- Значок подсказки (i) ---- */
+  #right-panel .info-icon{
+    width:22px;
+    height:22px;
+    border:none;
+    background:var(--set-btn-bg);
+    color:var(--set-btn-text);
+    font-size:13px;
+    font-style:italic;
+    font-weight:700;
+    font-family:inherit;
+  }
+
+  /* ---- Мобильный режим ---- */
+  @media (max-width: 900px){
+    .menu-panel.right-panel{
+      width:calc(100vw - 16px);
+      max-width:calc(100vw - 16px);
+      max-height:96vh;
+      padding:12px 10px 14px;
+      border-radius:8px;
+    }
+    #right-panel .intervals-grid,
+    #right-panel .chords-grid{ grid-template-columns:repeat(3, 1fr); }
+    #right-panel .octaves-row{ grid-template-columns:repeat(4, 1fr); }
+  }
+</style>
+</head>
+<body data-theme="1">
+
+  <div class="app-layout">
+
+    <!-- Отладочная панель: лог нажатых нот -->
+    <div class="debug-log-panel" id="debugLogPanel">
+      <h4 data-i18n="debugPressedNotes">Нажатые ноты</h4>
+      <div id="debugLogList"></div>
+    </div>
+
+    <!-- ГЛАВНЫЙ ЭКРАН (ВСЕГДА ПО ЦЕНТРУ) -->
+    <div class="menu-panel left-panel">
+      <div class="section">
+
+        <div class="feedback-indicator">
+          <div class="debug-answer" id="debugAnswer"></div>
+          <div class="feedback-icon" id="feedbackIcon"></div>
+          <div class="note-seq-info" id="noteSeqInfo"></div>
+        </div>
+
+        <div class="action-row" id="actionRow">
+          <button class="btn-action" id="nextQuestionBtn" data-i18n="nextQuestion">Новый вопрос</button>
+          <button class="btn-action" id="replayBtn" data-i18n="replay">Повторить</button>
+        </div>
+
+        <!-- Ответ нотами: раскладка пианино -->
+        <div class="answer-group-box">
+          <div class="piano-container" id="pianoAnswer">
+            <div class="black-keys-row">
+              <button class="toggle-chip left-note-chip black-key" data-pc="1" style="left: 63px;">C#/Db</button>
+              <button class="toggle-chip left-note-chip black-key" data-pc="3" style="left: 189px;">D#/Eb</button>
+              <button class="toggle-chip left-note-chip black-key" data-pc="6" style="left: 441px;">F#/Gb</button>
+              <button class="toggle-chip left-note-chip black-key" data-pc="8" style="left: 567px;">G#/Ab</button>
+              <button class="toggle-chip left-note-chip black-key" data-pc="10" style="left: 693px;">A#/Bb</button>
+            </div>
+            <div class="white-keys-row">
+              <button class="toggle-chip left-note-chip" data-pc="0">C</button>
+              <button class="toggle-chip left-note-chip" data-pc="2">D</button>
+              <button class="toggle-chip left-note-chip" data-pc="4">E</button>
+              <button class="toggle-chip left-note-chip" data-pc="5">F</button>
+              <button class="toggle-chip left-note-chip" data-pc="7">G</button>
+              <button class="toggle-chip left-note-chip" data-pc="9">A</button>
+              <button class="toggle-chip left-note-chip" data-pc="11">B</button>
+            </div>
+          </div>
+</div>
+
+        <!-- Ответ интервалами/аккордами: список названий -->
+        <div class="answer-group-box" id="chipAnswerBox" style="display:none;">
+          <div class="answer-chip-grid" id="chipAnswer"></div>
+          <div class="played-notes-info" id="playedNotesInfo"></div>
+        </div>
+
+        <!-- Направление интервала под кнопками ответа (показывается, если выбраны обе кнопки направления в настройках) -->
+        <div class="answer-group-box" id="directionAnswerBox" style="display:none;">
+          <div class="answer-octaves-row" id="directionAnswerRow"></div>
+        </div>
+
+        <!-- Обращения аккорда под кнопками ответа (показываются, если выбрано 2+ обращения в настройках) -->
+        <div class="answer-group-box" id="inversionAnswerBox" style="display:none;">
+          <div class="answer-octaves-row" id="inversionAnswerRow"></div>
+        </div>
+
+        <!-- Октавы под кнопками ответа (показываются, если выбрано 2+ октавы в настройках) -->
+        <div class="answer-group-box" id="octaveAnswerBox" style="display:none;">
+          <div class="answer-octaves-row" id="octaveAnswerRow"></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Затемнение фона — показывается только когда панель настроек открыта
+         И галочка "Настройки сбоку от меню" выключена (режим "по центру экрана") -->
+    <div id="settingsBackdrop"></div>
+
+    <!-- НАСТРОЙКИ (ПОЯВЛЯЮТСЯ ПРИ СКРОЛЛЕ ВВЕРХ) -->
+    <div class="menu-panel right-panel" id="right-panel">
+
+      <div class="section">
+        <div class="nav-tabs" id="appSwitchBar">
+          <button class="tab-btn" data-switch-level="frameCircle" data-i18n="appSwitchCircle">Квинтовый круг</button>
+          <button class="tab-btn" data-switch-level="frameNotes" data-i18n="appSwitchNotes">Ноты</button>
+          <button class="tab-btn active" data-switch-level="frameEar" data-i18n="appSwitchEar">Слух</button>
+        </div>
+
+        <div class="nav-tabs" id="modeTabs">
+          <button class="tab-btn active" data-mode="notes" data-i18n="tabNotes">Ноты</button>
+          <button class="tab-btn" data-mode="intervals" data-i18n="tabIntervals">Интервалы</button>
+          <button class="tab-btn" data-mode="chords" data-i18n="tabChords">Аккорды</button>
+        </div>
+
+        <!-- Нота, от которой строить интервал/аккорд (интервалы и аккорды) -->
+        <div class="section-block" id="rootNoteSection" style="display:none;">
+          <div class="section-title">
+            <span id="rootNoteSectionTitle" data-i18n="rootNoteTitleDefault">Нота, от которой строить</span>
+            <span class="quick-actions-inline">
+              <button class="text-btn" id="selectAllRoot" data-i18n="selectAll">Выбрать все</button>
+              <button class="text-btn" id="selectNoneRoot" data-i18n="selectNone">Снять всё</button>
+            </span>
+          </div>
+          <div class="piano-grid" id="root-note-grid"></div>
+        </div>
+
+        <!-- Основной пул: ноты (пианино) / интервалы (список) / аккорды (список) -->
+        <div class="section-block">
+          <div class="section-title">
+            <span id="poolSectionTitle" data-i18n="poolTitleNotes">Выберите ноту или несколько нот</span>
+            <span class="quick-actions-inline">
+              <button class="text-btn" id="selectAllPool" data-i18n="selectAll">Выбрать все</button>
+              <button class="text-btn" id="selectNonePool" data-i18n="selectNone">Снять всё</button>
+            </span>
+          </div>
+          <div id="pool-grid"></div>
+
+          <label id="chordByNotesRow" class="checkbox-row" style="display:none; margin-top:10px;">
+            <input type="checkbox" id="chordByNotesCheckbox" checked>
+            <div class="custom-checkbox"></div>
+            <span class="checkbox-label" data-i18n="chordByNotes">выбрать аккорд нотами</span>
+          </label>
+        </div>
+
+        <!-- Ступени (обращения) аккордов -->
+        <div class="section-block" id="inversionSection" style="display:none;">
+          <div class="section-title">
+            <span data-i18n="chooseInversions">Выберите ступени (только для мажор минор sus2 sus4 7 maj7 m7 mMaj7)</span>
+          </div>
+          <div class="chords-grid" id="inversion-grid"></div>
+        </div>
+      </div>
+
+      <div class="section" id="spreadSection" style="display:none;">
+        <div class="section-title label-with-info">
+          <span data-i18n="intervalSpreadTitle">Ширина интервала</span>
+          <span class="info-icon" tabindex="0" aria-label="Подсказка">i<span class="info-tip" data-i18n="intervalSpreadTip">Насколько далеко верхняя нота интервала может быть поднята относительно нижней (на 0–6 октав сверх самого интервала). При нескольких выбранных вариантах ширина каждый раз берётся случайно.</span></span>
+        </div>
+        <div class="intervals-grid" id="spread-grid">
+          <div class="toggle-chip" data-spread="0" data-i18n="spread0">В одной октаве</div>
+          <div class="toggle-chip" data-spread="1" data-i18n="spread1">+1 октава</div>
+          <div class="toggle-chip" data-spread="2" data-i18n="spread2">+2 октавы</div>
+          <div class="toggle-chip" data-spread="3" data-i18n="spread3">+3 октавы</div>
+          <div class="toggle-chip" data-spread="4" data-i18n="spread4">+4 октавы</div>
+          <div class="toggle-chip" data-spread="5" data-i18n="spread5">+5 октав</div>
+          <div class="toggle-chip" data-spread="6" data-i18n="spread6">+6 октав</div>
+        </div>
+      </div>
+
+      <div class="section" id="chordSpreadSection" style="display:none;">
+        <div class="section-title label-with-info">
+          <span data-i18n="chordSpreadTitle">Ширина аккорда</span>
+          <span class="info-icon" tabindex="0" aria-label="Подсказка">i<span class="info-tip" data-i18n="chordSpreadTip">Насколько далеко верхняя нота аккорда может быть поднята относительно нижней (на 0–6 октав). Средние ноты распределяются между ними случайно, порядок нот снизу вверх сохраняется. При нескольких выбранных вариантах ширина каждый раз берётся случайно.</span></span>
+        </div>
+        <div class="intervals-grid" id="chord-spread-grid">
+          <div class="toggle-chip" data-spread="0" data-i18n="spread0">В одной октаве</div>
+          <div class="toggle-chip" data-spread="1" data-i18n="spread1">+1 октава</div>
+          <div class="toggle-chip" data-spread="2" data-i18n="spread2">+2 октавы</div>
+          <div class="toggle-chip" data-spread="3" data-i18n="spread3">+3 октавы</div>
+          <div class="toggle-chip" data-spread="4" data-i18n="spread4">+4 октавы</div>
+          <div class="toggle-chip" data-spread="5" data-i18n="spread5">+5 октав</div>
+          <div class="toggle-chip" data-spread="6" data-i18n="spread6">+6 октав</div>
+        </div>
+      </div>
+
+      <div class="section" id="directionSection" style="display:none;">
+        <div class="section-title" data-i18n="intervalDirTitle">Направление интервала</div>
+        <div class="intervals-grid" id="direction-grid">
+          <div class="toggle-chip" data-dir="up" data-i18n="intervalUp">Интервал вверх</div>
+          <div class="toggle-chip" data-dir="down" data-i18n="intervalDown">Интервал вниз</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title" data-i18n="chooseOctaves">Выберите октаву или несколько октав</div>
+<div class="octaves-row" id="octave-grid"></div>
+
+        <div id="midiAnswerFields">
+          <div class="field-group">
+            <div class="label-with-info">
+              <span class="field-label" data-i18n="octaveCheckTitle">Проверка октавы</span>
+              <span class="info-icon" tabindex="0" aria-label="Подсказка">i<span class="info-tip" data-i18n="octaveCheckTip">Если выбрана «Любая» — играет та октава, что выбрана выше в меню октав, а отвечать можно клавишей в любой октаве.</span></span>
+            </div>
+            <div class="segmented-control" id="octaveMatchSegment">
+              <button class="segment-btn active" data-octavematch="any" data-i18n="anyLabel">Любая</button>
+              <button class="segment-btn" data-octavematch="exact" data-i18n="exactLabel">Точная</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section" id="audioOutputSection">
+        <label id="showResultRow" class="checkbox-row" style="margin-bottom:10px;">
+          <input type="checkbox" id="showResultCheckbox" checked>
+          <div class="custom-checkbox"></div>
+          <span class="checkbox-label" data-i18n="showResult">показывать результат</span>
+        </label>
+
+        <label id="hideActionButtonsRow" class="checkbox-row" style="margin-bottom:10px;">
+          <input type="checkbox" id="hideActionButtonsCheckbox" checked>
+          <div class="custom-checkbox"></div>
+          <span class="checkbox-label" data-i18n="showActionButtons">показывать кнопки "новый вопрос" и "повторить"</span>
+        </label>
+
+        <div id="settingsPositionRow" class="settings-position-row" style="margin-bottom:10px;">
+          <span class="checkbox-label settings-position-title" data-i18n="settingsPositionTitle">Отображать настройки:</span>
+          <div class="settings-position-options" id="settingsPositionOptions">
+            <label class="checkbox-row settings-position-option">
+              <input type="checkbox" class="settings-position-checkbox" data-position="left">
+              <div class="custom-checkbox"></div>
+              <span class="checkbox-label" data-i18n="settingsPositionLeft">слева</span>
+            </label>
+            <label class="checkbox-row settings-position-option">
+              <input type="checkbox" class="settings-position-checkbox" data-position="center">
+              <div class="custom-checkbox"></div>
+              <span class="checkbox-label" data-i18n="settingsPositionCenter">по центру</span>
+            </label>
+            <label class="checkbox-row settings-position-option">
+              <input type="checkbox" class="settings-position-checkbox" data-position="right">
+              <div class="custom-checkbox"></div>
+              <span class="checkbox-label" data-i18n="settingsPositionRight">справа</span>
+            </label>
+          </div>
+        </div>
+
+        <label id="autoNextOnWrongRow" class="checkbox-row" style="margin-bottom:10px;">
+          <input type="checkbox" id="autoNextOnWrongCheckbox">
+          <div class="custom-checkbox"></div>
+          <span class="checkbox-label" data-i18n="autoNextOnWrong">переходить к новому вопросу при неправильном ответе</span>
+        </label>
+
+        <div class="section-title" data-i18n="langSectionTitle">Язык</div>
+        <div class="segmented-control lang-row" id="langSegment">
+          <button class="segment-btn" data-lang="ru">Русский</button>
+          <button class="segment-btn" data-lang="en">English</button>
+          <button class="segment-btn" data-lang="zh">简体中文</button>
+        </div>
+
+        <div class="section-title" data-i18n="audioOutputTitle">Вывод звука</div>
+
+        <div class="segmented-control audio-output-row" id="outputSegment">
+          <button class="segment-btn active" data-output="daw">DAW</button>
+          <button class="segment-btn" data-output="online" data-i18n="outputOnline">Онлайн (звук в браузере)</button>
+        </div>
+
+        <div class="settings-box">
+          <div id="onlineFields">
+            <div class="volume-row">
+              <span class="field-label" data-i18n="volume">Громкость</span>
+              <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="80">
+              <span class="volume-value" id="volume-val">80%</span>
+            </div>
+
+            <div class="field-group">
+              <span class="field-label" data-i18n="timbre">Тембр</span>
+              <select id="onlineInstrumentSelect"></select>
+              <span class="hint-text" data-i18n="timbreHint">Сэмплы загружаются из сети при выборе сторонних тембров.</span>
+            </div>
+          </div>
+
+          <div id="dawFields" class="midiPanel" style="display:none;">
+            <div class="midiPanelRow">
+              <span class="field-label" data-i18n="midiIn">MIDI-вход</span>
+              <select id="midiInputSelect"><option data-i18n="midiPressConnect">— нажмите «Подключить MIDI» —</option></select>
+            </div>
+            <div class="midiPanelRow">
+              <span class="field-label" data-i18n="midiOut">MIDI-выход</span>
+              <select id="midiOutputSelect"><option data-i18n="midiPressConnect">— нажмите «Подключить MIDI» —</option></select>
+            </div>
+            <button class="btn-action" id="connectMidiBtn" data-i18n="connectMidi">Подключить MIDI</button>
+
+            <div class="midiPanelRow">
+              <span class="field-label">Velocity</span>
+              <input type="number" id="minVelocityInput" min="1" max="127" value="100">
+            </div>
+
+            <div class="hint-text" id="midiStatus"></div>
+          </div>
+
+          <div class="theme-row">
+            <span data-i18n="themeLabel">Тема:</span>
+            <select id="themeSelect">
+              <option value="1" data-i18n="theme1">Тёмная</option>
+              <option value="2" selected data-i18n="theme2">Серо-жёлтая</option>
+              <option value="3" data-i18n="theme3">Тёмно-синяя</option>
+              <option value="4" data-i18n="theme4">Чёрно-оранжевая</option>
+              <option value="5" data-i18n="theme5">Светлая</option>
+            </select>
+
+            <div class="colormode-row">
+              <span data-i18n="answerColorLabel">Цвет ответа:</span>
+              <div class="segmented-control" id="colorModeSegment">
+                <button class="segment-btn active" data-colormode="muted" data-i18n="colorNormal">Обычный</button>
+                <button class="segment-btn" data-colormode="neon" data-i18n="colorNeon">Неон</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="theme-row" id="noteNamingRow">
+            <div class="colormode-row">
+              <span data-i18n="noteNamingLabel">Названия нот:</span>
+              <div class="segmented-control" id="noteNamingSegment">
+                <button class="segment-btn active" data-naming="ABC">ABC</button>
+                <button class="segment-btn" data-naming="solfege" data-i18n="solfegeLabel">До-ре-ми</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+<script>
+// ============================================================
+// НАСТРОЙКИ ТРЕНАЖЁРА (редактируйте прямо здесь)
+// ============================================================
+window.EAR_TRAINER_CONFIG = {
+  velocityMin: 50,
+  velocityMax: 100,
+  noteDurationMs: 900,
+  chordStrumMs: 0,
+  defaultMidiChannel: 1,
+  midiAnswerDebounceMs: 350,
+};
+</script>
+<script>
+(function () {
+  'use strict';
+
+  const CFG = Object.assign(
+    {
+      velocityMin: 50,
+      velocityMax: 100,
+      noteDurationMs: 900,
+      chordStrumMs: 0,
+      defaultMidiChannel: 1,
+      midiAnswerDebounceMs: 350,
+      pitchBendThreshold: 1500,
+      pitchBendCenterTolerance: 200,
+      pitchBendReleaseDelayMs: 100,
+    },
+    window.EAR_TRAINER_CONFIG || {}
+  );
+
+  const SHARP_NAMES = {
+    ABC: ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'],
+    solfege: ['До', 'До♯', 'Ре', 'Ре♯', 'Ми', 'Фа', 'Фа♯', 'Соль', 'Соль♯', 'Ля', 'Ля♯', 'Си'],
+  };
+  const FLAT_NAMES = {
+    ABC: ['C', 'D♭', 'D', 'E♭', 'E', 'F', 'G♭', 'G', 'A♭', 'A', 'B♭', 'B'],
+    solfege: ['До', 'Ре♭', 'Ре', 'Ми♭', 'Ми', 'Фа', 'Соль♭', 'Соль', 'Ля♭', 'Ля', 'Си♭', 'Си'],
+  };
+  // ---------------- локализация интерфейса (ru / en / zh) ----------------
+  const I18N = {
+    ru: {
+      pageTitle: 'Тренировка слуха',
+      debugPressedNotes: 'Нажатые ноты',
+      nextQuestion: 'Новый вопрос',
+      replay: 'Повторить',
+      tabNotes: 'Ноты',
+      tabIntervals: 'Интервалы',
+      tabChords: 'Аккорды',
+      rootNoteTitleDefault: 'Нота, от которой строить',
+      rootNoteTitleIntervals: 'Нота, от которой строить интервал',
+      rootNoteTitleChords: 'Нота, от которой строить аккорд',
+      selectAll: 'Выбрать все',
+      selectNone: 'Снять всё',
+      poolTitleNotes: 'Выберите ноту или несколько нот',
+      poolTitleIntervals: 'Выберите интервал или несколько',
+      poolTitleChords: 'Выберите аккорд или несколько',
+      chordByNotes: 'выбрать аккорд нотами',
+      chooseInversions: 'Выберите ступени (только для мажор минор sus2 sus4 7 maj7 m7 mMaj7)',
+      intervalSpreadTitle: 'Ширина интервала',
+      intervalSpreadTip: 'Насколько далеко верхняя нота интервала может быть поднята относительно нижней (на 0–6 октав сверх самого интервала). При нескольких выбранных вариантах ширина каждый раз берётся случайно.',
+      chordSpreadTitle: 'Ширина аккорда',
+      chordSpreadTip: 'Насколько далеко верхняя нота аккорда может быть поднята относительно нижней (на 0–6 октав). Средние ноты распределяются между ними случайно, порядок нот снизу вверх сохраняется. При нескольких выбранных вариантах ширина каждый раз берётся случайно.',
+      spread0: 'В одной октаве', spread1: '+1 октава', spread2: '+2 октавы', spread3: '+3 октавы',
+      spread4: '+4 октавы', spread5: '+5 октав', spread6: '+6 октав',
+      intervalDirTitle: 'Направление интервала',
+      intervalUp: 'Интервал вверх',
+      intervalDown: 'Интервал вниз',
+      chooseOctaves: 'Выберите октаву или несколько октав',
+      octaveCheckTitle: 'Проверка октавы',
+      octaveCheckTip: 'Если выбрана «Любая» — играет та октава, что выбрана выше в меню октав, а отвечать можно клавишей в любой октаве.',
+      anyLabel: 'Любая',
+      exactLabel: 'Точная',
+      showResult: 'показывать результат',
+      showActionButtons: 'показывать кнопки "новый вопрос" и "повторить"',
+      settingsPositionTitle: 'Отображать настройки:',
+      settingsPositionLeft: 'слева',
+      settingsPositionCenter: 'по центру',
+      settingsPositionRight: 'справа',
+      appSwitchCircle: 'Квинтовый круг',
+      appSwitchNotes: 'Ноты',
+      appSwitchEar: 'Слух',
+      autoNextOnWrong: 'переходить к новому вопросу при неправильном ответе',
+      langSectionTitle: 'Язык',
+      audioOutputTitle: 'Вывод звука',
+      outputDAW: 'DAW',
+      outputOnline: 'Онлайн (звук в браузере)',
+      volume: 'Громкость',
+      timbre: 'Тембр',
+      timbreHint: 'Сэмплы загружаются из сети при выборе сторонних тембров.',
+      midiIn: 'MIDI-вход',
+      midiOut: 'MIDI-выход',
+      midiPressConnect: '— нажмите «Подключить MIDI» —',
+      connectMidi: 'Подключить MIDI',
+      themeLabel: 'Тема:',
+      theme1: 'Тёмная', theme2: 'Серо-жёлтая', theme3: 'Тёмно-синяя', theme4: 'Чёрно-оранжевая', theme5: 'Светлая',
+      answerColorLabel: 'Цвет ответа:',
+      colorNormal: 'Обычный',
+      colorNeon: 'Неон',
+      noteNamingLabel: 'Названия нот:',
+      solfegeLabel: 'До-ре-ми',
+      builtinSynth: 'Встроенный синтезатор (без интернета)',
+      sampleSuffix: ' (сэмпл из интернета)',
+      played: 'Сыграно: ',
+      pressNewQuestion: 'Нажмите «Новый вопрос»',
+      youEntered: 'Вы набрали: ',
+      needed: 'Нужно: ',
+      youPlayed: 'Вы сыграли: ',
+      alertNoOctave: 'Выберите хотя бы одну октаву.',
+      alertNoNote: 'Выберите хотя бы одну ноту.',
+      alertNoNoteInRange: 'Не удалось подобрать ноту в выбранном диапазоне октав.',
+      alertNoInterval: 'Выберите хотя бы один интервал.',
+      alertNoRootForInterval: 'Выберите хотя бы одну ноту, от которой строить интервал.',
+      alertNoDirection: 'Выберите направление интервала.',
+      alertNoIntervalSpread: 'Выберите ширину интервала.',
+      alertNoIntervalInRange: 'Не удалось подобрать интервал в выбранном диапазоне октав.',
+      alertNoChord: 'Выберите хотя бы один аккорд.',
+      alertNoRootForChord: 'Выберите хотя бы одну ноту, от которой строить аккорд.',
+      alertNoInversion: 'Выберите ступень, которая подходит выбранным аккордам.',
+      alertNoChordSpread: 'Выберите ширину аккорда.',
+      alertNoChordInRange: 'Не удалось подобрать аккорд в выбранном диапазоне октав — выберите больше октав.',
+      midiOutNotSelected: 'MIDI-выход не выбран. Нажмите «Подключить MIDI».',
+      webMidiUnsupported: 'Web MIDI API не поддерживается в этом браузере.',
+      midiConnected: 'MIDI подключён.',
+      midiAccessDenied: 'Доступ к MIDI не разрешён браузером.',
+      wrongOrderIntervalDown: 'не тот порядок: интервал вниз — сначала нижняя нота, потом тоника',
+      wrongOrderIntervalUp: 'не тот порядок: интервал вверх — сначала тоника, потом верхняя',
+      wrongOrderChord: 'не тот порядок: нужно ',
+      mistakeInterval: 'интервал: у вас ', mistakeIntervalNeed: ', нужен ',
+      mistakeChord: 'аккорд: у вас ', mistakeChordNeed: ', нужен ',
+      mistakeTonic: 'тоника не верная: у вас ', mistakeTonicNeed: ', нужна ',
+      mistakeDirection: 'направление: у вас ', mistakeDirectionNeed: ', нужен ',
+      mistakeInversion: 'обращение: у вас ', mistakeInversionNeed: ', нужно ',
+      mistakeOctave: 'октава: у вас ', mistakeOctaveNeed: ', нужна ',
+      inversionFallback: 'обращение ',
+    },
+    en: {
+      pageTitle: 'Ear Training',
+      debugPressedNotes: 'Pressed notes',
+      nextQuestion: 'Next question',
+      replay: 'Replay',
+      tabNotes: 'Notes',
+      tabIntervals: 'Intervals',
+      tabChords: 'Chords',
+      rootNoteTitleDefault: 'Root note',
+      rootNoteTitleIntervals: 'Note to build the interval from',
+      rootNoteTitleChords: 'Note to build the chord from',
+      selectAll: 'Select all',
+      selectNone: 'Clear all',
+      poolTitleNotes: 'Choose one or more notes',
+      poolTitleIntervals: 'Choose one or more intervals',
+      poolTitleChords: 'Choose one or more chords',
+      chordByNotes: 'enter chord as notes',
+      chooseInversions: 'Choose inversions (major, minor, sus2, sus4, 7, maj7, m7, mMaj7 only)',
+      intervalSpreadTitle: 'Interval spread',
+      intervalSpreadTip: 'How far the upper note of the interval can be raised above the lower note (0–6 octaves beyond the interval itself). If several options are selected, the spread is chosen randomly each time.',
+      chordSpreadTitle: 'Chord spread',
+      chordSpreadTip: 'How far the top note of the chord can be raised above the bottom note (0–6 octaves). Middle notes are distributed randomly between them, keeping the bottom-to-top order. If several options are selected, the spread is chosen randomly each time.',
+      spread0: 'Within one octave', spread1: '+1 octave', spread2: '+2 octaves', spread3: '+3 octaves',
+      spread4: '+4 octaves', spread5: '+5 octaves', spread6: '+6 octaves',
+      intervalDirTitle: 'Interval direction',
+      intervalUp: 'Interval up',
+      intervalDown: 'Interval down',
+      chooseOctaves: 'Choose one or more octaves',
+      octaveCheckTitle: 'Octave check',
+      octaveCheckTip: 'If "Any" is selected, the octave chosen above in the octave menu plays, but you can answer with the key in any octave.',
+      anyLabel: 'Any',
+      exactLabel: 'Exact',
+      showResult: 'show result',
+      showActionButtons: 'show "next question" and "replay" buttons',
+      settingsPositionTitle: 'Show settings:',
+      settingsPositionLeft: 'left',
+      settingsPositionCenter: 'centered',
+      settingsPositionRight: 'right',
+      appSwitchCircle: 'Circle of Fifths',
+      appSwitchNotes: 'Notes',
+      appSwitchEar: 'Ear',
+      autoNextOnWrong: 'advance to next question on wrong answer',
+      langSectionTitle: 'Language',
+      audioOutputTitle: 'Sound output',
+      outputDAW: 'DAW',
+      outputOnline: 'Online (sound in browser)',
+      volume: 'Volume',
+      timbre: 'Timbre',
+      timbreHint: 'Samples are loaded from the network when a third-party timbre is selected.',
+      midiIn: 'MIDI input',
+      midiOut: 'MIDI output',
+      midiPressConnect: '— press "Connect MIDI" —',
+      connectMidi: 'Connect MIDI',
+      themeLabel: 'Theme:',
+      theme1: 'Dark', theme2: 'Gray-Yellow', theme3: 'Dark Blue', theme4: 'Black-Orange', theme5: 'Light',
+      answerColorLabel: 'Answer color:',
+      colorNormal: 'Normal',
+      colorNeon: 'Neon',
+      noteNamingLabel: 'Note names:',
+      solfegeLabel: 'Do-re-mi',
+      builtinSynth: 'Built-in synth (no internet)',
+      sampleSuffix: ' (sample from the internet)',
+      played: 'Played: ',
+      pressNewQuestion: 'Press "New question"',
+      youEntered: 'You entered: ',
+      needed: 'Needed: ',
+      youPlayed: 'You played: ',
+      alertNoOctave: 'Choose at least one octave.',
+      alertNoNote: 'Choose at least one note.',
+      alertNoNoteInRange: 'Could not fit a note in the selected octave range.',
+      alertNoInterval: 'Choose at least one interval.',
+      alertNoRootForInterval: 'Choose at least one note to build the interval from.',
+      alertNoDirection: 'Choose an interval direction.',
+      alertNoIntervalSpread: 'Choose an interval spread.',
+      alertNoIntervalInRange: 'Could not fit an interval in the selected octave range.',
+      alertNoChord: 'Choose at least one chord.',
+      alertNoRootForChord: 'Choose at least one note to build the chord from.',
+      alertNoInversion: 'Choose an inversion that fits the selected chords.',
+      alertNoChordSpread: 'Choose a chord spread.',
+      alertNoChordInRange: 'Could not fit a chord in the selected octave range — choose more octaves.',
+      midiOutNotSelected: 'MIDI output not selected. Press "Connect MIDI".',
+      webMidiUnsupported: 'Web MIDI API is not supported in this browser.',
+      midiConnected: 'MIDI connected.',
+      midiAccessDenied: 'MIDI access was not granted by the browser.',
+      wrongOrderIntervalDown: 'wrong order: interval down — lower note first, then the root',
+      wrongOrderIntervalUp: 'wrong order: interval up — root first, then the upper note',
+      wrongOrderChord: 'wrong order: needed ',
+      mistakeInterval: 'interval: you played ', mistakeIntervalNeed: ', needed ',
+      mistakeChord: 'chord: you played ', mistakeChordNeed: ', needed ',
+      mistakeTonic: 'wrong root: you played ', mistakeTonicNeed: ', needed ',
+      mistakeDirection: 'direction: you played ', mistakeDirectionNeed: ', needed ',
+      mistakeInversion: 'inversion: you played ', mistakeInversionNeed: ', needed ',
+      mistakeOctave: 'octave: you played ', mistakeOctaveNeed: ', needed ',
+      inversionFallback: 'inversion ',
+    },
+    zh: {
+      pageTitle: '听力训练',
+      debugPressedNotes: '已按下的音符',
+      nextQuestion: '下一题',
+      replay: '重播',
+      tabNotes: '音符',
+      tabIntervals: '音程',
+      tabChords: '和弦',
+      rootNoteTitleDefault: '起始音',
+      rootNoteTitleIntervals: '构建音程的起始音',
+      rootNoteTitleChords: '构建和弦的起始音',
+      selectAll: '全选',
+      selectNone: '全部取消',
+      poolTitleNotes: '选择一个或多个音符',
+      poolTitleIntervals: '选择一个或多个音程',
+      poolTitleChords: '选择一个或多个和弦',
+      chordByNotes: '用音符输入和弦',
+      chooseInversions: '选择转位（仅限大三和弦、小三和弦、sus2、sus4、7、maj7、m7、mMaj7）',
+      intervalSpreadTitle: '音程跨度',
+      intervalSpreadTip: '音程的高音相对低音最多可以升高多少（在音程本身之外再加0–6个八度）。选中多个选项时，每次随机选择跨度。',
+      chordSpreadTitle: '和弦跨度',
+      chordSpreadTip: '和弦最高音相对最低音最多可以升高多少（0–6个八度）。中间的音符会随机分布，但保持从低到高的顺序。选中多个选项时，每次随机选择跨度。',
+      spread0: '同一八度内', spread1: '+1个八度', spread2: '+2个八度', spread3: '+3个八度',
+      spread4: '+4个八度', spread5: '+5个八度', spread6: '+6个八度',
+      intervalDirTitle: '音程方向',
+      intervalUp: '音程上行',
+      intervalDown: '音程下行',
+      chooseOctaves: '选择一个或多个八度',
+      octaveCheckTitle: '八度检查',
+      octaveCheckTip: '选择"任意"时，播放的是八度菜单中选择的八度，但你可以在任意八度按键作答。',
+      anyLabel: '任意',
+      exactLabel: '精确',
+      showResult: '显示结果',
+      showActionButtons: '显示"下一题"和"重播"按钮',
+      settingsPositionTitle: '显示设置：',
+      settingsPositionLeft: '左侧',
+      settingsPositionCenter: '居中',
+      settingsPositionRight: '右侧',
+      appSwitchCircle: '五度圈',
+      appSwitchNotes: '音符',
+      appSwitchEar: '听觉',
+      autoNextOnWrong: '答错后自动进入下一题',
+      langSectionTitle: '语言',
+      audioOutputTitle: '声音输出',
+      outputDAW: 'DAW',
+      outputOnline: '在线（浏览器发声）',
+      volume: '音量',
+      timbre: '音色',
+      timbreHint: '选择第三方音色时，会从网络加载音色样本。',
+      midiIn: 'MIDI 输入',
+      midiOut: 'MIDI 输出',
+      midiPressConnect: '——请点击"连接 MIDI"——',
+      connectMidi: '连接 MIDI',
+      themeLabel: '主题：',
+      theme1: '深色', theme2: '灰黄色', theme3: '深蓝色', theme4: '黑橙色', theme5: '浅色',
+      answerColorLabel: '答案颜色：',
+      colorNormal: '普通',
+      colorNeon: '霓虹',
+      noteNamingLabel: '音符名称：',
+      solfegeLabel: '首调唱名',
+      builtinSynth: '内置合成器（无需联网）',
+      sampleSuffix: '（网络音色样本）',
+      played: '已演奏：',
+      pressNewQuestion: '请点击"新问题"',
+      youEntered: '你输入的：',
+      needed: '需要：',
+      youPlayed: '你演奏的：',
+      alertNoOctave: '请至少选择一个八度。',
+      alertNoNote: '请至少选择一个音符。',
+      alertNoNoteInRange: '无法在所选八度范围内找到合适的音符。',
+      alertNoInterval: '请至少选择一个音程。',
+      alertNoRootForInterval: '请至少选择一个构建音程的起始音。',
+      alertNoDirection: '请选择音程方向。',
+      alertNoIntervalSpread: '请选择音程跨度。',
+      alertNoIntervalInRange: '无法在所选八度范围内找到合适的音程。',
+      alertNoChord: '请至少选择一个和弦。',
+      alertNoRootForChord: '请至少选择一个构建和弦的起始音。',
+      alertNoInversion: '请选择一个适用于所选和弦的转位。',
+      alertNoChordSpread: '请选择和弦跨度。',
+      alertNoChordInRange: '无法在所选八度范围内找到合适的和弦——请选择更多八度。',
+      midiOutNotSelected: '未选择 MIDI 输出。请点击"连接 MIDI"。',
+      webMidiUnsupported: '此浏览器不支持 Web MIDI API。',
+      midiConnected: 'MIDI 已连接。',
+      midiAccessDenied: '浏览器未授予 MIDI 访问权限。',
+      wrongOrderIntervalDown: '顺序错误：音程下行——应先弹低音，再弹主音',
+      wrongOrderIntervalUp: '顺序错误：音程上行——应先弹主音，再弹高音',
+      wrongOrderChord: '顺序错误：需要 ',
+      mistakeInterval: '音程：你弹的是 ', mistakeIntervalNeed: '，需要 ',
+      mistakeChord: '和弦：你弹的是 ', mistakeChordNeed: '，需要 ',
+      mistakeTonic: '主音不对：你弹的是 ', mistakeTonicNeed: '，需要 ',
+      mistakeDirection: '方向：你弹的是 ', mistakeDirectionNeed: '，需要 ',
+      mistakeInversion: '转位：你弹的是 ', mistakeInversionNeed: '，需要 ',
+      mistakeOctave: '八度：你弹的是 ', mistakeOctaveNeed: '，需要 ',
+      inversionFallback: '转位 ',
+    },
+  };
+
+  const INTERVAL_NAMES = {
+    ru: { m2: 'Малая секунда', M2: 'Большая секунда', m3: 'Малая терция', M3: 'Большая терция', P4: 'Чистая кварта', TT: 'Тритон', P5: 'Чистая квинта', m6: 'Малая секста', M6: 'Большая секста', m7: 'Малая септима', M7: 'Большая септима', P8: 'Октава' },
+    en: { m2: 'Minor 2nd', M2: 'Major 2nd', m3: 'Minor 3rd', M3: 'Major 3rd', P4: 'Perfect 4th', TT: 'Tritone', P5: 'Perfect 5th', m6: 'Minor 6th', M6: 'Major 6th', m7: 'Minor 7th', M7: 'Major 7th', P8: 'Octave' },
+    zh: { m2: '小二度', M2: '大二度', m3: '小三度', M3: '大三度', P4: '纯四度', TT: '三全音', P5: '纯五度', m6: '小六度', M6: '大六度', m7: '小七度', M7: '大七度', P8: '八度' },
+  };
+  const CHORD_NAME_OVERRIDES = {
+    ru: { maj: 'Мажор', min: 'Минор' },
+    en: { maj: 'Major', min: 'Minor' },
+    zh: { maj: '大三和弦', min: '小三和弦' },
+  };
+  const INVERSION_LABELS = {
+    ru: { 0: 'основной', 1: '1 обращение', 2: '2 обращение', 3: '3 обращение' },
+    en: { 0: 'root position', 1: '1st inversion', 2: '2nd inversion', 3: '3rd inversion' },
+    zh: { 0: '原位', 1: '第一转位', 2: '第二转位', 3: '第三转位' },
+  };
+  const INSTRUMENT_NAMES = {
+    ru: { acoustic_grand_piano: 'Рояль (Grand Piano)', bright_acoustic_piano: 'Яркое пианино', electric_piano_1: 'Электропианино', harpsichord: 'Клавесин', acoustic_guitar_nylon: 'Гитара (нейлон)', acoustic_guitar_steel: 'Гитара (сталь)', violin: 'Скрипка', viola: 'Альт', cello: 'Виолончель', contrabass: 'Контрабас', trumpet: 'Труба', trombone: 'Тромбон', french_horn: 'Валторна', flute: 'Флейта', clarinet: 'Кларнет', oboe: 'Гобой', synth_strings_1: 'Синти-струнные', choir_aahs: 'Хор (Aah)' },
+    en: { acoustic_grand_piano: 'Grand Piano', bright_acoustic_piano: 'Bright Piano', electric_piano_1: 'Electric Piano', harpsichord: 'Harpsichord', acoustic_guitar_nylon: 'Guitar (nylon)', acoustic_guitar_steel: 'Guitar (steel)', violin: 'Violin', viola: 'Viola', cello: 'Cello', contrabass: 'Double Bass', trumpet: 'Trumpet', trombone: 'Trombone', french_horn: 'French Horn', flute: 'Flute', clarinet: 'Clarinet', oboe: 'Oboe', synth_strings_1: 'Synth Strings', choir_aahs: 'Choir (Aah)' },
+    zh: { acoustic_grand_piano: '三角钢琴', bright_acoustic_piano: '明亮钢琴', electric_piano_1: '电钢琴', harpsichord: '羽管键琴', acoustic_guitar_nylon: '尼龙弦吉他', acoustic_guitar_steel: '钢弦吉他', violin: '小提琴', viola: '中提琴', cello: '大提琴', contrabass: '低音提琴', trumpet: '小号', trombone: '长号', french_horn: '圆号', flute: '长笛', clarinet: '单簧管', oboe: '双簧管', synth_strings_1: '合成弦乐', choir_aahs: '合唱（Aah）' },
+  };
+
+  function getLang() { return (state && state.lang) || 'ru'; }
+  function t(key) { const d = I18N[getLang()] || I18N.ru; return (key in d) ? d[key] : (I18N.ru[key] || key); }
+
+  function detectDefaultLang() {
+    const nav = (navigator.language || navigator.userLanguage || '').toLowerCase();
+    if (nav.startsWith('ru')) return 'ru';
+    if (nav.startsWith('zh')) return 'zh';
+    return 'en';
+  }
+
+  function applyStaticI18n() {
+    document.querySelectorAll('[data-i18n]').forEach((el) => {
+      const key = el.getAttribute('data-i18n');
+      el.textContent = t(key);
+    });
+    const dawBtn = document.querySelector('#outputSegment [data-output="daw"]');
+    if (dawBtn) dawBtn.textContent = t('outputDAW');
+    document.documentElement.setAttribute('lang', getLang());
+    document.title = t('pageTitle');
+  }
+
+  function getNoteNaming() { return (state.noteNaming === 'solfege') ? 'solfege' : 'ABC'; }
+  function noteName(pc) { return SHARP_NAMES[getNoteNaming()][pc]; }
+  function pianoKeyLabel(pc, black) {
+    const n = getNoteNaming();
+    return black ? (SHARP_NAMES[n][pc] + '/' + FLAT_NAMES[n][pc]) : SHARP_NAMES[n][pc];
+  }
+  const MIN_MIDI = 21;
+  const MAX_MIDI = 108;
+
+  const INTERVALS = [
+    { id: 'm2', name: 'Малая секунда', semitones: 1 },
+    { id: 'M2', name: 'Большая секунда', semitones: 2 },
+    { id: 'm3', name: 'Малая терция', semitones: 3 },
+    { id: 'M3', name: 'Большая терция', semitones: 4 },
+    { id: 'P4', name: 'Чистая кварта', semitones: 5 },
+    { id: 'TT', name: 'Тритон', semitones: 6 },
+    { id: 'P5', name: 'Чистая квинта', semitones: 7 },
+    { id: 'm6', name: 'Малая секста', semitones: 8 },
+    { id: 'M6', name: 'Большая секста', semitones: 9 },
+    { id: 'm7', name: 'Малая септима', semitones: 10 },
+    { id: 'M7', name: 'Большая септима', semitones: 11 },
+    { id: 'P8', name: 'Октава', semitones: 12 },
+  ];
+
+  const CHORDS = [
+    { id: 'maj', name: 'Мажор', intervals: [0, 4, 7] },
+    { id: 'min', name: 'Минор', intervals: [0, 3, 7] },
+    { id: 'sus2', name: 'Sus2', intervals: [0, 2, 7] },
+    { id: 'sus4', name: 'Sus4', intervals: [0, 5, 7] },
+    { id: '7', name: '7', intervals: [0, 4, 7, 10] },
+    { id: 'maj7', name: 'maj7', intervals: [0, 4, 7, 11] },
+    { id: 'm7', name: 'm7', intervals: [0, 3, 7, 10] },
+    { id: 'mMaj7', name: 'mMaj7', intervals: [0, 3, 7, 11] },
+    { id: 'add9', name: 'add9', intervals: [0, 4, 7, 14] },
+    { id: 'm(add9)', name: 'm(add9)', intervals: [0, 3, 7, 14] },
+    { id: '9', name: '9', intervals: [0, 4, 7, 10, 14] },
+    { id: 'maj9', name: 'maj9', intervals: [0, 4, 7, 11, 14] },
+    { id: 'm9', name: 'm9', intervals: [0, 3, 7, 10, 14] },
+    { id: 'm(maj9)', name: 'm(maj9)', intervals: [0, 3, 7, 11, 14] },
+    { id: 'add11', name: 'add11', intervals: [0, 4, 7, 17] },
+    { id: 'm(add11)', name: 'm(add11)', intervals: [0, 3, 7, 17] },
+    { id: '11', name: '11', intervals: [0, 4, 7, 10, 14, 17] },
+    { id: 'maj11', name: 'maj11', intervals: [0, 4, 7, 11, 14, 17] },
+    { id: 'm11', name: 'm11', intervals: [0, 3, 7, 10, 14, 17] },
+    { id: '13', name: '13', intervals: [0, 4, 7, 10, 14, 17, 21] },
+    { id: 'maj13', name: 'maj13', intervals: [0, 4, 7, 11, 14, 17, 21] },
+    { id: 'm13', name: 'm13', intervals: [0, 3, 7, 10, 14, 17, 21] },
+    { id: 'm(maj13)', name: 'm(maj13)', intervals: [0, 3, 7, 11, 14, 17, 21] },
+  ];
+
+  // Аккорды, для которых доступны обращения
+  const INVERSION_CHORD_IDS = ['maj', 'min', 'sus2', 'sus4', '7', 'maj7', 'm7', 'mMaj7'];
+  const INVERSIONS = [
+    { i: 0, label: 'основной' },
+    { i: 1, label: '1 обращение' },
+    { i: 2, label: '2 обращение' },
+    { i: 3, label: '3 обращение' },
+  ];
+
+  // 12 клавиш пианино: расположение колонок как в новом дизайне (14-колоночная сетка)
+  const PIANO_KEYS = [
+    { pc: 0, col: '1 / 3' },
+    { pc: 1, col: '2 / 4', black: true },
+    { pc: 2, col: '3 / 5' },
+    { pc: 3, col: '4 / 6', black: true },
+    { pc: 4, col: '5 / 7' },
+    { pc: 5, col: '7 / 9' },
+    { pc: 6, col: '8 / 10', black: true },
+    { pc: 7, col: '9 / 11' },
+    { pc: 8, col: '10 / 12', black: true },
+    { pc: 9, col: '11 / 13' },
+    { pc: 10, col: '12 / 14', black: true },
+    { pc: 11, col: '13 / 15' },
+  ];
+  const NOTE_POOL_DEFAULT_SELECTED_PCS = new Set([0, 2, 4, 5, 7, 9, 11]);
+  const ROOT_NOTE_DEFAULT_SELECTED_PCS = new Set([0, 2, 4, 5, 7, 9, 11]);
+
+  const GM_INSTRUMENTS = [
+    ['acoustic_grand_piano', 'Рояль (Grand Piano)'],
+    ['bright_acoustic_piano', 'Яркое пианино'],
+    ['electric_piano_1', 'Электропианино'],
+    ['harpsichord', 'Клавесин'],
+    ['acoustic_guitar_nylon', 'Гитара (нейлон)'],
+    ['acoustic_guitar_steel', 'Гитара (сталь)'],
+    ['violin', 'Скрипка'],
+    ['viola', 'Альт'],
+    ['cello', 'Виолончель'],
+    ['contrabass', 'Контрабас'],
+    ['trumpet', 'Труба'],
+    ['trombone', 'Тромбон'],
+    ['french_horn', 'Валторна'],
+    ['flute', 'Флейта'],
+    ['clarinet', 'Кларнет'],
+    ['oboe', 'Гобой'],
+    ['synth_strings_1', 'Синти-струнные'],
+    ['choir_aahs', 'Хор (Aah)'],
+  ];
+
+  const GM_PROGRAMS = [
+    [0, 'Рояль (Acoustic Grand Piano)'],
+    [4, 'Электропианино (Rhodes)'],
+    [6, 'Клавесин'],
+    [24, 'Гитара (нейлон)'],
+    [26, 'Электрогитара (чистая)'],
+    [32, 'Бас (акустический)'],
+    [40, 'Скрипка'],
+    [41, 'Альт'],
+    [42, 'Виолончель'],
+    [43, 'Контрабас'],
+    [48, 'Струнный ансамбль'],
+    [56, 'Труба'],
+    [57, 'Тромбон'],
+    [60, 'Валторна'],
+    [68, 'Гобой'],
+    [71, 'Кларнет'],
+    [73, 'Флейта'],
+    [52, 'Хор (Choir Aahs)'],
+  ];
+
+  function applyLanguage(lang, opts) {
+    opts = opts || {};
+    state.lang = lang;
+    INTERVALS.forEach((iv) => { iv.name = (INTERVAL_NAMES[lang] && INTERVAL_NAMES[lang][iv.id]) || iv.id; });
+    CHORDS.forEach((c) => { if (CHORD_NAME_OVERRIDES[lang] && CHORD_NAME_OVERRIDES[lang][c.id]) c.name = CHORD_NAME_OVERRIDES[lang][c.id]; });
+    INVERSIONS.forEach((inv) => { inv.label = (INVERSION_LABELS[lang] && INVERSION_LABELS[lang][inv.i]) || t('inversionFallback') + inv.i; });
+    GM_INSTRUMENTS.forEach((pair) => { pair[1] = (INSTRUMENT_NAMES[lang] && INSTRUMENT_NAMES[lang][pair[0]]) || pair[1]; });
+
+    applyStaticI18n();
+
+    document.querySelectorAll('#langSegment .segment-btn').forEach((b) => {
+      b.classList.toggle('active', b.dataset.lang === lang);
+    });
+
+    try { localStorage.setItem('earTrainerLang', lang); } catch (e) {}
+    if (window.__appBridgeSend) window.__appBridgeSend({ type: 'uiLang', lang: lang });
+
+    if (!opts.initial) {
+      buildPoolGrid();
+      buildSelects();
+      renderAnswerUI();
+    }
+  }
+
+  // применение языка, пришедшего от оболочки (тем же путём, что и клик по кнопке)
+  window.__setUiLangExternal = function (lang) {
+    if (lang !== 'ru' && lang !== 'en' && lang !== 'zh') return;
+    applyLanguage(lang);
+  };
+
+  const OCTAVES = [
+    { o: 1, label: 'C1' }, { o: 2, label: 'C2' },
+    { o: 3, label: 'C3' }, { o: 4, label: 'C4' }, { o: 5, label: 'C5' },
+    { o: 6, label: 'C6' }, { o: 7, label: 'C7' },
+  ];
+  const OCTAVE_DEFAULT_SELECTED = new Set([3, 4]);
+
+  const state = {
+    mode: 'notes',
+    outputMode: 'daw',
+    onlineInstrument: 'builtin',
+    onlineVolume: 80,
+    octaveMatch: 'any',
+    minVelocity: 100,
+    currentTarget: null,
+    pendingPc: null,
+    pendingChoiceId: null,
+    pendingOct: null,
+    pendingDir: null,
+    pendingInv: null,
+    pendingSeq: [],
+    lastPlayedNotes: null,
+    answered: false,
+    recentVariantIds: [],
+    noteNaming: 'ABC',
+    lang: 'ru',
+  };
+
+  // ---------------- сохранение настроек между перезагрузками страницы ----------------
+  const SETTINGS_KEY = 'earTrainerSettings';
+
+  let isFirstVisit = false;
+  function loadSavedSettings() {
+    try {
+      const raw = localStorage.getItem(SETTINGS_KEY);
+      if (!raw) isFirstVisit = true;
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) { isFirstVisit = true; return {}; }
+  }
+
+  const settingsCache = Object.assign({
+    mode: 'notes',
+    poolNotes: null,
+    poolIntervals: null,
+    poolChords: null,
+    inversions: null,
+    intervalDirections: null,
+    intervalSpreads: null,
+    chordSpreads: null,
+    rootPcs: null,
+    octaves: null,
+    outputMode: 'daw',
+    onlineInstrument: 'builtin',
+    onlineVolume: 80,
+    octaveMatch: 'any',
+    minVelocity: 100,
+    theme: '1',
+    sidePanelPinned: true,
+    settingsPosition: null,
+    chordByNotes: true,
+    hideActionButtons: true,
+    showResult: true,
+    autoNextOnWrong: false,
+  }, loadSavedSettings());
+
+  if (isFirstVisit) {
+    settingsCache.settingsPosition = 'center';
+  }
+
+  // Миграция со старой галочки "Настройки сбоку" (sidePanelPinned) на новый
+  // выбор из 3 положений: слева / по центру / справа.
+  if (!settingsCache.settingsPosition) {
+    settingsCache.settingsPosition = settingsCache.sidePanelPinned === false ? 'center' : 'left';
+  }
+
+  function saveSettings() {
+    settingsCache.mode = state.mode;
+    if (state.mode === 'notes') {
+      settingsCache.poolNotes = [...document.querySelectorAll('#pool-grid .toggle-chip.selected')].map((el) => parseInt(el.dataset.pc, 10));
+    } else if (state.mode === 'intervals') {
+      settingsCache.poolIntervals = [...document.querySelectorAll('#pool-grid .toggle-chip.selected')].map((el) => el.dataset.id);
+    } else if (state.mode === 'chords') {
+      settingsCache.poolChords = [...document.querySelectorAll('#pool-grid .toggle-chip.selected')].map((el) => el.dataset.id);
+      settingsCache.inversions = getSelectedInversions();
+    }
+    settingsCache.intervalDirections = getSelectedDirections();
+    settingsCache.intervalSpreads = getSelectedSpreads();
+    settingsCache.chordSpreads = getSelectedChordSpreads();
+    if (state.mode === 'intervals' || state.mode === 'chords') {
+      settingsCache.rootPcs = [...document.querySelectorAll('#root-note-grid .toggle-chip.selected')].map((el) => parseInt(el.dataset.pc, 10));
+    }
+    settingsCache.octaves = getSelectedOctaves();
+    settingsCache.outputMode = state.outputMode;
+    settingsCache.onlineInstrument = state.onlineInstrument;
+    settingsCache.onlineVolume = state.onlineVolume;
+    settingsCache.octaveMatch = state.octaveMatch;
+    settingsCache.minVelocity = state.minVelocity;
+    settingsCache.theme = document.body.getAttribute('data-theme') || '2';
+    settingsCache.noteNaming = state.noteNaming;
+    const chNotesCb = $('chordByNotesCheckbox');
+    if (chNotesCb) settingsCache.chordByNotes = chNotesCb.checked;
+    const posCheckbox = document.querySelector('.settings-position-checkbox:checked');
+    if (posCheckbox) settingsCache.settingsPosition = posCheckbox.dataset.position;
+    const hideActCb = $('hideActionButtonsCheckbox');
+    if (hideActCb) settingsCache.hideActionButtons = hideActCb.checked;
+    const showResCb = $('showResultCheckbox');
+    if (showResCb) settingsCache.showResult = showResCb.checked;
+    const autoNextWrongCb = $('autoNextOnWrongCheckbox');
+    if (autoNextWrongCb) settingsCache.autoNextOnWrong = autoNextWrongCb.checked;
+    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settingsCache)); } catch (e) {}
+  }
+
+  let audioCtx = null;
+  let midiAccess = null;
+  const instrumentCache = {};
+  let soundfontLoaderPromise = null;
+  let activeInputNotes = new Map();
+  let midiAnswerBuffer = new Set();
+  let checkDebounceTimer = null;
+
+  const $ = (id) => document.getElementById(id);
+  const randInt = (n) => Math.floor(Math.random() * n);
+  const randVelocity = () => state.minVelocity;
+
+  function midiToName(m) { return noteName(m % 12) + (Math.floor(m / 12) - 1); }
+  function pcOctaveToMidi(pc, oct) { return (oct + 1) * 12 + pc; }
+  function uniqSorted(arr) { return [...new Set(arr)].sort((a, b) => a - b); }
+  function arraysEqual(a, b) { return a.length === b.length && a.every((v, i) => v === b[i]); }
+
+  function getSelectedOctaves() {
+    return [...document.querySelectorAll('#octave-grid .toggle-chip.selected')].map((el) => parseInt(el.dataset.oct, 10));
+  }
+  function getSelectedNotePcs() {
+    return uniqSorted([...document.querySelectorAll('#pool-grid .toggle-chip.selected')].map((el) => parseInt(el.dataset.pc, 10)));
+  }
+  function getSelectedIntervals() {
+    const ids = [...document.querySelectorAll('#pool-grid .toggle-chip.selected')].map((el) => el.dataset.id);
+    return INTERVALS.filter((iv) => ids.includes(iv.id));
+  }
+  function getSelectedRootPcs() {
+    return uniqSorted([...document.querySelectorAll('#root-note-grid .toggle-chip.selected')].map((el) => parseInt(el.dataset.pc, 10)));
+  }
+  function getSelectedChords() {
+    const ids = [...document.querySelectorAll('#pool-grid .toggle-chip.selected')].map((el) => el.dataset.id);
+    return CHORDS.filter((c) => ids.includes(c.id));
+  }
+  function getSelectedInversions() {
+    return [...document.querySelectorAll('#inversion-grid .toggle-chip.selected')]
+      .map((el) => parseInt(el.dataset.inv, 10)).sort((a, b) => a - b);
+  }
+  function getSelectedDirections() {
+    return [...document.querySelectorAll('#direction-grid .toggle-chip.selected')].map((el) => el.dataset.dir);
+  }
+  function getSelectedSpreads() {
+    return [...document.querySelectorAll('#spread-grid .toggle-chip.selected')].map((el) => parseInt(el.dataset.spread, 10));
+  }
+  function getSelectedChordSpreads() {
+    return [...document.querySelectorAll('#chord-spread-grid .toggle-chip.selected')].map((el) => parseInt(el.dataset.spread, 10));
+  }
+  // Раздвигаем аккорд по октавам: нижняя нота на месте, верхняя поднимается на spread октав,
+  // средние ноты получают случайное количество октав между ними (порядок нот сохраняется).
+  function applyChordSpread(intervals, spread) {
+    const n = intervals.length;
+    if (!spread || n < 2) return intervals.slice();
+    const offs = new Array(n).fill(0);
+    offs[n - 1] = spread;
+    for (let i = 1; i < n - 1; i++) {
+      offs[i] = offs[i - 1] + randInt(spread - offs[i - 1] + 1);
+    }
+    return intervals.map((s, i) => s + 12 * offs[i]);
+  }
+
+  // ---------------- режим «набрать интервал/аккорд нотами» ----------------
+  // Ответ набирается кликами по клавишам пианино (или клавишами ПК) по порядку.
+  // Октавы у набранных нот не учитываются — только сами ноты и их порядок.
+  function isNoteEntryMode() {
+    if (state.mode === 'intervals') {
+      return true;
+    }
+    if (state.mode === 'chords') {
+      const cb = $('chordByNotesCheckbox');
+      return !!(cb && cb.checked);
+    }
+    return false;
+  }
+
+  // Какие ноты и в каком порядке нужно набрать для текущего вопроса
+  function expectedPcSequence(target) {
+    if (!target) return [];
+    if (target.type === 'intervals') {
+      const iv = INTERVALS.find((i) => i.id === target.answerId);
+      if (!iv) return [];
+      const semis = iv.semitones % 12;
+      const root = target.answerPc;
+      // Интервал вверх — сначала тоника, потом верхняя (C → G).
+      // Интервал вниз — обратный порядок: сначала нижняя нота, потом тоника (F → C).
+      if (target.answerDir === 'down') {
+        const bottom = ((root - semis) % 12 + 12) % 12;
+        return [bottom, root];
+      }
+      return [root, (root + semis) % 12];
+    }
+    if (target.type === 'chords') {
+      const chord = CHORDS.find((c) => c.id === target.answerId);
+      if (!chord) return [];
+      const inv = INVERSION_CHORD_IDS.includes(chord.id) ? (target.inversion || 0) : 0;
+      const seq = [];
+      applyInversion(chord.intervals, inv).forEach((s) => {
+        const pc = ((target.answerPc + s) % 12 + 12) % 12;
+        if (!seq.includes(pc)) seq.push(pc);
+      });
+      return seq;
+    }
+    return [];
+  }
+
+  function pcName(pc) { const k = PIANO_KEYS.find((k) => k.pc === pc); return pianoKeyLabel(pc, !!(k && k.black)); }
+
+  function refreshNoteLabels() {
+    document.querySelectorAll('.toggle-chip[data-pc]').forEach((el) => {
+      const pc = parseInt(el.dataset.pc, 10);
+      el.textContent = pianoKeyLabel(pc, el.classList.contains('black-key'));
+    });
+  }
+
+  function isShowResultOn() {
+    const cb = $('showResultCheckbox');
+    return cb ? cb.checked : true;
+  }
+
+  function updateNoteSeqInfo(html, bad, force, pressNew) {
+    const el = $('noteSeqInfo');
+    if (!el) return;
+    if (html && !force && !isShowResultOn()) html = '';
+    el.innerHTML = html || '';
+    el.classList.toggle('visible', !!html);
+    el.classList.toggle('bad', !!bad);
+    el.classList.toggle('press-new-question', !!pressNew);
+  }
+
+  // ---------------- подробное пояснение ошибки ----------------
+  function invLabel(i) {
+    const f = INVERSIONS.find((v) => v.i === i);
+    return f ? f.label : (t('inversionFallback') + i);
+  }
+  function ivNameById(id) { const iv = INTERVALS.find((i) => i.id === id); return iv ? iv.name.toLowerCase() : null; }
+  function chNameById(id) { const c = CHORDS.find((c) => c.id === id); return c ? c.name : null; }
+  function dirLabel(d) { return d === 'down' ? t('intervalDown') : t('intervalUp'); }
+
+  // Октава ответа везде считается по тонике (она всегда звучит в выбранной октаве)
+  function targetBaseOct(target) {
+    return target ? target.answerOct : null;
+  }
+
+  // Причины ошибки при наборе ответа нотами на пианино
+  function seqMistakeReasons(target) {
+    const reasons = [];
+    const mine = state.pendingSeq.slice();
+    const need = expectedPcSequence(target);
+    const sorted = (a) => a.slice().sort((x, y) => x - y).join(',');
+    const sameSet = mine.length === need.length && sorted(mine) === sorted(need);
+
+    if (sameSet && mine.join(',') !== need.join(',')) {
+      if (target.type === 'intervals') {
+        reasons.push(target.answerDir === 'down'
+          ? t('wrongOrderIntervalDown')
+          : t('wrongOrderIntervalUp'));
+      } else {
+        reasons.push(t('wrongOrderChord') + invLabel(target.inversion || 0));
+      }
+    } else if (!sameSet) {
+      if (target.type === 'intervals' && mine.length >= 2) {
+        let semis = ((mine[1] - mine[0]) % 12 + 12) % 12;
+        if (semis === 0) semis = 12;
+        const played = INTERVALS.find((i) => i.semitones === semis);
+        const needName = ivNameById(target.answerId);
+        if (played && needName && played.name.toLowerCase() !== needName) {
+          reasons.push(t('mistakeInterval') + played.name.toLowerCase() + t('mistakeIntervalNeed') + needName);
+        }
+      }
+      if (target.type === 'chords' && mine.length) {
+        const pcs = uniqSorted(mine);
+        let match = null;
+        for (const root of pcs) {
+          const rel = uniqSorted(pcs.map((p) => ((p - root) % 12 + 12) % 12));
+          const found = CHORDS.find((c) => arraysEqual(uniqSorted(c.intervals.map((s) => s % 12)), rel));
+          if (found) { match = { chord: found, root: root }; break; }
+        }
+        if (match && match.chord.id !== target.answerId) {
+          reasons.push(t('mistakeChord') + noteName(match.root) + ' ' + match.chord.name
+            + t('mistakeChordNeed') + noteName(target.answerPc) + ' ' + chNameById(target.answerId));
+        }
+      }
+    }
+
+    const needsOct = getSelectedOctaves().filter((o) => o >= 1 && o <= 7).length >= 2;
+    if (needsOct && state.pendingOct !== null && state.pendingOct !== target.answerOct) {
+      reasons.push(t('mistakeOctave') + state.pendingOct + t('mistakeOctaveNeed') + target.answerOct);
+    }
+    return reasons;
+  }
+
+  // Причины ошибки при ответе кнопками или с MIDI-клавиатуры
+  function compositeMistakeReasons(target) {
+    const reasons = [];
+    const viaMidi = state.answerSource === 'midi';
+    const octChecked = viaMidi
+      ? state.octaveMatch === 'exact'
+      : getSelectedOctaves().filter((o) => o >= 1 && o <= 7).length >= 2;
+
+    if (target.type !== 'notes' && state.pendingPc !== null && state.pendingPc !== target.answerPc) {
+      reasons.push(t('mistakeTonic') + noteName(state.pendingPc) + t('mistakeTonicNeed') + noteName(target.answerPc));
+    }
+    if (state.pendingChoiceId !== null && state.pendingChoiceId !== target.answerId) {
+      if (target.type === 'intervals') {
+        const mineName = ivNameById(state.pendingChoiceId);
+        if (mineName) reasons.push(t('mistakeInterval') + mineName + t('mistakeIntervalNeed') + ivNameById(target.answerId));
+      } else if (target.type === 'chords') {
+        const mineName = chNameById(state.pendingChoiceId);
+        if (mineName) reasons.push(t('mistakeChord') + mineName + t('mistakeChordNeed') + chNameById(target.answerId));
+      }
+    }
+    if (target.type === 'intervals' && state.pendingDir && target.answerDir && state.pendingDir !== target.answerDir) {
+      reasons.push(t('mistakeDirection') + dirLabel(state.pendingDir) + t('mistakeDirectionNeed') + dirLabel(target.answerDir));
+    }
+    if (target.type === 'chords' && state.pendingInv !== null && typeof target.inversion === 'number'
+      && INVERSION_CHORD_IDS.includes(target.answerId) && state.pendingInv !== target.inversion) {
+      reasons.push(t('mistakeInversion') + invLabel(state.pendingInv) + t('mistakeInversionNeed') + invLabel(target.inversion));
+    }
+    const needOct = targetBaseOct(target);
+    if (octChecked && state.pendingOct !== null && needOct !== null && state.pendingOct !== needOct) {
+      reasons.push(t('mistakeOctave') + state.pendingOct + t('mistakeOctaveNeed') + needOct);
+    }
+    return reasons;
+  }
+
+  // Итоговый текст об ошибке (при верном ответе — пусто)
+  // Оборачивает нотный токен в span нужного цвета (зелёным — только если 100% верно)
+  function colorToken(text, right) {
+    return '<span class="' + (right ? 'seq-ok' : 'seq-bad') + '">' + text + '</span>';
+  }
+
+  // Строит цепочку "нота → нота" с раскраской: зелёным — нота на верном месте
+  // в последовательности, красным — всё остальное (лишняя/пропущенная/не по порядку), стрелки — красным.
+  function coloredSeqHtml(mine, expected) {
+    return mine.map((pc, i) => colorToken(pcName(pc), expected[i] === pc)).join(colorToken(' → ', false));
+  }
+
+  function buildMistakeText(target, correct) {
+    if (correct || !target) return '';
+    const parts = [];
+    if (isNoteEntryMode() && state.pendingSeq.length) {
+      const expected = expectedPcSequence(target);
+      const expectedHtml = expected.map((pc, i) => colorToken(pcName(pc), state.pendingSeq[i] === pc)).join(colorToken(' → ', false));
+      parts.push(t('youEntered') + coloredSeqHtml(state.pendingSeq, expected)
+        + '   |   ' + t('needed') + expectedHtml);
+      const r = seqMistakeReasons(target);
+      if (r.length) parts.push(r.join('; '));
+      return parts.join('   —   ');
+    }
+    if (state.answerSource === 'midi' && state.lastPlayedNotes && state.lastPlayedNotes.length) {
+      const neededPcs = uniqSorted((target.notes || []).map(pcOfMidi));
+      const playedHtml = state.lastPlayedNotes
+        .map((n) => colorToken(midiToName(n), neededPcs.includes(pcOfMidi(n))))
+        .join(colorToken(' ', false));
+      const neededNotesSorted = uniqSorted(target.notes || []);
+      const playedPcs = state.lastPlayedNotes.map(pcOfMidi);
+      const neededHtml = neededNotesSorted
+        .map((n) => colorToken(midiToName(n), playedPcs.includes(pcOfMidi(n))))
+        .join(colorToken(' ', false));
+      parts.push(t('youPlayed') + playedHtml
+        + '   |   ' + t('needed') + neededHtml);
+    }
+    const r = compositeMistakeReasons(target);
+    if (r.length) parts.push(r.join('; '));
+    return parts.join('   —   ');
+  }
+
+  function clearNoteSeq() {
+    state.pendingSeq = [];
+    document.querySelectorAll('#pianoAnswer .toggle-chip').forEach((el) => el.removeAttribute('data-seq'));
+    updateNoteSeqInfo('', false);
+  }
+
+  function noteSeqClicked(pc) {
+    const target = state.currentTarget;
+    if (!target || state.answered) return;
+    const expected = expectedPcSequence(target);
+    if (!expected.length) return;
+    if (state.pendingSeq.length >= expected.length) return;
+    state.pendingSeq.push(pc);
+    const el = document.querySelector('#pianoAnswer .toggle-chip[data-pc="' + pc + '"]');
+    if (el) {
+      el.classList.add('selected');
+      el.dataset.seq = state.pendingSeq.filter((p) => p === pc).length > 1
+        ? el.dataset.seq + ',' + state.pendingSeq.length
+        : String(state.pendingSeq.length);
+    }
+    tryFinishNoteSeqAnswer(target);
+  }
+
+  function tryFinishNoteSeqAnswer(target) {
+    if (!target || !isNoteEntryMode()) return;
+    const expected = expectedPcSequence(target);
+    if (!expected.length) return;
+    if (state.pendingSeq.length < expected.length) return;
+    const needsOct = getSelectedOctaves().filter((o) => o >= 1 && o <= 7).length >= 2;
+    if (needsOct && state.pendingOct === null) return;
+
+    const seqOk = arraysEqual(state.pendingSeq, expected);
+    const correct = seqOk && (!needsOct || state.pendingOct === target.answerOct);
+    state.pendingPc = state.pendingSeq[0];
+    finishAnswer(correct, target, seqOk ? target.answerId : null);
+  }
+
+  // Максимально доступное обращение среди выбранных аккордов (0 — только основной)
+  function maxInversionAvailable() {
+    const sel = getSelectedChords().filter((c) => INVERSION_CHORD_IDS.includes(c.id));
+    let max = 0;
+    sel.forEach((c) => { max = Math.max(max, c.intervals.length - 1); });
+    return sel.length ? max : 0;
+  }
+  // Разворот аккорда: нижние ноты переносим на октаву вверх.
+  // Позиция аккорда потом сдвигается так, чтобы его НИЖНЯЯ нота попала
+  // в выбранную октаву (A мажор, 4 октава, 1 обращение → C#4 E4 A4).
+  function applyInversion(intervals, inv) {
+    const arr = intervals.slice();
+    for (let k = 0; k < inv && k < arr.length; k++) arr[k] += 12;
+    return arr.sort((a, b) => a - b);
+  }
+
+  function getMidiChannel() { return CFG.defaultMidiChannel || 1; }
+
+  function showMidiStatus(msg, isError) {
+    const el = $('midiStatus');
+    el.textContent = msg;
+    el.style.color = isError ? 'var(--bad-color)' : 'var(--text-hint)';
+  }
+
+  // ---------------- generation ----------------
+  // Если вариантов (нот/интервалов/аккордов в сумме, в зависимости от режима) больше 5,
+  // исключаем из выбора те 2 варианта, что выпадали последними, чтобы не было повторов подряд.
+  function pickPoolAvoidingRecent(basePool, idFn) {
+    if (basePool.length > 5 && state.recentVariantIds.length > 0) {
+      const filtered = basePool.filter((it) => !state.recentVariantIds.includes(idFn(it)));
+      if (filtered.length > 0) return filtered;
+    }
+    return basePool;
+  }
+
+  function rememberVariant(id) {
+    state.recentVariantIds.push(id);
+    if (state.recentVariantIds.length > 2) state.recentVariantIds.shift();
+  }
+
+  function generateTarget() {
+    const octaves = getSelectedOctaves();
+    if (octaves.length === 0) { alert(t('alertNoOctave')); return null; }
+
+    if (state.mode === 'notes') {
+      const pool = getSelectedNotePcs();
+      if (pool.length === 0) { alert(t('alertNoNote')); return null; }
+      const usePool = pickPoolAvoidingRecent(pool, (pc) => String(pc));
+      for (let a = 0; a < 60; a++) {
+        const pc = usePool[randInt(usePool.length)];
+        const oct = octaves[randInt(octaves.length)];
+        const midi = pcOctaveToMidi(pc, oct);
+        if (midi >= MIN_MIDI && midi <= MAX_MIDI) {
+          rememberVariant(String(pc));
+          return { type: 'notes', answerId: String(pc), answerOct: oct, notes: [midi], velocities: [randVelocity()] };
+        }
+      }
+      alert(t('alertNoNoteInRange'));
+      return null;
+    }
+
+    if (state.mode === 'intervals') {
+      const pool = getSelectedIntervals();
+      if (pool.length === 0) { alert(t('alertNoInterval')); return null; }
+      const rootPcs = getSelectedRootPcs();
+      if (rootPcs.length === 0) { alert(t('alertNoRootForInterval')); return null; }
+      const usePool = pickPoolAvoidingRecent(pool, (iv) => iv.id);
+      const dirPool = getSelectedDirections();
+      if (dirPool.length === 0) { alert(t('alertNoDirection')); return null; }
+      const spreadPool = getSelectedSpreads();
+      if (spreadPool.length === 0) { alert(t('alertNoIntervalSpread')); return null; }
+      for (let a = 0; a < 80; a++) {
+        const pc = rootPcs[randInt(rootPcs.length)];
+        const oct = octaves[randInt(octaves.length)];
+        const root = pcOctaveToMidi(pc, oct);
+        const iv = usePool[randInt(usePool.length)];
+        const dir = dirPool[randInt(dirPool.length)];
+        const spread = spreadPool[randInt(spreadPool.length)];
+        const semis = iv.semitones + 12 * spread;
+        let notes, ok;
+        if (dir === 'down') {
+          const bottom = root - semis;
+          notes = [root, bottom];
+          ok = bottom >= MIN_MIDI && root <= MAX_MIDI;
+        } else {
+          const top = root + semis;
+          notes = [root, top];
+          ok = root >= MIN_MIDI && top <= MAX_MIDI;
+        }
+        if (ok) {
+          rememberVariant(iv.id);
+          return { type: 'intervals', answerId: iv.id, answerPc: pc, answerOct: oct, answerDir: dir, notes, velocities: notes.map(randVelocity) };
+        }
+      }
+      alert(t('alertNoIntervalInRange'));
+      return null;
+    }
+
+    const pool = getSelectedChords();
+    if (pool.length === 0) { alert(t('alertNoChord')); return null; }
+    const chordRootPcs = getSelectedRootPcs();
+    if (chordRootPcs.length === 0) { alert(t('alertNoRootForChord')); return null; }
+    const useChordPool = pickPoolAvoidingRecent(pool, (c) => c.id);
+    const invSel = getSelectedInversions();
+    // Пары «аккорд + обращение»: обращения работают только для перечисленных аккордов
+    const chordVariants = [];
+    useChordPool.forEach((c) => {
+      if (INVERSION_CHORD_IDS.includes(c.id)) {
+        invSel.filter((iv) => iv <= c.intervals.length - 1).forEach((iv) => chordVariants.push({ chord: c, inv: iv }));
+      } else {
+        chordVariants.push({ chord: c, inv: 0 });
+      }
+    });
+    if (chordVariants.length === 0) { alert(t('alertNoInversion')); return null; }
+    const chordSpreadPool = getSelectedChordSpreads();
+    if (chordSpreadPool.length === 0) { alert(t('alertNoChordSpread')); return null; }
+    for (let a = 0; a < 80; a++) {
+      const pc = chordRootPcs[randInt(chordRootPcs.length)];
+      const oct = octaves[randInt(octaves.length)];
+      const variant = chordVariants[randInt(chordVariants.length)];
+      const chord = variant.chord;
+      const chordSpread = chordSpreadPool[randInt(chordSpreadPool.length)];
+      const invIntervals = applyInversion(chord.intervals, variant.inv);
+      // Сдвигаем аккорд так, чтобы его нижняя нота оказалась в выбранной октаве
+      const bassOffset = invIntervals[0];
+      const bassPc = ((pc + bassOffset) % 12 + 12) % 12;
+      const bass = pcOctaveToMidi(bassPc, oct);
+      const notes = applyChordSpread(invIntervals, chordSpread).map((s) => bass + s - bassOffset);
+      if (notes[0] >= MIN_MIDI && notes[notes.length - 1] <= MAX_MIDI) {
+        rememberVariant(chord.id);
+        return { type: 'chords', answerId: chord.id, answerPc: pc, answerOct: oct, inversion: variant.inv, notes, velocities: notes.map(randVelocity) };
+      }
+    }
+    alert(t('alertNoChordInRange'));
+    return null;
+  }
+
+  function labelForTarget(target) {
+    if (!target) return '';
+    if (target.type === 'notes') return noteName(parseInt(target.answerId, 10));
+    if (target.type === 'intervals') return INTERVALS.find((i) => i.id === target.answerId).name;
+    return CHORDS.find((c) => c.id === target.answerId).name;
+  }
+
+  // ---------------- debug: показать правильный ответ по кнопке Z ----------------
+  let debugAnswerVisible = false;
+
+  function debugLabelForTarget(target) {
+    if (!target || !target.notes) return '';
+    return target.notes.map(midiToName).join(', ');
+  }
+
+  function updateDebugAnswer() {
+    const el = $('debugAnswer');
+    if (!el) return;
+    el.textContent = state.currentTarget ? debugLabelForTarget(state.currentTarget) : '';
+    el.classList.toggle('visible', debugAnswerVisible);
+    const panel = $('debugLogPanel');
+    if (panel) panel.classList.toggle('visible', debugAnswerVisible);
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.code !== 'KeyZ') return;
+    const tag = document.activeElement ? document.activeElement.tagName : '';
+    if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+    debugAnswerVisible = !debugAnswerVisible;
+    updateDebugAnswer();
+  });
+
+  // ---------------- ввод ответа с клавиатуры ПК ----------------
+  // Буквы A..G — ноты (раскладка не важна: используется физическая клавиша,
+  // поэтому русские Ф, И, С, В, У, А, П работают так же).
+  // Shift + буква — диез (Shift+D = D#), Пробел, затем буква — бемоль (Space, G = Gb).
+  const KEY_CODE_TO_PC = { KeyC: 0, KeyD: 2, KeyE: 4, KeyF: 5, KeyG: 7, KeyA: 9, KeyB: 11 };
+  let flatPrefixArmed = false;
+
+  function isTypingField() {
+    const tag = document.activeElement ? document.activeElement.tagName : '';
+    return tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA';
+  }
+
+  function pressPcFromKeyboard(pc) {
+    if (state.answered || !state.currentTarget) return;
+    const el = document.querySelector('#pianoAnswer .toggle-chip[data-pc="' + pc + '"]');
+    if (!el) return;
+    if (state.mode === 'notes') checkAnswer(String(pc), el);
+    else pianoNoteClicked(String(pc), el);
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.repeat || e.ctrlKey || e.altKey || e.metaKey) return;
+    if (isTypingField()) return;
+    if (e.code === 'Space') {
+      // Пробел после ответа — новый вопрос (обрабатывается отдельно),
+      // до ответа — приставка «бемоль» для следующей ноты
+      if (!state.answered) { e.preventDefault(); flatPrefixArmed = true; }
+      return;
+    }
+    const base = KEY_CODE_TO_PC[e.code];
+    if (base === undefined) return;
+    e.preventDefault();
+    let pc = base;
+    if (flatPrefixArmed) pc = (base + 11) % 12;
+    else if (e.shiftKey) pc = (base + 1) % 12;
+    flatPrefixArmed = false;
+    pressPcFromKeyboard(pc);
+  });
+
+  // ---------------- playback: online ----------------
+  function ensureAudioCtx() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  }
+  function midiToFreq(m) { return 440 * Math.pow(2, (m - 69) / 12); }
+
+  function builtinSynthPlay(midi, gain, durationSec) {
+    const ctx = ensureAudioCtx();
+    const freq = midiToFreq(midi);
+    const t0 = ctx.currentTime;
+    const master = ctx.createGain();
+    master.gain.value = 0;
+    master.connect(ctx.destination);
+    const partials = [1, 2, 3, 4.2, 5.4];
+    const partialGains = [1, 0.5, 0.25, 0.12, 0.06];
+    partials.forEach((mult, i) => {
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = freq * mult;
+      const g = ctx.createGain();
+      g.gain.value = partialGains[i];
+      osc.connect(g).connect(master);
+      osc.start(t0);
+      osc.stop(t0 + durationSec + 0.5);
+    });
+    const partialGainSum = partialGains.reduce((a, b) => a + b, 0);
+    master.gain.setValueAtTime(0, t0);
+    master.gain.linearRampToValueAtTime(Math.max(0.008, (gain * 0.5) / partialGainSum), t0 + 0.008);
+    master.gain.exponentialRampToValueAtTime(0.0001, t0 + durationSec + 0.4);
+  }
+
+  function loadSoundfontLib() {
+    if (window.Soundfont) return Promise.resolve();
+    if (soundfontLoaderPromise) return soundfontLoaderPromise;
+    soundfontLoaderPromise = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/soundfont-player@0.12.0/dist/soundfont-player.min.js';
+      s.onload = () => resolve();
+      s.onerror = () => reject(new Error('Не удалось загрузить soundfont-player с CDN'));
+      document.head.appendChild(s);
+    });
+    return soundfontLoaderPromise;
+  }
+
+  async function loadSoundfontInstrument(name) {
+    try {
+      await loadSoundfontLib();
+      const ctx = ensureAudioCtx();
+      if (!instrumentCache[name]) instrumentCache[name] = await window.Soundfont.instrument(ctx, name);
+      return instrumentCache[name];
+    } catch (e) {
+      console.error(e);
+      return null;
+    }
+  }
+
+  async function playOnline(notes, velocities) {
+    ensureAudioCtx();
+    const volMult = (state.onlineVolume / 100) * 2;
+    if (state.onlineInstrument === 'builtin') {
+      notes.forEach((n, i) => builtinSynthPlay(n, (velocities[i] / 127) * volMult, CFG.noteDurationMs / 1000));
+      return;
+    }
+    const inst = await loadSoundfontInstrument(state.onlineInstrument);
+    if (!inst) {
+      notes.forEach((n, i) => builtinSynthPlay(n, (velocities[i] / 127) * volMult, CFG.noteDurationMs / 1000));
+      return;
+    }
+    notes.forEach((n, i) => {
+      inst.play(n, audioCtx.currentTime, { gain: (velocities[i] / 127) * volMult, duration: CFG.noteDurationMs / 1000 });
+    });
+  }
+
+  // ---------------- playback: DAW ----------------
+  function getSelectedMidiOutput() {
+    if (!midiAccess) return null;
+    const id = $('midiOutputSelect').value;
+    return midiAccess.outputs.get(id) || null;
+  }
+
+  function playDAW(notes, velocities) {
+    const output = getSelectedMidiOutput();
+    if (!output) { showMidiStatus(t('midiOutNotSelected'), true); return; }
+    const ch = (getMidiChannel() - 1) & 0x0f;
+    notes.forEach((n, i) => {
+      const delay = i * CFG.chordStrumMs;
+      setTimeout(() => output.send([0x90 | ch, n, velocities[i]]), delay);
+      setTimeout(() => output.send([0x80 | ch, n, 0]), delay + CFG.noteDurationMs);
+    });
+  }
+
+  function playTarget(target) {
+    if (!target) return;
+    if (state.outputMode === 'online') playOnline(target.notes, target.velocities);
+    else playDAW(target.notes, target.velocities);
+  }
+
+  // ---------------- Web MIDI ----------------
+  async function initMIDI() {
+    if (!navigator.requestMIDIAccess) {
+      showMidiStatus(t('webMidiUnsupported'), true);
+      return;
+    }
+    try {
+      midiAccess = await navigator.requestMIDIAccess({ sysex: false });
+      populateMidiPortSelects();
+      midiAccess.onstatechange = populateMidiPortSelects;
+      showMidiStatus(t('midiConnected'), false);
+    } catch (e) {
+      showMidiStatus(t('midiAccessDenied'), true);
+    }
+  }
+
+  function populateMidiPortSelects() {
+    const outSel = $('midiOutputSelect');
+    const inSel = $('midiInputSelect');
+    const prevOut = outSel.value;
+    const prevIn = inSel.value;
+    outSel.innerHTML = '';
+    inSel.innerHTML = '';
+    for (const output of midiAccess.outputs.values()) {
+      const opt = document.createElement('option');
+      opt.value = output.id; opt.textContent = output.name;
+      outSel.appendChild(opt);
+    }
+    for (const input of midiAccess.inputs.values()) {
+      const opt = document.createElement('option');
+      opt.value = input.id; opt.textContent = input.name;
+      inSel.appendChild(opt);
+    }
+    if ([...outSel.options].some((o) => o.value === prevOut)) outSel.value = prevOut;
+    if ([...inSel.options].some((o) => o.value === prevIn)) inSel.value = prevIn;
+    attachMidiInputListener();
+  }
+
+  let pitchBendDir = null; // 'up' | 'down' | null — зафиксированное направление отклонения колеса
+  let pitchBendReleaseTimer = null;
+  const PITCH_BEND_CENTER = 8192;
+
+  function handlePitchBendMessage(e) {
+    const lsb = e.data[1] || 0;
+    const msb = e.data[2] || 0;
+    const value = (msb << 7) | lsb;
+    const deviation = value - PITCH_BEND_CENTER;
+
+    if (pitchBendDir === null) {
+      if (deviation > CFG.pitchBendThreshold) pitchBendDir = 'up';
+      else if (deviation < -CFG.pitchBendThreshold) pitchBendDir = 'down';
+      return;
+    }
+
+    if (Math.abs(deviation) < CFG.pitchBendCenterTolerance) {
+      const dir = pitchBendDir;
+      pitchBendDir = null;
+      if (dir === 'up') {
+        clearTimeout(pitchBendReleaseTimer);
+        pitchBendReleaseTimer = setTimeout(() => { $('replayBtn').click(); }, CFG.pitchBendReleaseDelayMs);
+      } else if (dir === 'down') {
+        nextQuestion();
+      }
+    }
+  }
+
+  // ---------------- debug: лог нажатых нот ----------------
+  const DEBUG_LOG_MAX_ENTRIES = 40;
+
+  function logDebugNote(midiNote) {
+    const list = $('debugLogList');
+    if (!list) return;
+    const entry = document.createElement('div');
+    entry.className = 'debug-log-entry';
+    entry.textContent = midiToName(midiNote);
+    list.insertBefore(entry, list.firstChild);
+    while (list.children.length > DEBUG_LOG_MAX_ENTRIES) {
+      list.removeChild(list.lastChild);
+    }
+  }
+
+  function handleMidiInputMessage(e) {
+    const [status, note, vel] = e.data;
+    const cmd = status & 0xf0;
+    if (cmd === 0x90 && vel > 0) {
+      activeInputNotes.set(note, state.minVelocity);
+      midiAnswerBuffer.add(note);
+      logDebugNote(note);
+      scheduleMidiAnswerCheck();
+    } else if (cmd === 0x80 || (cmd === 0x90 && vel === 0)) {
+      activeInputNotes.delete(note);
+    } else if (cmd === 0xe0) {
+      handlePitchBendMessage(e);
+    }
+  }
+
+  function attachMidiInputListener() {
+    if (!midiAccess) return;
+    for (const input of midiAccess.inputs.values()) input.onmidimessage = null;
+    const chosen = midiAccess.inputs.get($('midiInputSelect').value);
+    if (chosen) {
+      chosen.onmidimessage = handleMidiInputMessage;
+    } else {
+      // Конкретный вход не выбран — слушаем все доступные MIDI-входы
+      for (const input of midiAccess.inputs.values()) input.onmidimessage = handleMidiInputMessage;
+    }
+  }
+
+  function expectedMidiNoteCount(target) {
+    if (!target) return 1;
+    if (target.type === 'notes') return 1;
+    if (target.type === 'intervals') return 2;
+    const chord = CHORDS.find((c) => c.id === target.answerId);
+    return chord ? chord.intervals.length : 3;
+  }
+
+  function scheduleMidiAnswerCheck() {
+    const target = state.currentTarget;
+    if (!target || state.answered) { midiAnswerBuffer.clear(); return; }
+    clearTimeout(checkDebounceTimer);
+    if (midiAnswerBuffer.size >= expectedMidiNoteCount(target)) { checkMidiAnswer(); }
+  }
+
+  function octaveOfMidi(m) { return Math.floor(m / 12) - 1; }
+  function pcOfMidi(m) { return ((m % 12) + 12) % 12; }
+
+  // Проверка ответа, сыгранного на MIDI-клавиатуре.
+  // Ширина интервала/аккорда не проверяется. Направление интервала определяется
+  // по порядку нажатия нот (какая нота нажата первой), а не по времени между нажатиями.
+  function midiAnswerCorrect(target, playedNotes) {
+    const notes = uniqSorted(playedNotes);
+    const pcs = uniqSorted(notes.map(pcOfMidi));
+    const exactOct = state.octaveMatch === 'exact';
+
+    if (target.type === 'notes') {
+      if (notes.length !== 1) return false;
+      if (pcs[0] !== parseInt(target.answerId, 10)) return false;
+      if (exactOct && octaveOfMidi(notes[0]) !== target.answerOct) return false;
+      return true;
+    }
+
+    if (target.type === 'intervals') {
+      if (notes.length !== 2) return false;
+      const need = uniqSorted(target.notes.map(pcOfMidi));
+      if (!arraysEqual(pcs, need)) return false;
+      const firstNote = playedNotes[0];
+      const lastNote = playedNotes[playedNotes.length - 1];
+      if (pcOfMidi(firstNote) !== target.answerPc) return false;
+      const playedDir = lastNote > firstNote ? 'up' : (lastNote < firstNote ? 'down' : null);
+      if (playedDir !== target.answerDir) return false;
+      if (exactOct && octaveOfMidi(firstNote) !== target.answerOct) return false;
+      return true;
+    }
+
+    const chord = CHORDS.find((c) => c.id === target.answerId);
+    if (!chord) return false;
+    if (notes.length !== chord.intervals.length) return false;
+    const needChord = uniqSorted(chord.intervals.map((s) => (target.answerPc + s) % 12));
+    if (!arraysEqual(pcs, needChord)) return false;
+    // Ступень (обращение): сверяем нижнюю ноту — набранный аккорд должен быть
+    // ровно в нужном обращении (для аккордов без обращений — ровно в основном виде)
+    const invIntervals = applyInversion(chord.intervals, target.inversion || 0);
+    const bassPc = ((target.answerPc + invIntervals[0]) % 12 + 12) % 12;
+    if (pcOfMidi(notes[0]) !== bassPc) return false;
+    // Октава сверяется по нижней ноте аккорда — она и есть выбранная октава
+    if (exactOct && octaveOfMidi(notes[0]) !== target.answerOct) return false;
+    return true;
+  }
+
+  // Определяет по сыгранным на MIDI нотам, что именно нажал пользователь,
+  // чтобы это можно было подсветить (в т.ч. если ответ неверный).
+  function analyzeMidiPlayed(target, playedNotes) {
+    const notes = uniqSorted(playedNotes);
+    const result = { choiceId: null, pc: null, oct: null, dir: null, inv: null };
+    if (!notes.length) return result;
+
+    if (target.type === 'notes') {
+      const pc = pcOfMidi(notes[0]);
+      result.choiceId = String(pc);
+      result.pc = pc;
+      result.oct = octaveOfMidi(notes[0]);
+      return result;
+    }
+
+    if (target.type === 'intervals') {
+      const firstNote = playedNotes[0];
+      result.pc = pcOfMidi(firstNote);
+      result.oct = octaveOfMidi(firstNote);
+      if (playedNotes.length >= 2) {
+        const lastNote = playedNotes[playedNotes.length - 1];
+        result.dir = lastNote > firstNote ? 'up' : (lastNote < firstNote ? 'down' : null);
+        const rawSemis = Math.abs(lastNote - firstNote);
+        // 12, 24, 36... — это октава (P8), а не унисон: приводим к простому интервалу 1..12
+        const semis = (rawSemis % 12 === 0 && rawSemis > 0) ? 12 : rawSemis % 12;
+        const iv = INTERVALS.find((i) => i.semitones === semis);
+        result.choiceId = iv ? iv.id : null;
+      }
+      return result;
+    }
+
+    // Аккорды: пробуем каждую сыгранную ноту как основной тон и ищем совпадение с известным аккордом
+    const pcs = uniqSorted(notes.map(pcOfMidi));
+    let bestMatch = null;
+    for (const candidateRoot of pcs) {
+      const relative = uniqSorted(pcs.map((p) => ((p - candidateRoot) % 12 + 12) % 12));
+      const found = CHORDS.find((c) => arraysEqual(uniqSorted(c.intervals.map((s) => s % 12)), relative));
+      if (found) { bestMatch = { chord: found, root: candidateRoot }; break; }
+    }
+    const rootNote = notes[0];
+    result.pc = bestMatch ? bestMatch.root : pcOfMidi(rootNote);
+    // Октава — по нижней сыгранной ноте аккорда
+    result.oct = octaveOfMidi(rootNote);
+    result.choiceId = bestMatch ? bestMatch.chord.id : null;
+    if (bestMatch && INVERSION_CHORD_IDS.includes(bestMatch.chord.id)) {
+      const bassRel = ((pcOfMidi(rootNote) - bestMatch.root) % 12 + 12) % 12;
+      const idx = bestMatch.chord.intervals.map((s) => s % 12).indexOf(bassRel);
+      result.inv = idx >= 0 ? idx : null;
+    }
+    return result;
+  }
+
+  function checkMidiAnswer() {
+    clearTimeout(checkDebounceTimer);
+    const target = state.currentTarget;
+    if (!target || state.answered) { midiAnswerBuffer.clear(); return; }
+    const played = [...midiAnswerBuffer];
+    if (played.length === 0) return;
+    midiAnswerBuffer.clear();
+    state.lastPlayedNotes = played;
+    state.answerSource = 'midi';
+    const correct = midiAnswerCorrect(target, played);
+    const guess = analyzeMidiPlayed(target, played);
+    state.pendingPc = guess.pc;
+    state.pendingOct = guess.oct;
+    state.pendingDir = guess.dir;
+    state.pendingInv = guess.inv;
+    state.pendingChoiceId = guess.choiceId;
+    finishAnswer(correct, target, guess.choiceId);
+  }
+
+  // ---------------- feedback icon ----------------
+
+  function setFeedback(correctOrNull) {
+    const icon = $('feedbackIcon');
+    icon.classList.remove('state-correct', 'state-incorrect');
+    icon.textContent = '';
+    if (correctOrNull === true) {
+      icon.classList.add('state-correct');
+      icon.textContent = '✓';
+    } else if (correctOrNull === false) {
+      icon.classList.add('state-incorrect');
+      icon.textContent = '✗';
+    }
+  }
+
+  // ---------------- answer UI ----------------
+  function renderAnswerUI() {
+    const piano = $('pianoAnswer');
+    const chips = $('chipAnswer');
+    const chipBox = $('chipAnswerBox');
+    piano.style.display = 'flex';
+    piano.querySelectorAll('.toggle-chip').forEach((el) => {
+      el.classList.remove('selected', 'correct', 'incorrect', 'disabled');
+      el.style.pointerEvents = 'auto';
+      el.style.opacity = '1';
+    });
+
+    clearNoteSeq();
+
+    chips.classList.remove('mode-intervals', 'mode-chords');
+    let showChips = state.mode !== 'notes' && !isNoteEntryMode();
+    chips.innerHTML = '';
+    if (showChips) {
+      chips.classList.add(state.mode === 'intervals' ? 'mode-intervals' : 'mode-chords');
+      const items = state.mode === 'intervals'
+        ? getSelectedIntervals().map((iv) => ({ id: iv.id, label: iv.name }))
+        : getSelectedChords().map((c) => ({ id: c.id, label: c.name }));
+      if (items.length < 2) {
+        showChips = false;
+        state.pendingChoiceId = items.length === 1 ? items[0].id : null;
+      }
+      items.forEach((it) => {
+        const btn = document.createElement('div');
+        btn.className = 'toggle-chip';
+        btn.textContent = it.label;
+        btn.dataset.id = it.id;
+        btn.addEventListener('click', () => checkAnswer(it.id, btn));
+        chips.appendChild(btn);
+      });
+    }
+    chips.style.display = showChips ? 'flex' : 'none';
+    chipBox.style.display = showChips ? 'block' : 'none';
+
+    renderOctaveAnswerRow();
+    renderDirectionAnswerRow();
+    renderInversionAnswerRow();
+  }
+
+  // Настройки поменяли — старый вопрос (если был) больше не актуален.
+  // Никакой новый вопрос не выдаём автоматически: ждём, пока пользователь сам
+  // нажмёт «Новый вопрос» (или прокрутит колесо вниз / прокрутит питч вниз).
+  function settingsChanged() {
+    saveSettings();
+    state.currentTarget = null;
+    state.answered = false;
+    state.answerSource = null;
+    state.pendingPc = null;
+    state.pendingChoiceId = null;
+    state.pendingOct = null;
+    state.pendingDir = null;
+    state.pendingInv = null;
+    state.pendingSeq = [];
+    state.lastPlayedNotes = null;
+    showPlayedNotesInfo(null);
+    activeInputNotes.clear();
+    midiAnswerBuffer.clear();
+    setFeedback(null);
+    renderAnswerUI();
+    updateDebugAnswer();
+    updateNoteSeqInfo(t('pressNewQuestion'), false, true, true);
+  }
+
+  function renderDirectionAnswerRow() {
+    const row = $('directionAnswerRow');
+    const box = $('directionAnswerBox');
+    if (state.mode !== 'intervals' || isNoteEntryMode()) { row.style.display = 'none'; box.style.display = 'none'; return; }
+    const dirs = getSelectedDirections();
+    row.innerHTML = '';
+    if (dirs.length < 2) { row.style.display = 'none'; box.style.display = 'none'; return; }
+    row.style.display = 'flex';
+    box.style.display = 'block';
+    [['up', t('intervalUp')], ['down', t('intervalDown')]].forEach(([d, label]) => {
+      const btn = document.createElement('div');
+      btn.className = 'toggle-chip';
+      btn.textContent = label;
+      btn.dataset.dir = d;
+      btn.addEventListener('click', () => directionAnswerClicked(d, btn));
+      row.appendChild(btn);
+    });
+  }
+
+  function renderInversionAnswerRow() {
+    const row = $('inversionAnswerRow');
+    const box = $('inversionAnswerBox');
+    if (state.mode !== 'chords' || isNoteEntryMode()) { row.style.display = 'none'; box.style.display = 'none'; return; }
+    const invSel = getSelectedInversions().filter((iv) => iv <= maxInversionAvailable());
+    row.innerHTML = '';
+    if (invSel.length < 2) { row.style.display = 'none'; box.style.display = 'none'; return; }
+    row.style.display = 'flex';
+    box.style.display = 'block';
+    invSel.forEach((iv) => {
+      const label = INVERSIONS.find((x) => x.i === iv).label;
+      const btn = document.createElement('div');
+      btn.className = 'toggle-chip';
+      btn.textContent = label;
+      btn.dataset.inv = iv;
+      btn.addEventListener('click', () => inversionAnswerClicked(iv, btn));
+      row.appendChild(btn);
+    });
+  }
+
+  function renderOctaveAnswerRow() {
+    const row = $('octaveAnswerRow');
+    const box = $('octaveAnswerBox');
+    const octaves = getSelectedOctaves().filter((o) => o >= 1 && o <= 7);
+    row.innerHTML = '';
+    if (octaves.length < 2) {
+      row.style.display = 'none';
+      box.style.display = 'none';
+      return;
+    }
+    row.style.display = 'flex';
+    box.style.display = 'block';
+    octaves.sort((a, b) => a - b).forEach((o) => {
+      const btn = document.createElement('div');
+      btn.className = 'toggle-chip';
+      btn.textContent = 'C' + o;
+      btn.dataset.oct = o;
+      btn.addEventListener('click', () => octaveAnswerClicked(o, btn));
+      row.appendChild(btn);
+    });
+  }
+
+  function checkAnswer(id, el) {
+    if (state.answered) return;
+    const target = state.currentTarget;
+    if (!target) return;
+
+    if (state.mode === 'notes') {
+      state.pendingChoiceId = id;
+      $('pianoAnswer').querySelectorAll('.toggle-chip').forEach((c) => c.classList.remove('selected'));
+      el.classList.add('selected');
+      tryFinishNotesAnswer(target);
+      return;
+    }
+
+    // Режимы "Интервалы"/"Аккорды": ответ составной — нота + интервал/аккорд (+ октава, если их несколько)
+    state.pendingChoiceId = id;
+    el.parentElement.querySelectorAll('.toggle-chip').forEach((c) => c.classList.remove('selected'));
+    el.classList.add('selected');
+    tryFinishCompositeAnswer(target);
+  }
+
+  function pianoNoteClicked(pc, el) {
+    if (state.answered || state.mode === 'notes' || !state.currentTarget) return;
+    pc = parseInt(pc, 10);
+    if (isNoteEntryMode()) { noteSeqClicked(pc); return; }
+    state.pendingPc = pc;
+    $('pianoAnswer').querySelectorAll('.toggle-chip').forEach((c) => c.classList.remove('selected'));
+    el.classList.add('selected');
+    tryFinishCompositeAnswer(state.currentTarget);
+  }
+
+  function octaveAnswerClicked(oct, el) {
+    if (state.answered || !state.currentTarget) return;
+    state.pendingOct = oct;
+    $('octaveAnswerRow').querySelectorAll('.toggle-chip').forEach((c) => c.classList.remove('selected'));
+    el.classList.add('selected');
+    if (state.mode === 'notes') tryFinishNotesAnswer(state.currentTarget);
+    else tryFinishCompositeAnswer(state.currentTarget);
+  }
+
+  function directionAnswerClicked(dir, el) {
+    if (state.answered || !state.currentTarget) return;
+    state.pendingDir = dir;
+    $('directionAnswerRow').querySelectorAll('.toggle-chip').forEach((c) => c.classList.remove('selected'));
+    el.classList.add('selected');
+    tryFinishCompositeAnswer(state.currentTarget);
+  }
+
+  function inversionAnswerClicked(inv, el) {
+    if (state.answered || !state.currentTarget) return;
+    state.pendingInv = inv;
+    $('inversionAnswerRow').querySelectorAll('.toggle-chip').forEach((c) => c.classList.remove('selected'));
+    el.classList.add('selected');
+    tryFinishCompositeAnswer(state.currentTarget);
+  }
+
+  function tryFinishNotesAnswer(target) {
+    if (!target || state.mode !== 'notes') return;
+    const needsOct = getSelectedOctaves().filter((o) => o >= 1 && o <= 7).length >= 2;
+    if (state.pendingChoiceId === null) return;
+    if (needsOct && state.pendingOct === null) return;
+
+    const correct = state.pendingChoiceId === target.answerId
+      && (!needsOct || state.pendingOct === target.answerOct);
+    finishAnswer(correct, target, state.pendingChoiceId);
+  }
+
+  function tryFinishCompositeAnswer(target) {
+    if (!target || state.mode === 'notes') return;
+    if (isNoteEntryMode()) { tryFinishNoteSeqAnswer(target); return; }
+    const needsOct = getSelectedOctaves().filter((o) => o >= 1 && o <= 7).length >= 2;
+    const needsDir = state.mode === 'intervals' && getSelectedDirections().length >= 2;
+    const needsInv = state.mode === 'chords' && getSelectedInversions().filter((iv) => iv <= maxInversionAvailable()).length >= 2;
+    if (state.pendingPc === null || state.pendingChoiceId === null) return;
+    if (needsOct && state.pendingOct === null) return;
+    if (needsDir && state.pendingDir === null) return;
+    if (needsInv && state.pendingInv === null) return;
+
+    const correct = state.pendingChoiceId === target.answerId
+      && state.pendingPc === target.answerPc
+      && (!needsOct || state.pendingOct === target.answerOct)
+      && (!needsDir || state.pendingDir === target.answerDir)
+      && (!needsInv || state.pendingInv === target.inversion);
+    finishAnswer(correct, target, state.pendingChoiceId);
+  }
+
+  function finishAnswer(correct, target, chosenId) {
+    state.answered = true;
+    setFeedback(correct);
+    showPlayedNotesInfo(chosenId);
+
+    if (correct) {
+      setTimeout(() => {
+        if (state.currentTarget === target && state.answered) {
+          setFeedback(null);
+          setTimeout(() => {
+            if (state.currentTarget === target && state.answered) nextQuestion();
+          }, 500);
+        }
+      }, 900);
+    } else if (settingsCache.autoNextOnWrong) {
+      setTimeout(() => {
+        if (state.currentTarget === target && state.answered) {
+          setTimeout(() => {
+            if (state.currentTarget === target && state.answered) nextQuestion();
+          }, 500);
+        }
+      }, 900);
+    }
+
+    if (isNoteEntryMode() && state.pendingSeq.length) {
+      const expected = expectedPcSequence(target);
+      $('pianoAnswer').querySelectorAll('.toggle-chip').forEach((el) => {
+        const pc = parseInt(el.dataset.pc, 10);
+        el.classList.add('disabled');
+        el.classList.remove('selected');
+        // Зелёным — только если нота стоит именно на своём месте в последовательности.
+        // Любое другое совпадение (не тот порядок, лишняя, пропущенная нота) — красным.
+        const idx = expected.indexOf(pc);
+        const isRight = idx !== -1 && state.pendingSeq[idx] === pc;
+        if (isRight) el.classList.add('correct');
+        else if (state.pendingSeq.includes(pc)) el.classList.add('incorrect');
+        // Ноты правильного ответа, которые не нажимали, — тоже зелёные.
+        else if (idx !== -1) el.classList.add('correct');
+      });
+      $('octaveAnswerRow').querySelectorAll('.toggle-chip').forEach((el) => {
+        el.classList.add('disabled');
+        if (String(el.dataset.oct) === String(target.answerOct)) el.classList.add('correct');
+        else if (state.pendingOct !== null && el.dataset.oct === String(state.pendingOct)) el.classList.add('incorrect');
+      });
+      updateNoteSeqInfo(buildMistakeText(target, correct), !correct);
+      return;
+    }
+
+    updateNoteSeqInfo(buildMistakeText(target, correct), !correct);
+
+    if (state.mode === 'notes') {
+      $('pianoAnswer').querySelectorAll('.toggle-chip').forEach((el) => {
+        el.classList.add('disabled');
+        if (String(el.dataset.pc) === target.answerId) el.classList.add('correct');
+        else if (chosenId !== null && el.dataset.pc === chosenId) el.classList.add('incorrect');
+      });
+      $('octaveAnswerRow').querySelectorAll('.toggle-chip').forEach((el) => {
+        el.classList.add('disabled');
+        if (String(el.dataset.oct) === String(target.answerOct)) el.classList.add('correct');
+        else if (state.pendingOct !== null && el.dataset.oct === String(state.pendingOct)) el.classList.add('incorrect');
+      });
+    } else {
+      $('chipAnswer').querySelectorAll('.toggle-chip').forEach((el) => {
+        el.classList.add('disabled');
+        if (el.dataset.id === target.answerId) el.classList.add('correct');
+        else if (chosenId !== null && el.dataset.id === chosenId) el.classList.add('incorrect');
+      });
+      {
+        const neededPcs = (state.answerSource === 'midi' && target.notes && target.notes.length)
+          ? uniqSorted(target.notes.map(pcOfMidi))
+          : [parseInt(target.answerPc, 10)];
+        const playedPcs = (state.answerSource === 'midi' && state.lastPlayedNotes && state.lastPlayedNotes.length)
+          ? uniqSorted(state.lastPlayedNotes.map(pcOfMidi))
+          : (state.pendingPc !== null ? [state.pendingPc] : []);
+        // Зелёным — все ноты правильного ответа (сыграны они или нет).
+        // Красным — только лишние ноты, которые сыграли, но их нет в правильном ответе.
+        $('pianoAnswer').querySelectorAll('.toggle-chip').forEach((el) => {
+          el.classList.add('disabled');
+          const pc = parseInt(el.dataset.pc, 10);
+          if (neededPcs.includes(pc)) el.classList.add('correct');
+          else if (playedPcs.includes(pc)) el.classList.add('incorrect');
+        });
+      }
+      $('octaveAnswerRow').querySelectorAll('.toggle-chip').forEach((el) => {
+        el.classList.add('disabled');
+        if (String(el.dataset.oct) === String(target.answerOct)) el.classList.add('correct');
+        else if (state.pendingOct !== null && el.dataset.oct === String(state.pendingOct)) el.classList.add('incorrect');
+      });
+      $('directionAnswerRow').querySelectorAll('.toggle-chip').forEach((el) => {
+        el.classList.add('disabled');
+        if (el.dataset.dir === target.answerDir) el.classList.add('correct');
+        else if (state.pendingDir !== null && el.dataset.dir === state.pendingDir) el.classList.add('incorrect');
+      });
+      $('inversionAnswerRow').querySelectorAll('.toggle-chip').forEach((el) => {
+        el.classList.add('disabled');
+        if (parseInt(el.dataset.inv, 10) === target.inversion) el.classList.add('correct');
+        else if (state.pendingInv !== null && parseInt(el.dataset.inv, 10) === state.pendingInv) el.classList.add('incorrect');
+      });
+    }
+  }
+
+  // Если сыгранный на MIDI набор нот не совпал ни с одним аккордом из списка,
+  // подсвечивать в окне ответа нечего — показываем текстом, что именно было сыграно.
+  function showPlayedNotesInfo(chosenId) {
+    const el = $('playedNotesInfo');
+    if (!el) return;
+    const show = state.mode === 'chords' && chosenId === null
+      && state.lastPlayedNotes && state.lastPlayedNotes.length > 0;
+    if (show) {
+      el.textContent = t('played') + uniqSorted(state.lastPlayedNotes).map(midiToName).join(', ');
+      el.classList.add('visible');
+    } else {
+      el.textContent = '';
+      el.classList.remove('visible');
+    }
+  }
+
+  function nextQuestion() {
+    const target = generateTarget();
+    if (!target) return;
+    state.currentTarget = target;
+    state.answered = false;
+    state.answerSource = null;
+    state.pendingPc = null;
+    state.pendingChoiceId = null;
+    state.pendingOct = null;
+    state.pendingDir = null;
+    state.pendingInv = null;
+    state.pendingSeq = [];
+    state.lastPlayedNotes = null;
+    showPlayedNotesInfo(null);
+    activeInputNotes.clear();
+    midiAnswerBuffer.clear();
+    setFeedback(null);
+    renderAnswerUI();
+    updateDebugAnswer();
+    playTarget(target);
+  }
+
+  function replay() {
+    if (!state.currentTarget) return;
+    playTarget(state.currentTarget);
+  }
+
+  // ---------------- building settings UI ----------------
+  function buildPianoGrid(grid, defaultSelectedPcs, onToggle, protectLast) {
+    grid.innerHTML = '';
+    grid.className = 'piano-grid';
+    // Сначала чёрные, потом белые клавиши — порядок в DOM важен для авто-раскладки грида
+    const blacks = PIANO_KEYS.filter((k) => k.black);
+    const whites = PIANO_KEYS.filter((k) => !k.black);
+    [...blacks, ...whites].forEach((k) => {
+      const chip = document.createElement('div');
+      chip.className = 'toggle-chip' + (k.black ? ' black-key' : '') + (defaultSelectedPcs.has(k.pc) ? ' selected' : '');
+      chip.textContent = pianoKeyLabel(k.pc, k.black);
+      chip.dataset.pc = k.pc;
+      chip.style.gridColumn = k.col;
+      chip.addEventListener('click', () => {
+        // Последнюю оставшуюся выбранную ноту снять нельзя
+        if (protectLast && chip.classList.contains('selected')) {
+          const selectedCount = grid.querySelectorAll('.toggle-chip.selected').length;
+          if (selectedCount === 1) return;
+        }
+        chip.classList.toggle('selected');
+        if (onToggle) onToggle();
+      });
+      grid.appendChild(chip);
+    });
+  }
+
+  function buildRootNoteGrid() {
+    const selected = (settingsCache.rootPcs && settingsCache.rootPcs.length) ? new Set(settingsCache.rootPcs) : ROOT_NOTE_DEFAULT_SELECTED_PCS;
+    buildPianoGrid($('root-note-grid'), selected, settingsChanged, true);
+    ensureRootNoteSelection();
+  }
+
+  // Страховка: в блоке "Нота, от которой строить" всегда должна остаться хотя бы одна нота
+  function ensureRootNoteSelection() {
+    const grid = $('root-note-grid');
+    if (!grid) return;
+    if (grid.querySelectorAll('.toggle-chip.selected').length === 0) {
+      const keep = grid.querySelector('.toggle-chip[data-pc="0"]') || grid.querySelector('.toggle-chip');
+      if (keep) keep.classList.add('selected');
+    }
+  }
+
+  // Блоки выбора в настройках, где всегда должен остаться хотя бы один выбранный вариант
+  const PROTECTED_GRIDS = ['root-note-grid', 'pool-grid', 'octave-grid', 'inversion-grid', 'direction-grid', 'spread-grid', 'chord-spread-grid'];
+  const PROTECTED_SELECTOR = PROTECTED_GRIDS.map((id) => '#' + id).join(', ');
+
+  function ensureGridSelection(gridId) {
+    const grid = document.getElementById(gridId);
+    if (!grid) return;
+    const chips = [...grid.querySelectorAll('.toggle-chip')];
+    if (!chips.length) return;
+    if (chips.some((c) => c.classList.contains('selected'))) return;
+    const keep = chips.find((c) => c.dataset.pc === '0' && !c.classList.contains('disabled'))
+      || chips.find((c) => !c.classList.contains('disabled'))
+      || chips[0];
+    if (keep) keep.classList.add('selected');
+  }
+
+  function ensureAllGridSelections() { PROTECTED_GRIDS.forEach(ensureGridSelection); }
+
+  // Перехват клика до всех остальных обработчиков: снять последний выбранный вариант нельзя
+  document.addEventListener('click', (e) => {
+    if (!e.target || !e.target.closest) return;
+    const chip = e.target.closest('.toggle-chip');
+    if (!chip || !chip.classList.contains('selected')) return;
+    const grid = chip.closest(PROTECTED_SELECTOR);
+    if (!grid) return;
+    if (grid.querySelectorAll('.toggle-chip.selected').length === 1) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+    }
+  }, true);
+
+  // Страховка после любых кнопок/перестроений: ни один блок не остаётся пустым
+  document.addEventListener('click', () => { setTimeout(ensureAllGridSelections, 0); }, false);
+
+  function buildPoolGrid() {
+    const grid = $('pool-grid');
+    grid.innerHTML = '';
+
+    const showRoot = state.mode === 'intervals' || state.mode === 'chords';
+    $('rootNoteSection').style.display = showRoot ? 'flex' : 'none';
+    $('inversionSection').style.display = state.mode === 'chords' ? 'flex' : 'none';
+    $('directionSection').style.display = state.mode === 'intervals' ? 'flex' : 'none';
+    $('spreadSection').style.display = state.mode === 'intervals' ? 'flex' : 'none';
+    $('chordSpreadSection').style.display = state.mode === 'chords' ? 'flex' : 'none';
+    $('chordByNotesRow').style.display = state.mode === 'chords' ? 'flex' : 'none';
+    $('poolSectionTitle').textContent = state.mode === 'notes'
+      ? t('poolTitleNotes')
+      : (state.mode === 'intervals' ? t('poolTitleIntervals') : t('poolTitleChords'));
+    if (showRoot) {
+      buildRootNoteGrid();
+      $('rootNoteSectionTitle').textContent = state.mode === 'intervals'
+        ? t('rootNoteTitleIntervals')
+        : t('rootNoteTitleChords');
+    }
+
+    if (state.mode === 'notes') {
+      const selected = (settingsCache.poolNotes && settingsCache.poolNotes.length) ? new Set(settingsCache.poolNotes) : NOTE_POOL_DEFAULT_SELECTED_PCS;
+      buildPianoGrid(grid, selected, () => { settingsChanged(); });
+    } else if (state.mode === 'intervals') {
+      grid.className = 'intervals-grid';
+      const savedIds = (settingsCache.poolIntervals && settingsCache.poolIntervals.length) ? settingsCache.poolIntervals : null;
+      INTERVALS.forEach((iv) => {
+        const isSelected = savedIds ? savedIds.includes(iv.id) : true;
+        const chip = document.createElement('div');
+        chip.className = 'toggle-chip' + (isSelected ? ' selected' : '');
+        chip.textContent = iv.name;
+        chip.dataset.id = iv.id;
+        chip.addEventListener('click', () => {
+          // Последний оставшийся выбранный интервал снять нельзя
+          if (chip.classList.contains('selected') && grid.querySelectorAll('.toggle-chip.selected').length === 1) return;
+          chip.classList.toggle('selected');
+          settingsChanged();
+        });
+        grid.appendChild(chip);
+      });
+    } else {
+      grid.className = 'chords-grid';
+      const savedIds = (settingsCache.poolChords && settingsCache.poolChords.length) ? settingsCache.poolChords : null;
+      CHORDS.forEach((c) => {
+        const def = c.id === 'maj' || c.id === 'min';
+        const isSelected = savedIds ? savedIds.includes(c.id) : def;
+        const chip = document.createElement('div');
+        chip.className = 'toggle-chip' + (isSelected ? ' selected' : '');
+        chip.textContent = c.name;
+        chip.dataset.id = c.id;
+        chip.addEventListener('click', () => {
+          // Последний оставшийся выбранный аккорд снять нельзя
+          if (chip.classList.contains('selected') && grid.querySelectorAll('.toggle-chip.selected').length === 1) return;
+          chip.classList.toggle('selected');
+          updateInversionAvailability();
+          settingsChanged();
+        });
+        grid.appendChild(chip);
+      });
+      buildInversionGrid();
+    }
+  }
+
+  function buildInversionGrid() {
+    const grid = $('inversion-grid');
+    grid.innerHTML = '';
+    const saved = (settingsCache.inversions && settingsCache.inversions.length) ? settingsCache.inversions : null;
+    INVERSIONS.forEach((inv) => {
+      const isSelected = saved ? saved.includes(inv.i) : inv.i === 0;
+      const chip = document.createElement('div');
+      chip.className = 'toggle-chip' + (isSelected ? ' selected' : '');
+      chip.textContent = inv.label;
+      chip.dataset.inv = inv.i;
+      chip.addEventListener('click', () => {
+        // Хотя бы одна ступень должна оставаться выбранной
+        if (chip.classList.contains('selected') && grid.querySelectorAll('.toggle-chip.selected').length === 1) return;
+        chip.classList.toggle('selected');
+        settingsChanged();
+      });
+      grid.appendChild(chip);
+    });
+    updateInversionAvailability();
+  }
+
+  function buildDirectionGrid() {
+    const grid = $('direction-grid');
+    const saved = (settingsCache.intervalDirections && settingsCache.intervalDirections.length) ? settingsCache.intervalDirections : null;
+    grid.querySelectorAll('.toggle-chip').forEach((chip) => {
+      const isSelected = saved ? saved.includes(chip.dataset.dir) : chip.dataset.dir === 'up';
+      chip.classList.toggle('selected', isSelected);
+      chip.addEventListener('click', () => {
+        // Хотя бы одно направление должно оставаться выбранным
+        if (chip.classList.contains('selected') && grid.querySelectorAll('.toggle-chip.selected').length === 1) return;
+        chip.classList.toggle('selected');
+        settingsChanged();
+      });
+    });
+  }
+
+  function buildSpreadGrid() {
+    const grid = $('spread-grid');
+    const saved = (settingsCache.intervalSpreads && settingsCache.intervalSpreads.length) ? settingsCache.intervalSpreads : null;
+    grid.querySelectorAll('.toggle-chip').forEach((chip) => {
+      const isSelected = saved ? saved.includes(parseInt(chip.dataset.spread, 10)) : chip.dataset.spread === '0';
+      chip.classList.toggle('selected', isSelected);
+      chip.addEventListener('click', () => {
+        // Хотя бы одна ширина должна оставаться выбранной
+        if (chip.classList.contains('selected') && grid.querySelectorAll('.toggle-chip.selected').length === 1) return;
+        chip.classList.toggle('selected');
+        settingsChanged();
+      });
+    });
+  }
+
+  function buildChordSpreadGrid() {
+    const grid = $('chord-spread-grid');
+    const saved = (settingsCache.chordSpreads && settingsCache.chordSpreads.length) ? settingsCache.chordSpreads : null;
+    grid.querySelectorAll('.toggle-chip').forEach((chip) => {
+      const isSelected = saved ? saved.includes(parseInt(chip.dataset.spread, 10)) : chip.dataset.spread === '0';
+      chip.classList.toggle('selected', isSelected);
+      chip.addEventListener('click', () => {
+        // Хотя бы одна ширина должна оставаться выбранной
+        if (chip.classList.contains('selected') && grid.querySelectorAll('.toggle-chip.selected').length === 1) return;
+        chip.classList.toggle('selected');
+        settingsChanged();
+      });
+    });
+  }
+
+  // Недоступные обращения (например 3-е у трезвучий) делаем ненажимаемыми
+  function updateInversionAvailability() {
+    const grid = $('inversion-grid');
+    if (!grid || grid.children.length === 0 || state.mode !== 'chords') return;
+    const max = maxInversionAvailable();
+    grid.querySelectorAll('.toggle-chip').forEach((chip) => {
+      const inv = parseInt(chip.dataset.inv, 10);
+      const off = inv > max;
+      chip.classList.toggle('disabled', off);
+      if (off) chip.classList.remove('selected');
+    });
+    if (grid.querySelectorAll('.toggle-chip.selected').length === 0) {
+      const base = grid.querySelector('.toggle-chip[data-inv="0"]');
+      if (base) base.classList.add('selected');
+    }
+  }
+
+  function buildOctaveGrid() {
+    const grid = $('octave-grid');
+    grid.innerHTML = '';
+    const savedOcts = settingsCache.octaves;
+    OCTAVES.forEach((o) => {
+      const isSelected = savedOcts ? savedOcts.includes(o.o) : OCTAVE_DEFAULT_SELECTED.has(o.o);
+      const chip = document.createElement('div');
+      chip.className = 'toggle-chip' + (isSelected ? ' selected' : '');
+      chip.textContent = o.label;
+      chip.dataset.oct = o.o;
+      chip.addEventListener('click', () => {
+        // Последнюю оставшуюся выбранную октаву снять нельзя
+        if (chip.classList.contains('selected') && grid.querySelectorAll('.toggle-chip.selected').length === 1) return;
+        chip.classList.toggle('selected');
+        settingsChanged();
+      });
+      grid.appendChild(chip);
+    });
+  }
+
+  function buildSelects() {
+    const onlineSel = $('onlineInstrumentSelect');
+    onlineSel.innerHTML = '';
+    const builtinOpt = document.createElement('option');
+    builtinOpt.value = 'builtin';
+    builtinOpt.textContent = t('builtinSynth');
+    onlineSel.appendChild(builtinOpt);
+    GM_INSTRUMENTS.forEach(([id, name]) => {
+      const opt = document.createElement('option');
+      opt.value = id; opt.textContent = name + t('sampleSuffix');
+      onlineSel.appendChild(opt);
+    });
+    const prevValue = state.onlineInstrument;
+    if (prevValue && [...onlineSel.options].some((o) => o.value === prevValue)) onlineSel.value = prevValue;
+  }
+
+  // ---------------- wiring ----------------
+  function wireEvents() {
+    $('nextQuestionBtn').addEventListener('click', nextQuestion);
+    $('replayBtn').addEventListener('click', replay);
+
+    $('onlineInstrumentSelect').addEventListener('change', (e) => { state.onlineInstrument = e.target.value; saveSettings(); });
+
+    document.querySelectorAll('#langSegment .segment-btn').forEach((btn) => {
+      btn.addEventListener('click', () => { applyLanguage(btn.dataset.lang); });
+    });
+
+    $('pianoAnswer').querySelectorAll('.toggle-chip').forEach((el) => {
+      el.addEventListener('click', () => {
+        // Снимаем фокус с кнопки, иначе после клика мышью на клавише остаётся рамка
+        el.blur();
+        if (state.mode === 'notes') checkAnswer(el.dataset.pc, el);
+        else pianoNoteClicked(el.dataset.pc, el);
+      });
+    });
+
+    ['chordByNotesCheckbox'].forEach((id) => {
+      const cb = $(id);
+      if (cb) cb.addEventListener('change', () => { settingsChanged(); });
+    });
+
+    document.querySelectorAll('#modeTabs .tab-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#modeTabs .tab-btn').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.mode = btn.dataset.mode;
+        buildPoolGrid();
+        state.currentTarget = null;
+        state.answered = false;
+        setFeedback(null);
+        settingsChanged();
+      });
+    });
+
+    $('selectAllPool').addEventListener('click', () => {
+      document.querySelectorAll('#pool-grid .toggle-chip').forEach((c) => c.classList.add('selected'));
+      updateInversionAvailability();
+      settingsChanged();
+    });
+    // Снимаем всё, но один вариант всегда остаётся выбранным (в пианино — C)
+    $('selectNonePool').addEventListener('click', () => {
+      const chips = [...document.querySelectorAll('#pool-grid .toggle-chip')];
+      chips.forEach((c) => c.classList.remove('selected'));
+      const keep = chips.find((c) => c.dataset.pc === '0') || chips[0];
+      if (keep) keep.classList.add('selected');
+      updateInversionAvailability();
+      settingsChanged();
+    });
+
+    $('selectAllRoot').addEventListener('click', () => {
+      document.querySelectorAll('#root-note-grid .toggle-chip').forEach((c) => c.classList.add('selected'));
+      saveSettings();
+    });
+    $('selectNoneRoot').addEventListener('click', () => {
+      document.querySelectorAll('#root-note-grid .toggle-chip').forEach((c) => {
+        if (c.dataset.pc === '0') c.classList.add('selected');
+        else c.classList.remove('selected');
+      });
+      ensureRootNoteSelection();
+      saveSettings();
+    });
+
+    document.querySelectorAll('#outputSegment .segment-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#outputSegment .segment-btn').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.outputMode = btn.dataset.output;
+        $('onlineFields').style.display = state.outputMode === 'online' ? 'block' : 'none';
+        $('dawFields').style.display = state.outputMode === 'daw' ? 'flex' : 'none';
+        saveSettings();
+      });
+    });
+    // Привести поля вывода звука в соответствие с активной по умолчанию вкладкой (DAW)
+    $('onlineFields').style.display = state.outputMode === 'online' ? 'block' : 'none';
+    $('dawFields').style.display = state.outputMode === 'daw' ? 'flex' : 'none';
+
+    // ---------------- Галочка "Настройки сбоку от меню" ----------------
+    // Включена — панель настроек ведёт себя как раньше: появляется/исчезает
+    // сбоку от основного меню без затемнения фона.
+    // Выключена — панель настроек открывается по центру экрана поверх
+    // затемнённого фона (#settingsBackdrop), как модальное окно.
+    const rightPanel = $('right-panel');
+    const settingsBackdrop = $('settingsBackdrop');
+    const hideActCb = $('hideActionButtonsCheckbox');
+    if (hideActCb) {
+      hideActCb.checked = settingsCache.hideActionButtons !== false;
+      const applyHideAct = () => {
+        const row = $('actionRow');
+        if (row) row.style.display = hideActCb.checked ? '' : 'none';
+      };
+      applyHideAct();
+      hideActCb.addEventListener('change', () => { applyHideAct(); saveSettings(); });
+    }
+
+    const showResCb = $('showResultCheckbox');
+    if (showResCb) {
+      showResCb.checked = settingsCache.showResult !== false;
+      showResCb.addEventListener('change', () => {
+        if (!showResCb.checked && state.currentTarget) updateNoteSeqInfo('', false);
+        saveSettings();
+      });
+    }
+
+    const autoNextOnWrongCb = $('autoNextOnWrongCheckbox');
+    if (autoNextOnWrongCb) {
+      autoNextOnWrongCb.checked = settingsCache.autoNextOnWrong === true;
+      autoNextOnWrongCb.addEventListener('change', () => { saveSettings(); });
+    }
+
+    const settingsPositionCheckboxes = [...document.querySelectorAll('.settings-position-checkbox')];
+
+    function getSettingsPosition() {
+      const checked = settingsPositionCheckboxes.find((cb) => cb.checked);
+      return checked ? checked.dataset.position : 'left';
+    }
+
+    function applySettingsPositionMode(skipAnimation) {
+      if (skipAnimation) rightPanel.classList.add('no-position-transition');
+      const pos = getSettingsPosition();
+      rightPanel.classList.toggle('centered', pos === 'center');
+      rightPanel.classList.toggle('right-side', pos === 'right');
+      if (skipAnimation) {
+        // Форсируем применение стилей без анимации, затем возвращаем переходы обратно.
+        void rightPanel.offsetHeight;
+        rightPanel.classList.remove('no-position-transition');
+      }
+      syncSettingsBackdrop();
+    }
+
+    function syncSettingsBackdrop() {
+      const shouldShow = rightPanel.classList.contains('visible') && getSettingsPosition() === 'center';
+      settingsBackdrop.classList.toggle('visible', shouldShow);
+    }
+
+    function showSettingsPanel() {
+      rightPanel.classList.add('visible');
+      syncSettingsBackdrop();
+    }
+
+    function hideSettingsPanel() {
+      rightPanel.classList.remove('visible');
+      syncSettingsBackdrop();
+    }
+
+    if (settingsPositionCheckboxes.length) {
+      const savedPos = settingsCache.settingsPosition || 'left';
+      settingsPositionCheckboxes.forEach((cb) => {
+        cb.checked = cb.dataset.position === savedPos;
+        cb.addEventListener('change', () => {
+          if (!cb.checked) {
+            // Хотя бы одна из трёх галок должна оставаться выбранной.
+            cb.checked = true;
+            return;
+          }
+          settingsPositionCheckboxes.forEach((other) => {
+            if (other !== cb) other.checked = false;
+          });
+          applySettingsPositionMode(true);
+          saveSettings();
+          if (window.__appBridgeSend) window.__appBridgeSend({ type: 'settingsPosition', value: cb.dataset.position });
+        });
+      });
+    }
+    applySettingsPositionMode();
+
+    // применение положения панели, пришедшего от оболочки
+    window.__setSettingsPositionExternal = function (pos) {
+      if (pos !== 'left' && pos !== 'center' && pos !== 'right') return;
+      settingsPositionCheckboxes.forEach((cb) => { cb.checked = cb.dataset.position === pos; });
+      applySettingsPositionMode(true);
+      saveSettings();
+    };
+    window.__appGetState = function () {
+      return { lang: state.lang, pos: getSettingsPosition() };
+    };
+    if (isFirstVisit) {
+      showSettingsPanel();
+      saveSettings();
+    }
+
+    // Клик по затемнённому фону закрывает панель настроек (только в режиме "по центру")
+    settingsBackdrop.addEventListener('click', () => {
+      hideSettingsPanel();
+    });
+
+    // Прокрутка колеса мыши: вниз — новый вопрос, вверх — повторить.
+    // Любая прокрутка засчитывается как одно действие: не чаще раза в секунду,
+    // независимо от того, насколько далеко прокрутили колесо.
+    let lastWheelActionAt = 0;
+    const WHEEL_COOLDOWN_MS = 1000;
+    window.addEventListener('wheel', (e) => {
+      // Если курсор над самой панелью настроек — просто прокручиваем её
+      if (rightPanel.contains(e.target)) {
+        return;
+      }
+      const now = Date.now();
+      if (now - lastWheelActionAt < WHEEL_COOLDOWN_MS) return;
+      lastWheelActionAt = now;
+      if (e.deltaY < 0) {
+        if (state.answered) replay();
+      } else if (e.deltaY > 0) {
+        nextQuestion();
+      }
+    });
+
+    // Показ/скрытие панели настроек: средняя кнопка мыши или клавиша Y (Н)
+    window.addEventListener('mousedown', (e) => {
+      if (e.button !== 1) return;
+      e.preventDefault();
+      if (rightPanel.classList.contains('visible')) {
+        hideSettingsPanel();
+      } else {
+        showSettingsPanel();
+      }
+    });
+    window.addEventListener('auxclick', (e) => {
+      if (e.button === 1) e.preventDefault();
+    });
+
+    /* ===== МОБИЛЬНОЕ УПРАВЛЕНИЕ =====
+       Тап двумя пальцами одновременно — открыть/закрыть меню настроек.
+       Если пальцы двигаются (щипок для масштабирования) — тап не засчитывается,
+       поэтому pinch to zoom работает как обычно. */
+    (function setupTwoFingerTap() {
+      let candidate = false;      // сейчас идёт возможный тап двумя пальцами
+      let startTime = 0;
+      let startScale = 1;
+      let startPoints = null;     // стартовые координаты по identifier пальца
+      let lastPoints = null;      // последние известные координаты
+      let suppressClickUntil = 0;
+
+      const MAX_TAP_MS = 800;     // максимум времени на тап
+      const MAX_MOVE_PX = 20;     // допустимое смещение пальцев
+      const MAX_PINCH_PX = 20;    // изменение расстояния между пальцами: щипок, а не тап
+      const MAX_SCALE_DIFF = 0.05; // 5% — изменение масштаба страницы: зум, а не тап
+
+      /* Текущий масштаб страницы (pinch-to-zoom браузера). Сравнивается начало
+         жеста с концом, а НЕ со 100%: если страница уже была увеличена и во
+         время тапа масштаб не менялся — тап засчитывается как обычно. */
+      function currentScale() {
+        return (window.visualViewport && window.visualViewport.scale) || 1;
+      }
+
+      function trackPoints(touchList) {
+        for (let i = 0; i < touchList.length; i++) {
+          const t = touchList[i];
+          if (!(t.identifier in startPoints)) startPoints[t.identifier] = { x: t.clientX, y: t.clientY };
+          lastPoints[t.identifier] = { x: t.clientX, y: t.clientY };
+        }
+      }
+
+      /* Расстояние между двумя пальцами — «размах». Если размах в начале и в
+         конце жеста заметно разный, пальцы сводили или разводили. */
+      function spread(map) {
+        const pts = Object.values(map);
+        if (pts.length < 2) return 0;
+        return Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+      }
+
+      /* Проверка «жест сдвинулся». Вызывается и на touchmove, и на touchend по
+         changedTouches: во время системного зума браузер может вообще перестать
+         присылать touchmove, и тогда единственные достоверные координаты
+         приходят в момент отрыва пальцев. */
+      function checkMoved(touchList) {
+        if (!candidate) return;
+        for (let i = 0; i < touchList.length; i++) {
+          const t = touchList[i];
+          lastPoints[t.identifier] = { x: t.clientX, y: t.clientY };
+          const s = startPoints[t.identifier];
+          if (!s) continue;
+          if (Math.hypot(t.clientX - s.x, t.clientY - s.y) > MAX_MOVE_PX) { candidate = false; return; }
+        }
+        if (Object.keys(startPoints).length >= 2 && Object.keys(lastPoints).length >= 2) {
+          if (Math.abs(spread(lastPoints) - spread(startPoints)) > MAX_PINCH_PX) { candidate = false; }
+        }
+      }
+
+      document.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 2) {
+          candidate = true;
+          startTime = Date.now();
+          startScale = currentScale();
+          startPoints = {};
+          lastPoints = {};
+          trackPoints(e.touches);
+        } else if (e.touches.length > 2) {
+          candidate = false;
+        }
+      }, { passive: true });
+
+      document.addEventListener('touchmove', (e) => {
+        if (!candidate || !startPoints) return;
+        checkMoved(e.touches);
+      }, { passive: true });
+
+      document.addEventListener('touchend', (e) => {
+        if (!candidate) return;
+        // последний достоверный замер координат отрывающихся пальцев
+        checkMoved(e.changedTouches);
+        if (!candidate) return;
+        // Ждём, пока оба пальца оторвутся
+        if (e.touches.length > 0) return;
+        candidate = false;
+        if (Date.now() - startTime > MAX_TAP_MS) return;
+        // масштаб страницы изменился за время жеста — это зум, а не тап
+        if (Math.abs(currentScale() - startScale) > MAX_SCALE_DIFF) return;
+
+        // Гасим случайное нажатие кнопки/клавиши пианино под пальцами
+        suppressClickUntil = Date.now() + 700;
+
+        if (rightPanel.classList.contains('visible')) {
+          hideSettingsPanel();
+        } else {
+          showSettingsPanel();
+        }
+      }, { passive: true });
+
+      document.addEventListener('touchcancel', () => { candidate = false; }, { passive: true });
+
+      /* Safari/iOS присылает собственные события масштабирования двумя
+         пальцами. Если они пришли — это точно щипок, а не тап. */
+      ['gesturestart', 'gesturechange', 'gestureend'].forEach(evt => {
+        document.addEventListener(evt, () => { candidate = false; }, { passive: true });
+      });
+
+      /* Android/Chrome таких событий не присылает, а масштаб может «доехать»
+         уже после отрыва пальцев — поэтому следим ещё и за visual viewport. */
+      if (window.visualViewport) {
+        const viewportCheck = () => {
+          if (!candidate) return;
+          if (Math.abs(currentScale() - startScale) > MAX_SCALE_DIFF) candidate = false;
+        };
+        window.visualViewport.addEventListener('resize', viewportCheck, { passive: true });
+        window.visualViewport.addEventListener('scroll', viewportCheck, { passive: true });
+      }
+
+      document.addEventListener('click', (e) => {
+        if (Date.now() < suppressClickUntil) {
+          e.stopPropagation();
+          e.preventDefault();
+        }
+      }, true);
+    })();
+
+    /* Пианино в окне ответа имеет фиксированную ширину 875px.
+       На узких экранах уменьшаем его целиком, чтобы влезало без прокрутки. */
+    (function setupPianoScaling() {
+      const piano = document.getElementById('pianoAnswer');
+      if (!piano) return;
+      const NATURAL_WIDTH = 875;
+
+      function fit() {
+        if (window.innerWidth > 900) {
+          piano.style.transform = '';
+          piano.style.marginBottom = '';
+          return;
+        }
+        const available = Math.max(200, window.innerWidth - 20);
+        const scale = Math.min(1, available / NATURAL_WIDTH);
+        piano.style.transform = 'scale(' + scale + ')';
+        piano.style.marginBottom = -(piano.offsetHeight * (1 - scale)) + 'px';
+      }
+
+      fit();
+      window.addEventListener('resize', fit);
+      window.addEventListener('orientationchange', () => setTimeout(fit, 150));
+    })();
+
+    document.addEventListener('keydown', (e) => {
+      if (e.code !== 'KeyY') return;
+      const tag = document.activeElement ? document.activeElement.tagName : '';
+      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+      e.preventDefault();
+      if (rightPanel.classList.contains('visible')) {
+        hideSettingsPanel();
+      } else {
+        showSettingsPanel();
+      }
+    });
+
+    // Пробел — переход к новому вопросу (актуально после неправильного ответа,
+    // когда авто-переход не срабатывает)
+    document.addEventListener('keydown', (e) => {
+      if (e.code !== 'Space' && e.key !== ' ') return;
+      const tag = document.activeElement ? document.activeElement.tagName : '';
+      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+      if (state.answered) {
+        e.preventDefault();
+        nextQuestion();
+      }
+    });
+
+    $('volumeSlider').addEventListener('input', (e) => {
+      state.onlineVolume = parseInt(e.target.value, 10);
+      $('volume-val').textContent = e.target.value + '%';
+      saveSettings();
+    });
+
+    $('connectMidiBtn').addEventListener('click', initMIDI);
+    $('midiInputSelect').addEventListener('change', attachMidiInputListener);
+
+    $('minVelocityInput').addEventListener('change', (e) => {
+      let v = parseInt(e.target.value, 10);
+      if (isNaN(v)) v = 100;
+      v = Math.min(127, Math.max(1, v));
+      e.target.value = v;
+      state.minVelocity = v;
+      saveSettings();
+    });
+
+    document.querySelectorAll('#octaveMatchSegment .segment-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#octaveMatchSegment .segment-btn').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.octaveMatch = btn.dataset.octavematch;
+        settingsChanged();
+      });
+    });
+
+    $('themeSelect').addEventListener('change', (e) => {
+      document.body.setAttribute('data-theme', e.target.value);
+      saveSettings();
+    });
+
+    document.querySelectorAll('#noteNamingSegment .segment-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#noteNamingSegment .segment-btn').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.noteNaming = btn.dataset.naming;
+        refreshNoteLabels();
+        saveSettings();
+      });
+    });
+
+    document.querySelectorAll('#colorModeSegment .segment-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#colorModeSegment .segment-btn').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        if (btn.dataset.colormode === 'neon') {
+          document.documentElement.setAttribute('data-colormode', 'neon');
+          document.body.setAttribute('data-colormode', 'neon');
+        } else {
+          document.documentElement.removeAttribute('data-colormode');
+          document.body.removeAttribute('data-colormode');
+        }
+        try { localStorage.setItem('earTrainerColorMode', btn.dataset.colormode); } catch (e) {}
+      });
+    });
+
+  }
+
+  function init() {
+    try {
+      const savedColorMode = localStorage.getItem('earTrainerColorMode');
+      if (savedColorMode === 'neon') {
+        document.documentElement.setAttribute('data-colormode', 'neon');
+        document.body.setAttribute('data-colormode', 'neon');
+        document.querySelectorAll('#colorModeSegment .segment-btn').forEach((b) => {
+          b.classList.toggle('active', b.dataset.colormode === 'neon');
+        });
+      } else if (savedColorMode === 'muted') {
+        document.documentElement.removeAttribute('data-colormode');
+        document.body.removeAttribute('data-colormode');
+        document.querySelectorAll('#colorModeSegment .segment-btn').forEach((b) => {
+          b.classList.toggle('active', b.dataset.colormode === 'muted');
+        });
+      }
+    } catch (e) {}
+
+    // Язык интерфейса: сохранённый выбор, иначе — по языку браузера
+    let savedLang = null;
+    try { savedLang = localStorage.getItem('earTrainerLang'); } catch (e) {}
+    const initialLang = (savedLang === 'ru' || savedLang === 'en' || savedLang === 'zh') ? savedLang : detectDefaultLang();
+    applyLanguage(initialLang, { initial: true });
+
+    // Применяем сохранённый режим до построения сеток нот/интервалов/аккордов
+    state.mode = settingsCache.mode;
+    document.querySelectorAll('#modeTabs .tab-btn').forEach((b) => {
+      b.classList.toggle('active', b.dataset.mode === state.mode);
+    });
+
+    if ($('chordByNotesCheckbox')) $('chordByNotesCheckbox').checked = settingsCache.chordByNotes !== false;
+
+    buildPoolGrid();
+    buildDirectionGrid();
+    buildSpreadGrid();
+    buildChordSpreadGrid();
+    buildOctaveGrid();
+    buildSelects();
+    ensureAllGridSelections();
+
+    // Тема
+    document.body.setAttribute('data-theme', settingsCache.theme);
+    $('themeSelect').value = settingsCache.theme;
+
+    // Названия нот
+    state.noteNaming = (settingsCache.noteNaming === 'solfege') ? 'solfege' : 'ABC';
+    document.querySelectorAll('#noteNamingSegment .segment-btn').forEach((b) => {
+      b.classList.toggle('active', b.dataset.naming === state.noteNaming);
+    });
+    refreshNoteLabels();
+
+    // Вывод звука и связанные поля
+    state.outputMode = settingsCache.outputMode;
+    document.querySelectorAll('#outputSegment .segment-btn').forEach((b) => {
+      b.classList.toggle('active', b.dataset.output === state.outputMode);
+    });
+    state.onlineInstrument = settingsCache.onlineInstrument;
+    $('onlineInstrumentSelect').value = settingsCache.onlineInstrument;
+    state.onlineVolume = settingsCache.onlineVolume;
+    $('volumeSlider').value = settingsCache.onlineVolume;
+    $('volume-val').textContent = settingsCache.onlineVolume + '%';
+    state.octaveMatch = settingsCache.octaveMatch;
+    document.querySelectorAll('#octaveMatchSegment .segment-btn').forEach((b) => {
+      b.classList.toggle('active', b.dataset.octavematch === state.octaveMatch);
+    });
+    state.minVelocity = settingsCache.minVelocity;
+    $('minVelocityInput').value = state.minVelocity;
+
+    wireEvents();
+
+    // Поля, зависящие от вывода звука и MIDI-ответа, применяем уже после wireEvents
+    $('onlineFields').style.display = state.outputMode === 'online' ? 'block' : 'none';
+    $('dawFields').style.display = state.outputMode === 'daw' ? 'flex' : 'none';
+
+    renderAnswerUI();
+    setFeedback(null);
+    updateNoteSeqInfo(t('pressNewQuestion'), false, true, true);
+  }
+
+  function initInfoTooltips() {
+    const tip = document.createElement('div');
+    tip.className = 'info-tip-float';
+    document.body.appendChild(tip);
+    const margin = 8;
+
+    function show(icon) {
+      const src = icon.querySelector('.info-tip');
+      if (!src) return;
+      tip.textContent = src.textContent;
+      tip.classList.add('visible');
+
+      const iconRect = icon.getBoundingClientRect();
+      const tipRect = tip.getBoundingClientRect();
+
+      let left = iconRect.right - tipRect.width;
+      if (left < margin) left = margin;
+      if (left + tipRect.width > window.innerWidth - margin) {
+        left = window.innerWidth - margin - tipRect.width;
+      }
+
+      let top = iconRect.top - tipRect.height - margin;
+      if (top < margin) top = iconRect.bottom + margin;
+
+      tip.style.left = left + 'px';
+      tip.style.top = top + 'px';
+    }
+
+    function hide() {
+      tip.classList.remove('visible');
+    }
+
+    document.querySelectorAll('.info-icon').forEach((icon) => {
+      icon.addEventListener('mouseenter', () => show(icon));
+      icon.addEventListener('mouseleave', hide);
+      icon.addEventListener('focus', () => show(icon));
+      icon.addEventListener('blur', hide);
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    init();
+    initInfoTooltips();
+  });
+})();
+</script>
+</body>
+</html>

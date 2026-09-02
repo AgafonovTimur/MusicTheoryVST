@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<!-- Без этого тега iframe на телефоне получает десктопную ширину (~980px)
+     и мобильный режим внутри приложений не включается.
+     user-scalable / maximum-scale не добавляем — pinch-to-zoom должен работать. -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Музыкальная теория</title>
+<style>
+  html, body{
+    margin:0; padding:0;
+    width:100%; height:100%;
+    overflow:hidden;
+    background:#000;
+  }
+  /* Сцена — постоянная рабочая область 1280x800 в CSS-пикселях.
+     Приложения внутри всегда видят именно этот размер, каким бы ни было
+     окно плагина: окно меняет только масштаб сцены (см. layoutStage()).
+     Так растягивание окна не переставляет ничего внутри приложений —
+     картинка просто увеличивается или уменьшается целиком. */
+  #stage{
+    position:absolute;
+    top:0; left:0;
+    width:1280px; height:800px;
+    transform-origin:0 0;
+  }
+  .appFrame{
+    position:absolute;
+    top:0; left:0;
+    width:1280px; height:800px;
+    border:0;
+    /* Неактивные вкладки прячем через visibility, а НЕ через display:none:
+       при display:none iframe получает нулевой размер, и скрипты внутри
+       (например расчёт положения нотного стана в note-trainer.html)
+       один раз измеряют 0 и после открытия вкладки раскладка ломается. */
+    visibility:hidden;
+    pointer-events:none;
+  }
+  .appFrame.active{
+    visibility:visible;
+    pointer-events:auto;
+  }
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <iframe class="appFrame" id="frameCircle" src="circle_of_fifths.html"></iframe>
+  <iframe class="appFrame" id="frameNotes"  src="note-trainer.html"></iframe>
+  <iframe class="appFrame" id="frameEar"    src="ear-trainer.html"></iframe>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  var FRAME_IDS = ['frameCircle', 'frameNotes', 'frameEar'];
+  var DEFAULT_FRAME = 'frameCircle';
+  var ACTIVE_KEY = 'mtShellActiveFrame';
+  var LANG_KEY   = 'mtShellLang';
+  var POS_KEY    = 'mtShellSettingsPosition';
+
+  var TITLE_I18N = { ru: 'Музыкальная теория', en: 'Music Theory', zh: '音乐理论' };
+
+  // Размер сцены. Должен совпадать с #stage/.appFrame в CSS выше
+  // и со стартовым размером окна плагина (см. PluginEditor.cpp).
+  var STAGE_W = 1280;
+  var STAGE_H = 800;
+
+  var frames = {};
+  FRAME_IDS.forEach(function(id){ frames[id] = document.getElementById(id); });
+
+  var stage = document.getElementById('stage');
+
+  // Вписываем сцену в окно плагина по меньшей стороне, пропорции
+  // сохраняются, свободное место по краям остаётся фоном.
+  function layoutStage(){
+    var w = window.innerWidth || STAGE_W;
+    var h = window.innerHeight || STAGE_H;
+    var scale = Math.min(w / STAGE_W, h / STAGE_H);
+    var x = Math.round((w - STAGE_W * scale) / 2);
+    var y = Math.round((h - STAGE_H * scale) / 2);
+    stage.style.transform = 'translate(' + x + 'px,' + y + 'px) scale(' + scale + ')';
+  }
+
+  window.addEventListener('resize', layoutStage);
+  layoutStage();
+
+  // язык запоминаем отдельно для каждого приложения (в title показываем язык активного)
+  var frameLang = { frameCircle: null, frameNotes: null, frameEar: null };
+  var readyCount = 0;
+  var firstSyncDone = false;
+  // собственные (не навязанные оболочкой) значения квинтового круга —
+  // именно они берутся за основу при первой синхронизации
+  var circleOwnLang = null;
+  var circleOwnPos = null;
+
+  var activeId = localStorage.getItem(ACTIVE_KEY);
+  if(FRAME_IDS.indexOf(activeId) === -1) activeId = DEFAULT_FRAME;
+
+  function frameIdOf(source){
+    for(var i = 0; i < FRAME_IDS.length; i++){
+      var id = FRAME_IDS[i];
+      if(frames[id] && frames[id].contentWindow === source) return id;
+    }
+    return null;
+  }
+
+  function send(id, msg){
+    var f = frames[id];
+    if(!f || !f.contentWindow) return;
+    try { f.contentWindow.postMessage(msg, '*'); } catch(e){}
+  }
+
+  function broadcast(msg, exceptId){
+    FRAME_IDS.forEach(function(id){
+      if(id !== exceptId) send(id, msg);
+    });
+  }
+
+  function updateTitle(){
+    var lang = frameLang[activeId] || localStorage.getItem(LANG_KEY) || 'ru';
+    document.title = TITLE_I18N[lang] || TITLE_I18N.ru;
+    document.documentElement.setAttribute('lang', lang);
+  }
+
+  function showFrame(id){
+    if(FRAME_IDS.indexOf(id) === -1) return;
+    activeId = id;
+    FRAME_IDS.forEach(function(fid){
+      frames[fid].classList.toggle('active', fid === id);
+    });
+    try { localStorage.setItem(ACTIVE_KEY, id); } catch(e){}
+    updateTitle();
+    // фокус в открытую вкладку, чтобы сразу работали горячие клавиши
+    try { frames[id].contentWindow.focus(); } catch(e){}
+  }
+
+  function applyLang(lang, fromId){
+    if(lang !== 'ru' && lang !== 'en' && lang !== 'zh') return;
+    try { localStorage.setItem(LANG_KEY, lang); } catch(e){}
+    FRAME_IDS.forEach(function(id){ frameLang[id] = lang; });
+    broadcast({ type: 'uiLang', lang: lang }, fromId);
+    updateTitle();
+  }
+
+  function applyPos(pos, fromId){
+    if(pos !== 'left' && pos !== 'center' && pos !== 'right') return;
+    try { localStorage.setItem(POS_KEY, pos); } catch(e){}
+    broadcast({ type: 'settingsPosition', value: pos }, fromId);
+  }
+
+  // Первая синхронизация: берём язык и положение настроек у квинтового круга
+  // (или сохранённые в оболочке значения) и раздаём остальным.
+  function firstSync(){
+    if(firstSyncDone) return;
+    firstSyncDone = true;
+    var lang = circleOwnLang || localStorage.getItem(LANG_KEY);
+    var pos  = circleOwnPos || localStorage.getItem(POS_KEY);
+    if(lang) applyLang(lang, null);
+    if(pos)  applyPos(pos, null);
+  }
+
+  window.addEventListener('message', function(e){
+    var d = e.data;
+    if(!d || typeof d !== 'object') return;
+    var fromId = frameIdOf(e.source);
+
+    if(d.type === 'switchLevel'){
+      showFrame(d.target);
+      return;
+    }
+
+    if(d.type === 'appReady' || d.type === 'appState'){
+      if(fromId){
+        if(d.lang) frameLang[fromId] = d.lang;
+        if(fromId === DEFAULT_FRAME){
+          if(d.lang) circleOwnLang = d.lang;
+          if(d.pos) circleOwnPos = d.pos;
+        }
+      }
+      if(d.type === 'appReady'){
+        readyCount++;
+        if(readyCount >= FRAME_IDS.length) firstSync();
+      }
+      updateTitle();
+      return;
+    }
+
+    if(d.type === 'uiLang'){
+      applyLang(d.lang, fromId);
+      return;
+    }
+
+    if(d.type === 'settingsPosition'){
+      applyPos(d.value, fromId);
+      return;
+    }
+  });
+
+  // Если какой-то из iframe не отчитался (например, открыт офлайн-кэш) —
+  // всё равно синхронизируем через 3 секунды после загрузки страницы.
+  window.addEventListener('load', function(){
+    setTimeout(firstSync, 3000);
+  });
+
+  showFrame(activeId);
+})();
+</script>
+
+</body>
+</html>
