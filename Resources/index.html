@@ -14,11 +14,9 @@
     overflow:hidden;
     background:#000;
   }
-  /* Сцена — постоянная рабочая область 1280x800 в CSS-пикселях.
-     Приложения внутри всегда видят именно этот размер, каким бы ни было
-     окно плагина: окно меняет только масштаб сцены (см. layoutStage()).
-     Так растягивание окна не переставляет ничего внутри приложений —
-     картинка просто увеличивается или уменьшается целиком. */
+  /* Сцена занимает всё окно плагина. Размер в CSS-пикселях задаётся из
+     JS (см. layoutStage) — приложения внутри видят реальный размер окна,
+     как в браузере, поэтому ничего не обрезается и полей по краям нет. */
   #stage{
     position:absolute;
     top:0; left:0;
@@ -28,7 +26,7 @@
   .appFrame{
     position:absolute;
     top:0; left:0;
-    width:1280px; height:800px;
+    width:100%; height:100%;
     border:0;
     /* Неактивные вкладки прячем через visibility, а НЕ через display:none:
        при display:none iframe получает нулевой размер, и скрипты внутри
@@ -63,25 +61,29 @@
 
   var TITLE_I18N = { ru: 'Музыкальная теория', en: 'Music Theory', zh: '音乐理论' };
 
-  // Размер сцены. Должен совпадать с #stage/.appFrame в CSS выше
-  // и со стартовым размером окна плагина (см. PluginEditor.cpp).
-  var STAGE_W = 1280;
-  var STAGE_H = 800;
+  // Ниже этого размера окна интерфейс начинает уменьшаться целиком,
+  // чтобы всё оставалось на виду. Выше — масштаб 1:1, приложения просто
+  // получают всю площадь окна, как в браузере.
+  var BASE_W = 1280;
+  var BASE_H = 800;
 
   var frames = {};
   FRAME_IDS.forEach(function(id){ frames[id] = document.getElementById(id); });
 
   var stage = document.getElementById('stage');
 
-  // Вписываем сцену в окно плагина по меньшей стороне, пропорции
-  // сохраняются, свободное место по краям остаётся фоном.
+  // Сцена всегда занимает окно целиком: полей по краям нет, пропорции
+  // окна не навязываются. Уменьшаем картинку только когда окно меньше
+  // базового размера — тогда приложение видит виртуальное окно побольше.
   function layoutStage(){
-    var w = window.innerWidth || STAGE_W;
-    var h = window.innerHeight || STAGE_H;
-    var scale = Math.min(w / STAGE_W, h / STAGE_H);
-    var x = Math.round((w - STAGE_W * scale) / 2);
-    var y = Math.round((h - STAGE_H * scale) / 2);
-    stage.style.transform = 'translate(' + x + 'px,' + y + 'px) scale(' + scale + ')';
+    var w = window.innerWidth || BASE_W;
+    var h = window.innerHeight || BASE_H;
+
+    var scale = Math.min(1, w / BASE_W, h / BASE_H);
+
+    stage.style.width  = Math.ceil(w / scale) + 'px';
+    stage.style.height = Math.ceil(h / scale) + 'px';
+    stage.style.transform = 'scale(' + scale + ')';
   }
 
   window.addEventListener('resize', layoutStage);
