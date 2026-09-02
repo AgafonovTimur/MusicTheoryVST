@@ -1,0 +1,43 @@
+name: Build VST3 (Windows)
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Забрать исходники
+        uses: actions/checkout@v4
+
+      # Пакет с заголовками и библиотекой WebView2. Качаем напрямую с
+      # nuget.org, чтобы не зависеть от того, какие утилиты установлены на
+      # машине сборки. Номер версии можно поднять, если понадобится.
+      - name: Скачать пакет WebView2
+        shell: pwsh
+        run: |
+          $version = "1.0.3485.44"
+          $target  = "$env:GITHUB_WORKSPACE\webview2\Microsoft.Web.WebView2"
+          Invoke-WebRequest -Uri "https://www.nuget.org/api/v2/package/Microsoft.Web.WebView2/$version" -OutFile webview2.zip
+          Expand-Archive -Path webview2.zip -DestinationPath $target
+          if (-not (Test-Path "$target\build\native\include\WebView2.h")) {
+            throw "Пакет WebView2 распакован не так, как ожидалось"
+          }
+
+      # Версия Visual Studio не указана намеренно: CMake сам находит ту,
+      # что установлена на машине сборки. GitHub периодически меняет её,
+      # и жёстко прописанная версия ломала бы сборку после каждой такой смены.
+      - name: Настроить проект
+        run: cmake -B build -A x64 -DJUCE_WEBVIEW2_PACKAGE_LOCATION="${{ github.workspace }}/webview2"
+
+      - name: Собрать
+        run: cmake --build build --config Release --parallel 4
+
+      - name: Выложить готовый плагин
+        uses: actions/upload-artifact@v4
+        with:
+          name: MusicTheoryVST-VST3-Windows
+          path: build/MusicTheoryVST_artefacts/Release/VST3/
+          if-no-files-found: error
