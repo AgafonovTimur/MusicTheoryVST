@@ -7,61 +7,75 @@
      сделаны короткими ТАПАМИ без сдвига, поэтому они не конфликтуют с
      нативным двупальцевым "щипком" (там пальцы заметно двигаются). -->
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- ===== Мост для оболочки index.html (три приложения в iframe) =====
+     Стоит в <head> сразу после viewport: приложения отправляют язык уже при
+     инициализации, поэтому функция отправки должна существовать раньше их
+     основных скриптов. Вне iframe скрипт молча ничего не делает. -->
 <script>
-/* ===== Мост между приложением и оболочкой index.html =====
-   Наружу уходят: выбранный язык, положение панели настроек и запрос
-   переключения уровня. Внутрь принимаются язык и положение настроек
-   от оболочки. Флаг __bridgeSuppress не даёт зациклить обмен. */
 (function(){
-  var inShell = false;
-  try { inShell = !!(window.parent && window.parent !== window); } catch(e){ inShell = false; }
-  window.__inShell = inShell;
+  'use strict';
+
+  var inFrame = false;
+  try { inFrame = (window.parent && window.parent !== window); } catch(e){ inFrame = false; }
+
+  // Пока применяется значение, пришедшее снаружи, отправка молчит —
+  // иначе три приложения зациклят пересылку одного и того же значения.
   window.__bridgeSuppress = false;
 
-  function raw(msg){
-    if(!inShell) return;
-    try { window.parent.postMessage(msg, '*'); } catch(e){}
-  }
   window.__appBridgeSend = function(msg){
-    if(window.__bridgeSuppress) return;
-    raw(msg);
+    if(!inFrame || window.__bridgeSuppress) return;
+    try { window.parent.postMessage(msg, '*'); } catch(e){}
   };
+
+  function getState(){
+    try {
+      if(typeof window.__appGetState === 'function') return window.__appGetState() || {};
+    } catch(e){}
+    return {};
+  }
+
+  function applyExternal(fnName, value){
+    window.__bridgeSuppress = true;
+    try {
+      if(typeof window[fnName] === 'function') window[fnName](value);
+    } catch(e){}
+    window.__bridgeSuppress = false;
+  }
 
   window.addEventListener('message', function(e){
     var d = e.data;
     if(!d || typeof d !== 'object') return;
-    if(d.type === 'requestState'){
-      var st = (typeof window.__appGetState === 'function') ? (window.__appGetState() || {}) : {};
-      raw({ type:'appState', lang: st.lang, pos: st.pos });
+
+    if(d.type === 'uiLang'){
+      applyExternal('__setUiLangExternal', d.lang);
       return;
     }
-    if(d.type !== 'uiLang' && d.type !== 'settingsPosition') return;
-    window.__bridgeSuppress = true;
-    try {
-      if(d.type === 'uiLang' && d.lang && typeof window.__setUiLangExternal === 'function'){
-        window.__setUiLangExternal(d.lang);
-      }
-      if(d.type === 'settingsPosition' && d.value && typeof window.__setSettingsPositionExternal === 'function'){
-        window.__setSettingsPositionExternal(d.value);
-      }
-    } catch(err){}
-    window.__bridgeSuppress = false;
+    if(d.type === 'settingsPosition'){
+      applyExternal('__setSettingsPositionExternal', d.value);
+      return;
+    }
+    if(d.type === 'requestState'){
+      var s = getState();
+      window.__appBridgeSend({ type:'appState', lang: s.lang, pos: s.pos });
+      return;
+    }
   });
 
-  // кнопки переключения уровней (Квинтовый круг / Ноты / Слух)
+  // Кнопки переключения уровней — делегированно, чтобы работать и с теми,
+  // что появляются в разметке позже.
   document.addEventListener('click', function(e){
-    var b = e.target && e.target.closest ? e.target.closest('[data-switch-level]') : null;
-    if(!b) return;
-    raw({ type:'switchLevel', target: b.getAttribute('data-switch-level') });
+    var t = e.target;
+    var btn = (t && t.closest) ? t.closest('[data-switch-level]') : null;
+    if(!btn) return;
+    window.__appBridgeSend({ type:'switchLevel', target: btn.getAttribute('data-switch-level') });
   });
 
   window.addEventListener('load', function(){
-    var st = (typeof window.__appGetState === 'function') ? (window.__appGetState() || {}) : {};
-    raw({ type:'appReady', lang: st.lang, pos: st.pos });
+    var s = getState();
+    window.__appBridgeSend({ type:'appReady', lang: s.lang, pos: s.pos });
   });
 })();
 </script>
-
 <title>Кварто-квинтовый круг</title>
 <style>
 
@@ -723,6 +737,54 @@
   .crosshairRow.disabledPlace .crosshairPlaceOptions{
     opacity:0.45;
   }
+  /* ===== Строка "Пары" (только вкладка "Ноты") =====
+     Стоит сразу под строкой "Чёрточки" и над строкой выбора темы
+     (см. updateNotesPairsRowPosition() в скрипте). Внутри: галка
+     "Пары" со значком (i), а строкой ниже со сдвигом вправо —
+     подпункт "Скрыть круг" (виден только в режиме ответа
+     "На MIDI/ПК клавиатуре" и доступен только при включённых "Парах"). */
+  #notesPairsRow{
+    display:flex;
+    flex-direction:column;
+    align-items:flex-start;
+    align-self:flex-start;
+    gap:6px;
+    width:100%;
+    font-size:16px;
+    color:var(--app-text-color);
+    font-family:var(--font);
+    user-select:none;
+  }
+  .notesPairsMainOption{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    flex:0 0 auto;
+  }
+  .notesPairsMainOption label{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    cursor:pointer;
+  }
+  #notesPairsHideCircleRow{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    margin-left:24px;
+    cursor:pointer;
+  }
+  #notesPairsHideCircleRow.disabled{
+    opacity:0.4;
+    cursor:not-allowed;
+  }
+  #notesPairsHideCircleRow.disabled input[type="checkbox"]{
+    cursor:not-allowed;
+  }
+  #notesPairsRow input[type="checkbox"]{
+    flex:0 0 auto;
+    cursor:pointer;
+  }
   /* Группа из 3 галок (Слева/По центру/Справа) — всегда строкой ниже
      надписи и со сдвигом вправо на 24px, как подпункты "Под кругом"/
      "Над кругом" под галкой "Чёрточки" (.crosshairPlaceOptions). */
@@ -881,17 +943,19 @@
   /* Верхние вкладки "Практика 1 / Практика 2 / Обучение" — как на макете.
      Переключают, какой уровень/режим отображается ниже; настройки
      каждого уровня сохраняются отдельно и не сбрасываются при переходах. */
-  #appSwitchBar{
-    display:grid;
-    grid-template-columns:1fr 1fr 1fr;
-    gap:4px;
-    width:100%;
-    margin-bottom:0;
-  }
   #topTabBar{
     display:grid;
     grid-template-columns:1fr 1fr 1fr;
     gap:8px;
+    width:100%;
+  }
+  /* Ряд переключения приложений (оболочка index.html). Оформлен теми же
+     кнопками .topTabBtn, что и вкладки. По ширине 4px между кнопками,
+     вертикальный отступ не задаём — его даёт gap самой панели настроек. */
+  #appSwitchBar{
+    display:grid;
+    grid-template-columns:1fr 1fr 1fr;
+    gap:4px;
     width:100%;
   }
   .topTabBtn{
@@ -1140,7 +1204,13 @@
     margin-left:32px;
     display:flex;
     align-items:center;
-    transform:translateY(-50%);
+    /* --piano-zoom — масштаб мини-клавиатуры (клавиши [ / ] или х / ъ,
+       только на ПК, см. applyPianoZoom() в JS). transform-origin:left
+       center — клавиатура растёт ТОЛЬКО вправо (левый край стоит на
+       месте, круг не задевается) и симметрично вверх/вниз от своего
+       центра. */
+    transform:translateY(-50%) scale(var(--piano-zoom, 1));
+    transform-origin:left center;
   }
   #trainPianoSvg{
     overflow:visible;
@@ -1256,7 +1326,24 @@
     margin-left:32px;
     display:flex;
     align-items:center;
-    transform:translateY(-50%);
+    /* См. комментарий к --piano-zoom у #trainPianoWrap выше. */
+    transform:translateY(-50%) scale(var(--piano-zoom, 1));
+    transform-origin:left center;
+  }
+  /* ===== Положение клавиатуры "под нотой" (галка "Клавиатура под
+     нотой", подпункт "Скрыть ячейки круга") =====
+     Вместо правого края круга клавиатура встаёт по центру круга
+     (left:50% + translateX(-50%)), а её центр по вертикали — на уровне
+     нижней точки ячейки D♯m (она внизу круга). Конкретная координата
+     считается в JS с учётом масштаба круга и кладётся в переменную
+     --l3-piano-under-top (см. updateL3PianoOffset). transform-origin
+     здесь по центру, чтобы масштаб клавиатуры (--piano-zoom) не сдвигал
+     её с якоря. ===== */
+  #l3PianoWrap.underNote{
+    left:50%;
+    top:var(--l3-piano-under-top, 83.125%);
+    transform:translate(-50%,-50%) scale(var(--piano-zoom, 1));
+    transform-origin:center center;
   }
   #l3PianoSvg{
     overflow:visible;
@@ -1497,6 +1584,19 @@
     cursor:not-allowed;
   }
   #level3HideWedgesRow.disabled input[type="checkbox"]{
+    cursor:not-allowed;
+  }
+  /* Подпункт "Клавиатура под нотой" — зависит уже от "Скрыть ячейки
+     круга" (level3HideWedgesCheckbox), поэтому сдвинут вправо ещё на
+     один шаг: 24px у родителя + 24px здесь. */
+  #level3PianoUnderRow{
+    margin-left:48px;
+  }
+  #level3PianoUnderRow.disabled{
+    opacity:0.4;
+    cursor:not-allowed;
+  }
+  #level3PianoUnderRow.disabled input[type="checkbox"]{
     cursor:not-allowed;
   }
   /* ===== "добавить обращения" (Аккорды/Лады) =====
@@ -2107,11 +2207,12 @@
 <div id="sidePanelBackdrop"></div>
 <div id="sidePanel">
 
+  <!-- Переключение приложений через оболочку index.html -->
   <div id="appSwitchBar">
-      <button class="topTabBtn active" data-switch-level="frameCircle" data-i18n="appSwitchCircle">Квинтовый круг</button>
-      <button class="topTabBtn" data-switch-level="frameNotes" data-i18n="appSwitchNotes">Ноты</button>
-      <button class="topTabBtn" data-switch-level="frameEar" data-i18n="appSwitchEar">Слух</button>
-    </div>
+    <button class="topTabBtn active" data-switch-level="frameCircle" data-i18n="switchCircle">Квинтовый круг</button>
+    <button class="topTabBtn" data-switch-level="frameNotes" data-i18n="switchNotes">Ноты</button>
+    <button class="topTabBtn" data-switch-level="frameEar" data-i18n="switchEar">Слух</button>
+  </div>
 
   <div id="topTabBar">
     <button class="topTabBtn" id="topTabTrainingBtn" data-tab="training" data-i18n="tabTraining">Обучение</button>
@@ -2153,6 +2254,18 @@
       <label class="crosshairPlaceOption"><input type="checkbox" id="crosshairBelowCheckboxP3"><span data-i18n="crosshairBelow">Под кругом</span></label>
       <label class="crosshairPlaceOption"><input type="checkbox" id="crosshairAboveCheckboxP3"><span data-i18n="crosshairAbove">Над кругом</span></label>
     </div>
+  </div>
+
+  <!-- Строка "Пары" — только вкладка "Ноты". Переносится по DOM сразу под
+       строку "Чёрточки" (и, значит, над строкой выбора темы) — см.
+       updateNotesPairsRowPosition() в <script>. Подпункт "Скрыть круг"
+       показывается только когда выбран ответ "На MIDI/ПК клавиатуре". -->
+  <div id="notesPairsRow" style="display:none;">
+    <div class="notesPairsMainOption">
+      <label><input type="checkbox" id="notesPairsCheckbox"><span data-i18n="pairsLabel">Пары</span></label>
+      <span class="infoIcon" data-i18n-tip="tipPairs" data-tip="Заучивание пары на мажорном/минорном кольце">i</span>
+    </div>
+    <label id="notesPairsHideCircleRow" style="display:none;"><input type="checkbox" id="notesPairsHideCircleCheckbox"><span data-i18n="hideCircleLabel">Скрыть круг</span></label>
   </div>
 
   <div class="themeSelectRow themeSelectRowPractice" id="themeSwitchRowPractice" style="display:none;">
@@ -2404,6 +2517,7 @@
       <div id="level3ExtraSettings">
         <label><input type="checkbox" id="level3ShowPianoCheckbox"><span data-i18n="showKeyboard">Показывать клавиатуру</span></label>
         <label id="level3HideWedgesRow"><input type="checkbox" id="level3HideWedgesCheckbox"><span data-i18n="hideWedges">Скрыть ячейки круга</span></label>
+        <label id="level3PianoUnderRow"><input type="checkbox" id="level3PianoUnderCheckbox"><span data-i18n="pianoUnderNote">Клавиатура под нотой</span></label>
         <div id="level3InversionsRow">
           <label><input type="checkbox" id="level3InversionsCheckbox"><span data-i18n="addInversions">Добавить обращения</span></label>
           <span class="infoIcon" data-i18n-tip="tipInversions" data-tip="Обращения работают только с аккордами. Нажимать ноты нужно в порядке как они идут в обращении - @@иначе будет засчитано как неверная нота@@">i</span>
@@ -2952,17 +3066,24 @@ function setNoteNamingSystem(system){
    ========================================================= */
 const APP_LANG_KEY = 'circleAppLang';
 const I18N = {
+  switchCircle:        { ru:'Квинтовый круг', en:'Circle of Fifths', zh:'五度圈' },
+  switchNotes:         { ru:'Ноты', en:'Notes', zh:'音符' },
+  switchEar:           { ru:'Слух', en:'Ear', zh:'听觉' },
   tabTraining:        { ru:'Обучение',  en:'Training',  zh:'训练' },
   tabNotes:            { ru:'Ноты',      en:'Notes',     zh:'音符' },
   tabChords:           { ru:'Аккорды/Лады', en:'Chords/Modes', zh:'和弦/调式' },
   notesInputHeader:    { ru:'Отвечать с помощью', en:'Answer using', zh:'使用以下方式作答' },
   notesInputMouse:     { ru:'Клик мыши', en:'Mouse click', zh:'鼠标点击' },
   notesInputMidi:      { ru:'На MIDI/ПК клавиатуре', en:'On MIDI/computer keyboard', zh:'MIDI/电脑键盘' },
-  appSwitchCircle:     { ru:'Квинтовый круг', en:'Circle of Fifths', zh:'五度圈' },
-  appSwitchNotes:      { ru:'Ноты', en:'Notes', zh:'音符' },
-  appSwitchEar:        { ru:'Слух', en:'Ear', zh:'听觉' },
   sidePanelPin:        { ru:'Отображать настройки:', en:'Show settings:', zh:'显示设置：' },
   crosshairLabel:      { ru:'Чёрточки', en:'Crosshair ticks', zh:'准星刻度' },
+  pairsLabel:          { ru:'Пары', en:'Pairs', zh:'配对' },
+  hideCircleLabel:     { ru:'Скрыть круг', en:'Hide circle', zh:'隐藏圆环' },
+  tipPairs: {
+    ru:'Заучивание пары на мажорном/минорном кольце',
+    en:'Memorising the pair on the major/minor ring',
+    zh:'记忆大调/小调圆环上的配对'
+  },
   crosshairBelow:      { ru:'Под кругом', en:'Under circle', zh:'圆环下方' },
   crosshairAbove:      { ru:'Над кругом', en:'Above circle', zh:'圆环上方' },
   sidePanelPinLeft:    { ru:'Слева', en:'Left', zh:'左侧' },
@@ -2977,6 +3098,7 @@ const I18N = {
   majMinChord:         { ru:'Мажор/Минор', en:'Major/Minor', zh:'大调/小调' },
   showKeyboard:        { ru:'Показывать клавиатуру', en:'Show keyboard', zh:'显示键盘' },
   hideWedges:          { ru:'Скрыть ячейки круга', en:'Hide circle cells', zh:'隐藏圆环单元格' },
+  pianoUnderNote:      { ru:'Клавиатура под нотой', en:'Keyboard under the note', zh:'键盘置于音符下方' },
   showInversions:      { ru:'Показывать обращения', en:'Show inversions', zh:'显示转位' },
   showInversionArrows: { ru:'Показывать стрелками обращения для трезвучий', en:'Show inversions with arrows for triads', zh:'用箭头显示三和弦转位' },
   addInversions:       { ru:'Добавить обращения', en:'Add inversions', zh:'加入转位' },
@@ -3154,7 +3276,6 @@ const APP_TITLE_I18N = { ru: 'Кварто-квинтовый круг', en: 'Ci
 
 function applyLanguage(lang){
   appLang = (lang === 'en' || lang === 'zh') ? lang : 'ru';
-  if(window.__appBridgeSend) window.__appBridgeSend({ type:'uiLang', lang: appLang });
   localStorage.setItem(APP_LANG_KEY, appLang);
   document.title = APP_TITLE_I18N[appLang] || APP_TITLE_I18N.ru;
   document.documentElement.setAttribute('lang', appLang);
@@ -3204,7 +3325,12 @@ function applyLanguage(lang){
   try{
     if(typeof populateDawOutputSelect === 'function') populateDawOutputSelect();
   }catch(e){}
+  if(window.__appBridgeSend) window.__appBridgeSend({ type:'uiLang', lang: appLang });
 }
+
+// Язык, пришедший из соседнего приложения через оболочку —
+// применяется тем же путём, что и клик по кнопке языка.
+window.__setUiLangExternal = function(lang){ applyLanguage(lang); };
 
 (function initLangSwitch(){
   const ruBtn = document.getElementById('langRuBtn');
@@ -3537,6 +3663,38 @@ function activeChordsL2(){
   });
 }
 
+/* ===== РЕЖИМ "ПАРЫ" (вкладка "Ноты", оба способа ответа) =====
+   Заучивание пары "мажор <-> параллельный минор": пара всегда стоит на
+   ОДНОМ И ТОМ ЖЕ индексе круга, только на другом кольце (C <-> Am,
+   G <-> Em и т.д. — см. массивы majors/minors выше).
+
+   Клик мыши: в центре круга показано название загаданной ноты, а нажать
+   нужно её пару на ДРУГОМ кольце (показано C -> нажать Am, показано
+   Am -> нажать C).
+   На MIDI/ПК клавиатуре: подсветки ячейки-задания нет, название
+   загаданной ноты показано в центре круга, а нажать на клавиатуре нужно
+   ноту её пары (показано C -> нажать A, показано Am -> нажать C).
+
+   Подпункт "Скрыть круг" (только для ответа с клавиатуры) прячет все 24
+   ячейки круга — остаётся только название в центре. Реализован через ту
+   же функцию updateL3WedgeVisibility(), что и "Скрыть ячейки круга" в
+   "Аккордах/Ладах". ===== */
+const NOTES_PAIRS_KEY = 'circleNotesPairs';
+const NOTES_PAIRS_HIDE_CIRCLE_KEY = 'circleNotesPairsHideCircle';
+let notesPairsMode = localStorage.getItem(NOTES_PAIRS_KEY) === '1';
+let notesPairsHideCircle = notesPairsMode && localStorage.getItem(NOTES_PAIRS_HIDE_CIRCLE_KEY) === '1';
+
+function pairRingOf(ring){ return ring === 'major' ? 'minor' : 'major'; }
+
+/* Какая ячейка круга считается правильным ответом на текущий вопрос:
+   обычно сама загаданная, в режиме "Пары" — её пара на другом кольце. */
+function notesExpectedCell(cur){
+  if(!cur) return null;
+  return notesPairsMode
+    ? { ring: pairRingOf(cur.ring), index: cur.index }
+    : { ring: cur.ring, index: cur.index };
+}
+
 /* ===== Уровень 3 (бывший Уровень 2): отдельный набор выбранных
    аккордов (своя копия настройки, независимая от Уровня 1 и 2) ===== */
 const SELECTED_NOTES_L3_KEY = 'circleSelectedNotesL3';
@@ -3627,6 +3785,24 @@ function flashWedge(ringName, index, color, duration){
   }, duration);
 }
 
+/* Вспышка названия ноты в центре круга. Нужна там, где ячеек круга не
+   видно (режим "Пары" + "Скрыть круг" на вкладке "Ноты") — иначе ответ
+   вообще никак не подсвечивается. Цвет возвращается к обычному через
+   duration мс. */
+// Красный для текста берём непрозрачный (--red-flash полупрозрачный и на
+// тексте выглядит блёклым).
+const CENTER_FLASH_RED = 'var(--red)';
+let centerTextFlashTimer = null;
+function flashCenterText(color, duration){
+  if(!centerText) return;
+  centerText.setAttribute('fill', color);
+  if(centerTextFlashTimer) clearTimeout(centerTextFlashTimer);
+  centerTextFlashTimer = setTimeout(()=>{
+    centerText.setAttribute('fill', CENTER_NOTE_CONFIG.color);
+    centerTextFlashTimer = null;
+  }, duration);
+}
+
 function onWedgeClick(e){
   if(practiceLevel === 2){
     // Режим "На MIDI/ПК клавиатуре" (уровень 2): реальный клик мышью
@@ -3645,7 +3821,10 @@ function onWedgeClick(e){
   const ring = e.currentTarget.getAttribute('data-ring');
   const index = parseInt(e.currentTarget.getAttribute('data-index'));
 
-  if(ring === current.ring && index === current.index){
+  // В режиме "Пары" правильный ответ — ячейка на ДРУГОМ кольце с тем же
+  // индексом (C -> Am, Am -> C), см. notesExpectedCell().
+  const expected = notesExpectedCell(current);
+  if(expected && ring === expected.ring && index === expected.index){
     flashWedge(ring, index, FLASH_GREEN, 300);
     setTimeout(pickNewChord, 320);
   } else {
@@ -5532,12 +5711,47 @@ const L3_HIDE_WEDGES_KEY = 'circleL3HideWedges';
 let l3HideWedges = l3ShowPiano && localStorage.getItem(L3_HIDE_WEDGES_KEY) === '1';
 let l3WedgesCurrentlyHidden = false;
 
+/* Настройка "Клавиатура под нотой" (подпункт "Скрыть ячейки круга") —
+   при включении клавиатура-подсказка переезжает от правого края круга
+   в центр: по горизонтали — по центру круга, по вертикали её центр
+   стоит на уровне нижней точки ячейки D♯m. При выключении возвращается
+   на прежнее место сбоку. Доступна только когда включено "Скрыть ячейки
+   круга" (а значит и "Показывать клавиатуру"). */
+const L3_PIANO_UNDER_KEY = 'circleL3PianoUnderNote';
+let l3PianoUnderNote = l3HideWedges && localStorage.getItem(L3_PIANO_UNDER_KEY) === '1';
+
+/* ===== ПОЛОЖЕНИЕ КЛАВИАТУРЫ В РЕЖИМЕ "КЛАВИАТУРА ПОД НОТОЙ" =====
+   Эти два числа ни на что больше не влияют — ни на круг, ни на меню,
+   ни на клавиатуру сбоку. Меняйте только их.
+
+   L3_PIANO_UNDER_OFFSET_Y — сдвиг по вертикали в пикселях.
+       0  = как сейчас: центр клавиатуры на нижней точке ячейки D♯m
+       -20 = поднять клавиатуру на 20px
+       +20 = опустить на 20px
+   L3_PIANO_UNDER_OFFSET_X — сдвиг по горизонтали в пикселях.
+       0  = по центру круга, минус = левее, плюс = правее.           */
+const L3_PIANO_UNDER_OFFSET_Y = -100;
+const L3_PIANO_UNDER_OFFSET_X = 0;
+
+/* Служебное: расстояние от центра круга до нижней точки ячейки D♯m
+   (она внизу круга — индекс 6 в minors, угол 180°). Считается из
+   размеров самого круга, поэтому руками это НЕ правим — для сдвига
+   клавиатуры есть два числа выше. */
+const L3_PIANO_UNDER_ANCHOR_R = R2 - WEDGE_GAP_RADIAL;
+
 function wedgeTrueColor(ring){
   return ring === 'major' ? 'var(--ring-major)' : 'var(--ring-minor)';
 }
 
 function updateL3WedgeVisibility(){
-  const shouldHide = l3HideWedges && appMode === 'practice' && practiceLevel === 3;
+  // Ячейки круга прячут две разные настройки:
+  //  - "Скрыть ячейки круга" в "Аккордах/Ладах" (Практика 3);
+  //  - "Скрыть круг" в "Нотах" (Практика 2, только режим "Пары" +
+  //    ответ с MIDI/ПК клавиатуры).
+  const hideL3 = l3HideWedges && appMode === 'practice' && practiceLevel === 3;
+  const hideNotes = notesPairsHideCircle && notesPairsMode
+    && appMode === 'practice' && practiceLevel === 2;
+  const shouldHide = hideL3 || hideNotes;
   if(shouldHide === l3WedgesCurrentlyHidden) return;
   allChords.forEach(c=>{
     const item = wedgeMap[c.ring+'-'+c.index];
@@ -5545,6 +5759,11 @@ function updateL3WedgeVisibility(){
     const color = shouldHide ? 'transparent' : wedgeTrueColor(c.ring);
     item.baseColor = color;
     item.el.setAttribute('fill', color);
+    /* Скрытая ячейка не должна ловить клики мышью — иначе невидимого
+       круга как бы нет, а нажать на него всё равно можно. Программные
+       клики (ответ с ПК/MIDI-клавиатуры идёт через dispatchEvent) на
+       pointer-events не завязаны и продолжают работать. */
+    item.el.style.pointerEvents = shouldHide ? 'none' : '';
   });
   l3WedgesCurrentlyHidden = shouldHide;
 }
@@ -5562,6 +5781,20 @@ function updateL3Piano(){
   l3PianoWrapEl.style.display = 'flex';
   renderL3Piano(notes, l3FoundPcSet());
   layoutMobilePiano(l3PianoWrapEl, l3PianoSvgEl);
+  updateL3PianoPlacement();
+}
+
+/* Включает/выключает режим "Клавиатура под нотой": вешает или снимает
+   класс .underNote на обёртке клавиатуры (само положение задано в CSS,
+   см. #l3PianoWrap.underNote) и пересчитывает координаты.
+   На мобильной раскладке режим не применяется — там клавиатура и так
+   стоит под кругом во всю ширину экрана. */
+function updateL3PianoPlacement(){
+  if(!l3PianoWrapEl) return;
+  const under = l3PianoUnderNote && l3HideWedges && l3ShowPiano
+    && appMode === 'practice' && practiceLevel === 3
+    && !document.body.classList.contains('is-mobile');
+  l3PianoWrapEl.classList.toggle('underNote', under);
   updateL3PianoOffset();
 }
 
@@ -5571,16 +5804,43 @@ function updateL3Piano(){
 function updateL3PianoOffset(){
   if(!l3PianoWrapEl) return;
   const zoom = (typeof zoomPractice === 'number' && !isNaN(zoomPractice)) ? zoomPractice : 100;
+  if(l3PianoWrapEl.classList.contains('underNote')){
+    /* Режим "Клавиатура под нотой": отступа от правого края круга нет,
+       а вертикальный якорь (нижняя точка ячейки D♯m) уезжает от центра
+       круга пропорционально его масштабу — круг масштабируется от
+       своего центра. */
+    l3PianoWrapEl.style.marginLeft = L3_PIANO_UNDER_OFFSET_X + 'px';
+    l3PianoWrapEl.style.setProperty('--l3-piano-under-top',
+      (CY + L3_PIANO_UNDER_ANCHOR_R * zoom / 100 + L3_PIANO_UNDER_OFFSET_Y) + 'px');
+    return;
+  }
   const extra = 480 * (zoom/100 - 1) / 2;
   l3PianoWrapEl.style.marginLeft = (32 + Math.max(0, extra)) + 'px';
 }
 
 const level3HideWedgesCheckbox = document.getElementById('level3HideWedgesCheckbox');
 const level3HideWedgesRow = document.getElementById('level3HideWedgesRow');
+const level3PianoUnderCheckbox = document.getElementById('level3PianoUnderCheckbox');
+const level3PianoUnderRow = document.getElementById('level3PianoUnderRow');
 
 function setL3HideWedgesAvailability(enabled){
   if(level3HideWedgesCheckbox) level3HideWedgesCheckbox.disabled = !enabled;
   if(level3HideWedgesRow) level3HideWedgesRow.classList.toggle('disabled', !enabled);
+}
+
+function setL3PianoUnderAvailability(enabled){
+  if(level3PianoUnderCheckbox) level3PianoUnderCheckbox.disabled = !enabled;
+  if(level3PianoUnderRow) level3PianoUnderRow.classList.toggle('disabled', !enabled);
+}
+
+/* Выключение родительской галки ("Показывать клавиатуру" или "Скрыть
+   ячейки круга") снимает и эту — клавиатуре под нотой без них не место. */
+function resetL3PianoUnderIfNeeded(){
+  if(l3PianoUnderNote && !(l3ShowPiano && l3HideWedges)){
+    l3PianoUnderNote = false;
+    localStorage.setItem(L3_PIANO_UNDER_KEY, '0');
+    if(level3PianoUnderCheckbox) level3PianoUnderCheckbox.checked = false;
+  }
 }
 
 const level3ShowPianoCheckbox = document.getElementById('level3ShowPianoCheckbox');
@@ -5596,7 +5856,9 @@ if(level3ShowPianoCheckbox){
       localStorage.setItem(L3_HIDE_WEDGES_KEY, '0');
       if(level3HideWedgesCheckbox) level3HideWedgesCheckbox.checked = false;
     }
+    resetL3PianoUnderIfNeeded();
     setL3HideWedgesAvailability(l3ShowPiano);
+    setL3PianoUnderAvailability(l3ShowPiano && l3HideWedges);
     updateL3Piano();
   });
 }
@@ -5612,10 +5874,120 @@ if(level3HideWedgesCheckbox){
     }
     l3HideWedges = level3HideWedgesCheckbox.checked;
     localStorage.setItem(L3_HIDE_WEDGES_KEY, l3HideWedges ? '1' : '0');
+    resetL3PianoUnderIfNeeded();
+    setL3PianoUnderAvailability(l3ShowPiano && l3HideWedges);
     updateL3Piano();
   });
 }
 setL3HideWedgesAvailability(l3ShowPiano);
+
+/* ===== Чекбоксы "Пары" и "Скрыть круг" (вкладка "Ноты") =====
+   Сама строка живёт в #sidePanel и переносится по DOM под строку
+   "Чёрточки" (см. updateNotesPairsRowPosition()). "Скрыть круг" —
+   подпункт "Пар": видим только при ответе с MIDI/ПК клавиатуры и
+   доступен только когда "Пары" включены; выключение "Пар" снимает и
+   его. Элементы ищем через getElementById прямо в функциях (а не в
+   const выше), потому что updateNotesPairsRowUi() вызывается из
+   applyPracticeLevel(), который может отработать раньше этого места. */
+function updateNotesPairsRowUi(){
+  const row = document.getElementById('notesPairsRow');
+  if(!row) return;
+  const hideRow = document.getElementById('notesPairsHideCircleRow');
+  const pairsCb = document.getElementById('notesPairsCheckbox');
+  const hideCb = document.getElementById('notesPairsHideCircleCheckbox');
+  let tab = 'p1';
+  try{ tab = currentTopTab(); }catch(e){ tab = 'p1'; }
+  const onNotesTab = (tab === 'p1');
+  row.style.display = onNotesTab ? 'flex' : 'none';
+  if(pairsCb) pairsCb.checked = notesPairsMode;
+  if(hideRow){
+    hideRow.style.display = (onNotesTab && practiceLevel === 2) ? 'flex' : 'none';
+    hideRow.classList.toggle('disabled', !notesPairsMode);
+  }
+  if(hideCb){
+    hideCb.checked = notesPairsHideCircle;
+    hideCb.disabled = !notesPairsMode;
+  }
+}
+
+/* Перерисовка текущего вопроса под изменившийся режим. Порядок важен:
+   сначала пересчитываем видимость ячеек круга (updateL3Piano ->
+   updateL3WedgeVisibility перекрашивает ВСЕ ячейки в базовый цвет),
+   и только потом ставим жёлтую подсветку ячейки-задания — иначе её
+   тут же затрёт. */
+function refreshNotesPairsGame(){
+  if(typeof updateL3Piano === 'function') updateL3Piano();
+  if(appMode === 'practice' && practiceLevel === 2 && currentL2){
+    if(notesPairsMode){
+      clearWedgeHighlightL2(currentL2.ring, currentL2.index);
+      centerText.textContent = noteDisplay(currentL2.name);
+    } else {
+      centerText.textContent = '';
+      setWedgeFillL2(currentL2.ring, currentL2.index, YELLOW_HIGHLIGHT_L2);
+    }
+  }
+}
+
+const notesPairsCheckbox = document.getElementById('notesPairsCheckbox');
+const notesPairsHideCircleCheckbox = document.getElementById('notesPairsHideCircleCheckbox');
+
+if(notesPairsCheckbox){
+  notesPairsCheckbox.checked = notesPairsMode;
+  notesPairsCheckbox.addEventListener('change', ()=>{
+    notesPairsMode = notesPairsCheckbox.checked;
+    try{ localStorage.setItem(NOTES_PAIRS_KEY, notesPairsMode ? '1' : '0'); }catch(e){}
+    if(!notesPairsMode && notesPairsHideCircle){
+      // выключили "Пары" — снимаем и подпункт, круг возвращаем на место
+      notesPairsHideCircle = false;
+      try{ localStorage.setItem(NOTES_PAIRS_HIDE_CIRCLE_KEY, '0'); }catch(e){}
+    }
+    updateNotesPairsRowUi();
+    refreshNotesPairsGame();
+  });
+}
+
+if(notesPairsHideCircleCheckbox){
+  notesPairsHideCircleCheckbox.checked = notesPairsHideCircle;
+  notesPairsHideCircleCheckbox.addEventListener('change', ()=>{
+    if(!notesPairsMode){
+      // страховка: без "Пар" галка недоступна
+      notesPairsHideCircleCheckbox.checked = false;
+      return;
+    }
+    notesPairsHideCircle = notesPairsHideCircleCheckbox.checked;
+    try{ localStorage.setItem(NOTES_PAIRS_HIDE_CIRCLE_KEY, notesPairsHideCircle ? '1' : '0'); }catch(e){}
+    refreshNotesPairsGame();
+  });
+}
+/* practiceLevel/appMode объявлены ниже по файлу — при самой первой
+   отрисовке они ещё в temporal dead zone, поэтому вызов защищён:
+   строку всё равно приведёт в порядок applyPracticeLevel() при загрузке. */
+try{ updateNotesPairsRowUi(); }catch(e){}
+
+/* После клика мышью по любому чекбоксу/радио снимаем с него фокус: иначе
+   он остаётся "активным" и следующие нажатия клавиш (например [ / ] для
+   масштаба клавиатуры) уходят в него, а не в приложение. */
+document.addEventListener('click', (e)=>{
+  const t = e.target;
+  if(t && t.tagName === 'INPUT' && (t.type === 'checkbox' || t.type === 'radio')){
+    setTimeout(()=>{ try{ t.blur(); }catch(err){} }, 0);
+  }
+}, true);
+
+if(level3PianoUnderCheckbox){
+  level3PianoUnderCheckbox.checked = l3PianoUnderNote;
+  level3PianoUnderCheckbox.addEventListener('change', ()=>{
+    if(!(l3ShowPiano && l3HideWedges)){
+      // страховка на случай программного клика по недоступной галке
+      level3PianoUnderCheckbox.checked = false;
+      return;
+    }
+    l3PianoUnderNote = level3PianoUnderCheckbox.checked;
+    localStorage.setItem(L3_PIANO_UNDER_KEY, l3PianoUnderNote ? '1' : '0');
+    updateL3PianoPlacement();
+  });
+}
+setL3PianoUnderAvailability(l3ShowPiano && l3HideWedges);
 
 /* --- Ступени диатонических аккордов тональности (римские цифры) в правом
    верхнем углу каждой ячейки --- */
@@ -8491,7 +8863,15 @@ function pickNewChordL2(){
     name: chosen.name,
     label: plainNoteLabel(chosen.name)
   };
-  if(practiceLevel === 2) setWedgeFillL2(currentL2.ring, currentL2.index, YELLOW_HIGHLIGHT_L2);
+  // В режиме "Пары" ячейка-задание НЕ подсвечивается — вместо этого
+  // название загаданной ноты показывается в центре круга (а нажать надо
+  // её пару, см. notesExpectedCell()).
+  if(practiceLevel === 2 && !notesPairsMode){
+    setWedgeFillL2(currentL2.ring, currentL2.index, YELLOW_HIGHLIGHT_L2);
+  }
+  if(practiceLevel === 2){
+    centerText.textContent = notesPairsMode ? noteDisplay(currentL2.name) : '';
+  }
 
   rootHistoryL2.push(rootOf(currentL2.name));
   if(rootHistoryL2.length > 3) rootHistoryL2.shift();
@@ -8502,11 +8882,19 @@ function onWedgeClickLevel2New(e){
   const ring = e.currentTarget.getAttribute('data-ring');
   const index = parseInt(e.currentTarget.getAttribute('data-index'));
 
-  if(ring === currentL2.ring && index === currentL2.index){
+  // В режиме "Пары" правильный ответ — пара на другом кольце.
+  const expected = notesExpectedCell(currentL2);
+  // Когда ячейки круга скрыты ("Скрыть круг"), flashWedge() ничего не
+  // рисует — подсвечиваем вместо неё ноту в центре.
+  const hidden = (typeof l3WedgesCurrentlyHidden !== 'undefined' && l3WedgesCurrentlyHidden);
+
+  if(expected && ring === expected.ring && index === expected.index){
     flashWedge(ring, index, FLASH_GREEN, 300);
+    if(hidden) flashCenterText(FLASH_GREEN, 300);
     setTimeout(pickNewChordL2, 320);
   } else {
     flashWedge(ring, index, FLASH_RED, 300);
+    if(hidden) flashCenterText(CENTER_FLASH_RED, 300);
   }
 }
 
@@ -9812,7 +10200,9 @@ function applyPracticeLevel(){
   if(typeof renderLevel3Hint === 'function') renderLevel3Hint();
   if(typeof updateL3Piano === 'function') updateL3Piano();
 
-  if(practiceLevel === 2 && currentL2){
+  // В режиме "Пары" ячейка-задание не подсвечивается: нота показана в
+  // центре круга (см. блок про режим "Пары" выше).
+  if(practiceLevel === 2 && currentL2 && !notesPairsMode){
     setWedgeFillL2(currentL2.ring, currentL2.index, YELLOW_HIGHLIGHT_L2);
   } else if(currentL2){
     clearWedgeHighlightL2(currentL2.ring, currentL2.index);
@@ -9822,9 +10212,12 @@ function applyPracticeLevel(){
     centerText.textContent = current ? noteDisplay(current.name) : '';
   } else if(practiceLevel === 3){
     centerText.textContent = currentL3 ? noteDisplay(currentL3.name) : '';
+  } else if(practiceLevel === 2 && notesPairsMode){
+    centerText.textContent = currentL2 ? noteDisplay(currentL2.name) : '';
   } else {
     centerText.textContent = '';
   }
+  if(typeof updateNotesPairsRowUi === 'function') updateNotesPairsRowUi();
   if(typeof updateL3CenterModeLabel === 'function') updateL3CenterModeLabel();
 }
 
@@ -9955,7 +10348,11 @@ function syncTrainingPanelHeight(){
   const rowGapPx = parseFloat(sidePanelCs.rowGap || sidePanelCs.gap) || 0;
   const paddingPx = (parseFloat(sidePanelCs.paddingTop) || 0) + (parseFloat(sidePanelCs.paddingBottom) || 0);
   const borderPx = (parseFloat(sidePanelCs.borderTopWidth) || 0) + (parseFloat(sidePanelCs.borderBottomWidth) || 0);
-  const chromeHeight = (topTabBarEl ? topTabBarEl.offsetHeight : 0) + rowGapPx + paddingPx + borderPx;
+  // Ряд переключения приложений (оболочка index.html) стоит над вкладками
+  // и тоже занимает высоту — иначе короткие вкладки вылезали бы за экран.
+  const appSwitchBarEl = document.getElementById('appSwitchBar');
+  const appSwitchBarH = appSwitchBarEl ? (appSwitchBarEl.offsetHeight + rowGapPx) : 0;
+  const chromeHeight = (topTabBarEl ? topTabBarEl.offsetHeight : 0) + appSwitchBarH + rowGapPx + paddingPx + borderPx;
   const viewportBudget = Math.max(300, Math.round(window.innerHeight * 0.9) - chromeHeight);
   const targetH = Math.min(maxH, viewportBudget);
 
@@ -10326,6 +10723,25 @@ function updateCrosshairRowPosition(tab){
   if(row.parentElement !== parent || sidePanelPinRowEl.nextElementSibling !== row){
     parent.insertBefore(row, sidePanelPinRowEl.nextElementSibling);
   }
+  updateNotesPairsRowPosition(tab);
+}
+
+/* Строка "Пары" — только вкладка "Ноты": ставится сразу ПОД строкой
+   "Чёрточки" (а значит НАД строкой выбора темы, см.
+   updateThemeRowPosition()). На остальных вкладках скрывается. */
+function updateNotesPairsRowPosition(tab){
+  const row = document.getElementById('notesPairsRow');
+  if(!row || !sidePanelPinRowEl) return;
+  updateNotesPairsRowUi();
+  if(tab !== 'p1') return;
+  const parent = sidePanelPinRowEl.parentElement;
+  if(!parent) return;
+  const crossRow = document.getElementById('crosshairRowP1');
+  const anchor = (crossRow && crossRow.parentElement === parent && crossRow.style.display !== 'none')
+    ? crossRow : sidePanelPinRowEl;
+  if(row.parentElement !== parent || anchor.nextElementSibling !== row){
+    parent.insertBefore(row, anchor.nextElementSibling);
+  }
 }
 
 /* Строка выбора темы для вкладок "Ноты" и "Аккорды/Лады" —
@@ -10347,8 +10763,14 @@ function updateThemeRowPosition(tab){
   const crossRow = (tab === 'p3')
     ? document.getElementById('crosshairRowP3')
     : document.getElementById('crosshairRowP1');
-  const anchor = (crossRow && crossRow.parentElement === parent && crossRow.style.display !== 'none')
+  let anchor = (crossRow && crossRow.parentElement === parent && crossRow.style.display !== 'none')
     ? crossRow : sidePanelPinRowEl;
+  // на вкладке "Ноты" между "Чёрточками" и темой стоит ещё строка "Пары"
+  const pairsRow = document.getElementById('notesPairsRow');
+  if(tab === 'p1' && pairsRow && pairsRow.parentElement === parent
+     && pairsRow.style.display !== 'none'){
+    anchor = pairsRow;
+  }
   if(row.parentElement !== parent || anchor.nextElementSibling !== row){
     parent.insertBefore(row, anchor.nextElementSibling);
   }
@@ -10425,13 +10847,11 @@ function setSidePanelPosition(position){
   if(window.__appBridgeSend) window.__appBridgeSend({ type:'settingsPosition', value: position });
 }
 
-/* Язык и положение панели настроек, пришедшие от оболочки (из соседних
-   приложений), применяются тем же путём, что и обычный клик пользователя. */
-window.__setUiLangExternal = function(lang){ applyLanguage(lang); };
-window.__setSettingsPositionExternal = function(position){
-  if(position !== 'left' && position !== 'center' && position !== 'right') return;
-  localStorage.setItem(SIDE_PANEL_PIN_KEY, position);
-  updateSidePanelLayout();
+// Положение панели настроек, пришедшее из соседнего приложения через оболочку —
+// применяется тем же путём, что и клик по галке.
+window.__setSettingsPositionExternal = function(pos){
+  if(pos !== 'left' && pos !== 'center' && pos !== 'right') return;
+  setSidePanelPosition(pos);
 };
 window.__appGetState = function(){
   return { lang: appLang, pos: getSidePanelPositionFor(currentTopTab()) };
@@ -10532,6 +10952,9 @@ window.addEventListener('resize', ()=>{
   // Размер клавиатуры под кругом считается от размеров экрана — при
   // повороте телефона пересчитываем.
   if(typeof updateMobilePianoGeometry === 'function') updateMobilePianoGeometry();
+  // Режим "Клавиатура под нотой" работает только на десктопной
+  // раскладке — при переходе на мобильную/обратно пересчитываем.
+  if(typeof updateL3PianoPlacement === 'function') updateL3PianoPlacement();
 });
 
 // Клик/тап по затемнению фона — закрыть настройки (общее для десктопа
@@ -10856,6 +11279,76 @@ function zoomReset(){
 }
 
 /* =========================================================
+   Масштаб мини-клавиатуры сбоку от круга (чекбокс "Показывать
+   клавиатуру"): клавиши [ / х — меньше, ] / ъ — больше,
+   Shift+[ / Shift+х — сброс до 100%.
+
+   Работает ТОЛЬКО на десктопной раскладке: на мобильной клавиатура
+   стоит под кругом и её размер считает layoutMobilePiano(), поэтому
+   там хоткеи игнорируются (см. проверку isMobile ниже), а CSS-правило
+   body.is-mobile перебивает transform целиком и scale не применяется.
+
+   Масштаб хранится отдельно для "Обучения" и для "Аккордов/Ладов" —
+   так же, как зум самого круга (zoomTraining / zoomPractice).
+   Реализация — CSS-переменная --piano-zoom на обёртке клавиатуры;
+   в transform у обёртки стоит scale(var(--piano-zoom)) с
+   transform-origin:left center, поэтому клавиатура растёт вправо и
+   симметрично вверх/вниз, а её левый край (и, значит, отступ от круга)
+   остаётся на месте.
+   ========================================================= */
+const PIANO_ZOOM_MIN = 40;
+const PIANO_ZOOM_MAX = 300;
+const PIANO_ZOOM_STEP = 10;
+const PIANO_ZOOM_TRAINING_STORAGE_KEY = 'circleOfFifthsPianoZoomTraining';
+const PIANO_ZOOM_PRACTICE_STORAGE_KEY = 'circleOfFifthsPianoZoomPractice';
+
+let pianoZoomTraining = parseInt(localStorage.getItem(PIANO_ZOOM_TRAINING_STORAGE_KEY), 10);
+if(isNaN(pianoZoomTraining)) pianoZoomTraining = 100;
+let pianoZoomPractice = parseInt(localStorage.getItem(PIANO_ZOOM_PRACTICE_STORAGE_KEY), 10);
+if(isNaN(pianoZoomPractice)) pianoZoomPractice = 100;
+
+function applyPianoZoom(){
+  pianoZoomTraining = Math.max(PIANO_ZOOM_MIN, Math.min(PIANO_ZOOM_MAX, pianoZoomTraining));
+  pianoZoomPractice = Math.max(PIANO_ZOOM_MIN, Math.min(PIANO_ZOOM_MAX, pianoZoomPractice));
+  if(typeof trainPianoWrapEl !== 'undefined' && trainPianoWrapEl){
+    trainPianoWrapEl.style.setProperty('--piano-zoom', pianoZoomTraining / 100);
+  }
+  if(typeof l3PianoWrapEl !== 'undefined' && l3PianoWrapEl){
+    l3PianoWrapEl.style.setProperty('--piano-zoom', pianoZoomPractice / 100);
+  }
+  try{
+    localStorage.setItem(PIANO_ZOOM_TRAINING_STORAGE_KEY, pianoZoomTraining);
+    localStorage.setItem(PIANO_ZOOM_PRACTICE_STORAGE_KEY, pianoZoomPractice);
+  }catch(e){}
+}
+
+// на какую из двух клавиатур сейчас действуют хоткеи масштаба
+function pianoZoomActiveTarget(){
+  if(isMobile) return null;
+  if(appMode === 'training') return 'training';
+  if(appMode === 'practice' && practiceLevel === 3) return 'practice';
+  return null;
+}
+function pianoZoomIn(){
+  const t = pianoZoomActiveTarget();
+  if(!t) return;
+  if(t === 'training'){ pianoZoomTraining += PIANO_ZOOM_STEP; } else { pianoZoomPractice += PIANO_ZOOM_STEP; }
+  applyPianoZoom();
+}
+function pianoZoomOut(){
+  const t = pianoZoomActiveTarget();
+  if(!t) return;
+  if(t === 'training'){ pianoZoomTraining -= PIANO_ZOOM_STEP; } else { pianoZoomPractice -= PIANO_ZOOM_STEP; }
+  applyPianoZoom();
+}
+function pianoZoomReset(){
+  const t = pianoZoomActiveTarget();
+  if(!t) return;
+  if(t === 'training'){ pianoZoomTraining = 100; } else { pianoZoomPractice = 100; }
+  applyPianoZoom();
+}
+
+/* =========================================================
    Горячие клавиши для выбора нот на круге (мажор/минор),
    работают и в практике, и в обучении.
 
@@ -10941,7 +11434,9 @@ let hotkeyCycleStage = 0; // 0 = ничего ещё не нажато, 1 = ма
    onWedgeClickLevel2New — зелёная/красная вспышка). */
 function handleNoteHotkeyLevel2(e){
   if(!currentL2) return false;
-  const ring = currentL2.ring;
+  // В режиме "Пары" правильный ответ лежит на ДРУГОМ кольце — ищем
+  // нажатую букву именно там (см. notesExpectedCell()).
+  const ring = notesExpectedCell(currentL2).ring;
 
   if(flatModePending){
     const letter = HOTKEY_LETTER[e.code];
@@ -11072,6 +11567,27 @@ document.addEventListener('keydown', (e)=>{
   if(handleNoteHotkey(e)){
     e.preventDefault();
     return;
+  }
+  /* Масштаб мини-клавиатуры: [ / х — меньше, ] / ъ — больше,
+     Shift+[ / Shift+х — сброс. Сравниваем по e.code (физическая
+     клавиша), поэтому раскладка (рус/англ) не важна; e.key оставлен
+     запасным вариантом. В текстовых полях не перехватываем. */
+  const activeElForPianoZoom = document.activeElement;
+  const typingInField = activeElForPianoZoom && (
+    activeElForPianoZoom.tagName === 'INPUT' ||
+    activeElForPianoZoom.tagName === 'TEXTAREA' ||
+    activeElForPianoZoom.isContentEditable);
+  if(!typingInField && !e.ctrlKey && !e.metaKey && !e.altKey){
+    if(e.code === 'BracketLeft' || key === '[' || key === '{' || key === 'х'){
+      if(e.shiftKey){ pianoZoomReset(); } else { pianoZoomOut(); }
+      e.preventDefault();
+      return;
+    }
+    if(e.code === 'BracketRight' || key === ']' || key === '}' || key === 'ъ'){
+      pianoZoomIn();
+      e.preventDefault();
+      return;
+    }
   }
   if(key === '+' || key === '='){
     zoomIn();
@@ -11230,7 +11746,9 @@ function handleMidiNote(pc){
   // цикл мажор<->минор здесь не нужен: сразу проверяем на кольце currentL2.ring.
   if(appMode === 'practice' && practiceLevel === 2){
     if(!currentL2) return;
-    const ring = currentL2.ring;
+    // В режиме "Пары" отвечать надо парой с другого кольца — ищем
+    // нажатую ноту именно там (см. notesExpectedCell()).
+    const ring = notesExpectedCell(currentL2).ring;
     const idx = (ring === 'major' ? majorsSemitone : minorsSemitone).indexOf(pc);
     if(idx === -1) return;
     clickWedgeByRing(ring, idx);
@@ -12233,6 +12751,8 @@ document.addEventListener('keydown', (e)=>{
 updateMobilePianoLayout();
 updateMobilePianoGeometry();
 applyZoom();
+// Восстановление масштаба мини-клавиатуры из localStorage
+applyPianoZoom();
 </script>
 <script>
 (function(){

@@ -3,61 +3,75 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- ===== Мост для оболочки index.html (три приложения в iframe) =====
+     Стоит в <head> сразу после viewport: приложения отправляют язык уже при
+     инициализации, поэтому функция отправки должна существовать раньше их
+     основных скриптов. Вне iframe скрипт молча ничего не делает. -->
 <script>
-/* ===== Мост между приложением и оболочкой index.html =====
-   Наружу уходят: выбранный язык, положение панели настроек и запрос
-   переключения уровня. Внутрь принимаются язык и положение настроек
-   от оболочки. Флаг __bridgeSuppress не даёт зациклить обмен. */
 (function(){
-  var inShell = false;
-  try { inShell = !!(window.parent && window.parent !== window); } catch(e){ inShell = false; }
-  window.__inShell = inShell;
+  'use strict';
+
+  var inFrame = false;
+  try { inFrame = (window.parent && window.parent !== window); } catch(e){ inFrame = false; }
+
+  // Пока применяется значение, пришедшее снаружи, отправка молчит —
+  // иначе три приложения зациклят пересылку одного и того же значения.
   window.__bridgeSuppress = false;
 
-  function raw(msg){
-    if(!inShell) return;
-    try { window.parent.postMessage(msg, '*'); } catch(e){}
-  }
   window.__appBridgeSend = function(msg){
-    if(window.__bridgeSuppress) return;
-    raw(msg);
+    if(!inFrame || window.__bridgeSuppress) return;
+    try { window.parent.postMessage(msg, '*'); } catch(e){}
   };
+
+  function getState(){
+    try {
+      if(typeof window.__appGetState === 'function') return window.__appGetState() || {};
+    } catch(e){}
+    return {};
+  }
+
+  function applyExternal(fnName, value){
+    window.__bridgeSuppress = true;
+    try {
+      if(typeof window[fnName] === 'function') window[fnName](value);
+    } catch(e){}
+    window.__bridgeSuppress = false;
+  }
 
   window.addEventListener('message', function(e){
     var d = e.data;
     if(!d || typeof d !== 'object') return;
-    if(d.type === 'requestState'){
-      var st = (typeof window.__appGetState === 'function') ? (window.__appGetState() || {}) : {};
-      raw({ type:'appState', lang: st.lang, pos: st.pos });
+
+    if(d.type === 'uiLang'){
+      applyExternal('__setUiLangExternal', d.lang);
       return;
     }
-    if(d.type !== 'uiLang' && d.type !== 'settingsPosition') return;
-    window.__bridgeSuppress = true;
-    try {
-      if(d.type === 'uiLang' && d.lang && typeof window.__setUiLangExternal === 'function'){
-        window.__setUiLangExternal(d.lang);
-      }
-      if(d.type === 'settingsPosition' && d.value && typeof window.__setSettingsPositionExternal === 'function'){
-        window.__setSettingsPositionExternal(d.value);
-      }
-    } catch(err){}
-    window.__bridgeSuppress = false;
+    if(d.type === 'settingsPosition'){
+      applyExternal('__setSettingsPositionExternal', d.value);
+      return;
+    }
+    if(d.type === 'requestState'){
+      var s = getState();
+      window.__appBridgeSend({ type:'appState', lang: s.lang, pos: s.pos });
+      return;
+    }
   });
 
-  // кнопки переключения уровней (Квинтовый круг / Ноты / Слух)
+  // Кнопки переключения уровней — делегированно, чтобы работать и с теми,
+  // что появляются в разметке позже.
   document.addEventListener('click', function(e){
-    var b = e.target && e.target.closest ? e.target.closest('[data-switch-level]') : null;
-    if(!b) return;
-    raw({ type:'switchLevel', target: b.getAttribute('data-switch-level') });
+    var t = e.target;
+    var btn = (t && t.closest) ? t.closest('[data-switch-level]') : null;
+    if(!btn) return;
+    window.__appBridgeSend({ type:'switchLevel', target: btn.getAttribute('data-switch-level') });
   });
 
   window.addEventListener('load', function(){
-    var st = (typeof window.__appGetState === 'function') ? (window.__appGetState() || {}) : {};
-    raw({ type:'appReady', lang: st.lang, pos: st.pos });
+    var s = getState();
+    window.__appBridgeSend({ type:'appReady', lang: s.lang, pos: s.pos });
   });
 })();
 </script>
-
 <title>Ноты и ритм</title>
 <style>
   :root{
@@ -1583,11 +1597,12 @@
 
 <div class="panel-card" id="settingsPanel">
 
+  <!-- Переключение приложений через оболочку index.html -->
   <div class="level-tabs" id="appSwitchBar">
-      <button data-switch-level="frameCircle" data-i18n="appSwitchCircle">Квинтовый круг</button>
-      <button data-switch-level="frameNotes" class="active" data-i18n="appSwitchNotes">Ноты</button>
-      <button data-switch-level="frameEar" data-i18n="appSwitchEar">Слух</button>
-    </div>
+    <button data-switch-level="frameCircle" data-i18n="switch_circle">Квинтовый круг</button>
+    <button data-switch-level="frameNotes" class="active" data-i18n="switch_notes">Ноты</button>
+    <button data-switch-level="frameEar" data-i18n="switch_ear">Слух</button>
+  </div>
 
   <div class="level-tabs" id="levelTabs">
     <button data-level="notes" class="active" data-i18n="lvl_notes">Ноты</button>
@@ -2965,9 +2980,9 @@
   // Единый язык на всё приложение (settings.uiLang). Кнопки-переключатели продублированы
   // в 4 местах (Ноты, Лады, Ритм → Одна нота, Ритм → Бесконечно) — все синхронизированы.
   const I18N = {
-    appSwitchCircle: { ru: "Квинтовый круг", en: "Circle of Fifths", zh: "五度圈" },
-    appSwitchNotes: { ru: "Ноты", en: "Notes", zh: "音符" },
-    appSwitchEar: { ru: "Слух", en: "Ear", zh: "听觉" },
+    switch_circle: { ru: "Квинтовый круг", en: "Circle of Fifths", zh: "五度圈" },
+    switch_notes: { ru: "Ноты", en: "Notes", zh: "音符" },
+    switch_ear: { ru: "Слух", en: "Ear", zh: "听觉" },
     lvl_notes: { ru: "Ноты", en: "Notes", zh: "音符" },
     lvl_scales: { ru: "Лады", en: "Scales", zh: "调式" },
     lvl_rhythm: { ru: "Ритм", en: "Rhythm", zh: "节奏" },
@@ -3187,24 +3202,26 @@
   window.__i18nRefresh = [];
   function runI18nRefresh(){ window.__i18nRefresh.forEach(fn => { try{ fn(); }catch(e){} }); }
 
-  document.querySelectorAll(".lang-switch-group").forEach(g => {
-    g.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
-      settings.uiLang = b.dataset.value;
-      applyUiLang();
-      runI18nRefresh();
-      saveSettings();
-      if(window.__appBridgeSend) window.__appBridgeSend({ type:'uiLang', lang: settings.uiLang });
-    }));
-  });
-  applyUiLang();
-
-  // применение языка, пришедшего от оболочки (тем же путём, что и клик по кнопке)
-  window.__setUiLangExternal = function(lang){
-    if(lang !== "ru" && lang !== "en" && lang !== "zh") return;
+  function setUiLang(lang){
     settings.uiLang = lang;
     applyUiLang();
     runI18nRefresh();
     saveSettings();
+    if(window.__appBridgeSend) window.__appBridgeSend({ type:"uiLang", lang: settings.uiLang });
+  }
+
+  document.querySelectorAll(".lang-switch-group").forEach(g => {
+    g.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+      setUiLang(b.dataset.value);
+    }));
+  });
+  applyUiLang();
+
+  // Язык, пришедший из соседнего приложения через оболочку —
+  // применяется тем же путём, что и клик по кнопке языка.
+  window.__setUiLangExternal = function(lang){
+    if(lang !== "ru" && lang !== "en" && lang !== "zh") return;
+    setUiLang(lang);
   };
 
   function wireRangeField(rangeEl, numEl, min, max, getVal, setVal, onChange){
@@ -3430,6 +3447,15 @@
     syncSettingsBackdrop();
   }
 
+  function setSettingsPositionValue(pos){
+    settingsPositionCheckboxes.forEach((cb) => { cb.checked = cb.dataset.position === pos; });
+    settings.settingsPosition = pos;
+    applySettingsPositionMode(true);
+    applyErrorsPosVars();
+    saveSettings();
+    if(window.__appBridgeSend) window.__appBridgeSend({ type:"settingsPosition", value: pos });
+  }
+
   if(settingsPositionCheckboxes.length){
     const savedPos = settings.settingsPosition || "center";
     settingsPositionCheckboxes.forEach((cb) => {
@@ -3440,25 +3466,17 @@
           cb.checked = true;
           return;
         }
-        settingsPositionCheckboxes.forEach((other) => { if(other !== cb) other.checked = false; });
-        settings.settingsPosition = cb.dataset.position;
-        applySettingsPositionMode(true);
-        applyErrorsPosVars();
-        saveSettings();
-        if(window.__appBridgeSend) window.__appBridgeSend({ type:'settingsPosition', value: settings.settingsPosition });
+        setSettingsPositionValue(cb.dataset.position);
       });
     });
   }
   applySettingsPositionMode(true);
 
-  // применение положения панели, пришедшего от оболочки
+  // Положение панели, пришедшее из соседнего приложения через оболочку —
+  // применяется тем же путём, что и клик по галке.
   window.__setSettingsPositionExternal = function(pos){
     if(pos !== "left" && pos !== "center" && pos !== "right") return;
-    settingsPositionCheckboxes.forEach((cb) => { cb.checked = cb.dataset.position === pos; });
-    settings.settingsPosition = pos;
-    applySettingsPositionMode(true);
-    applyErrorsPosVars();
-    saveSettings();
+    setSettingsPositionValue(pos);
   };
   window.__appGetState = function(){
     return { lang: settings.uiLang, pos: settings.settingsPosition || "center" };

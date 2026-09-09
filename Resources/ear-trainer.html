@@ -3,61 +3,75 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- ===== Мост для оболочки index.html (три приложения в iframe) =====
+     Стоит в <head> сразу после viewport: приложения отправляют язык уже при
+     инициализации, поэтому функция отправки должна существовать раньше их
+     основных скриптов. Вне iframe скрипт молча ничего не делает. -->
 <script>
-/* ===== Мост между приложением и оболочкой index.html =====
-   Наружу уходят: выбранный язык, положение панели настроек и запрос
-   переключения уровня. Внутрь принимаются язык и положение настроек
-   от оболочки. Флаг __bridgeSuppress не даёт зациклить обмен. */
 (function(){
-  var inShell = false;
-  try { inShell = !!(window.parent && window.parent !== window); } catch(e){ inShell = false; }
-  window.__inShell = inShell;
+  'use strict';
+
+  var inFrame = false;
+  try { inFrame = (window.parent && window.parent !== window); } catch(e){ inFrame = false; }
+
+  // Пока применяется значение, пришедшее снаружи, отправка молчит —
+  // иначе три приложения зациклят пересылку одного и того же значения.
   window.__bridgeSuppress = false;
 
-  function raw(msg){
-    if(!inShell) return;
-    try { window.parent.postMessage(msg, '*'); } catch(e){}
-  }
   window.__appBridgeSend = function(msg){
-    if(window.__bridgeSuppress) return;
-    raw(msg);
+    if(!inFrame || window.__bridgeSuppress) return;
+    try { window.parent.postMessage(msg, '*'); } catch(e){}
   };
+
+  function getState(){
+    try {
+      if(typeof window.__appGetState === 'function') return window.__appGetState() || {};
+    } catch(e){}
+    return {};
+  }
+
+  function applyExternal(fnName, value){
+    window.__bridgeSuppress = true;
+    try {
+      if(typeof window[fnName] === 'function') window[fnName](value);
+    } catch(e){}
+    window.__bridgeSuppress = false;
+  }
 
   window.addEventListener('message', function(e){
     var d = e.data;
     if(!d || typeof d !== 'object') return;
-    if(d.type === 'requestState'){
-      var st = (typeof window.__appGetState === 'function') ? (window.__appGetState() || {}) : {};
-      raw({ type:'appState', lang: st.lang, pos: st.pos });
+
+    if(d.type === 'uiLang'){
+      applyExternal('__setUiLangExternal', d.lang);
       return;
     }
-    if(d.type !== 'uiLang' && d.type !== 'settingsPosition') return;
-    window.__bridgeSuppress = true;
-    try {
-      if(d.type === 'uiLang' && d.lang && typeof window.__setUiLangExternal === 'function'){
-        window.__setUiLangExternal(d.lang);
-      }
-      if(d.type === 'settingsPosition' && d.value && typeof window.__setSettingsPositionExternal === 'function'){
-        window.__setSettingsPositionExternal(d.value);
-      }
-    } catch(err){}
-    window.__bridgeSuppress = false;
+    if(d.type === 'settingsPosition'){
+      applyExternal('__setSettingsPositionExternal', d.value);
+      return;
+    }
+    if(d.type === 'requestState'){
+      var s = getState();
+      window.__appBridgeSend({ type:'appState', lang: s.lang, pos: s.pos });
+      return;
+    }
   });
 
-  // кнопки переключения уровней (Квинтовый круг / Ноты / Слух)
+  // Кнопки переключения уровней — делегированно, чтобы работать и с теми,
+  // что появляются в разметке позже.
   document.addEventListener('click', function(e){
-    var b = e.target && e.target.closest ? e.target.closest('[data-switch-level]') : null;
-    if(!b) return;
-    raw({ type:'switchLevel', target: b.getAttribute('data-switch-level') });
+    var t = e.target;
+    var btn = (t && t.closest) ? t.closest('[data-switch-level]') : null;
+    if(!btn) return;
+    window.__appBridgeSend({ type:'switchLevel', target: btn.getAttribute('data-switch-level') });
   });
 
   window.addEventListener('load', function(){
-    var st = (typeof window.__appGetState === 'function') ? (window.__appGetState() || {}) : {};
-    raw({ type:'appReady', lang: st.lang, pos: st.pos });
+    var s = getState();
+    window.__appBridgeSend({ type:'appReady', lang: s.lang, pos: s.pos });
   });
 })();
 </script>
-
 <title data-i18n="pageTitle">Тренировка слуха</title>
 <style>
   /* ===== Темы ===== */
@@ -843,6 +857,37 @@
   .toggle-chip.disabled {
     pointer-events: none;
     opacity: 0.6;
+  }
+
+  /* Ноты/аккорды, не входящие в выбранную тональность */
+  #right-panel .toggle-chip.out-of-key {
+    pointer-events: none;
+    opacity: 0.25;
+  }
+
+  #keyModeGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  /* Названия ладов длинные — держим их в одну строку, чтобы все кнопки были одной высоты */
+  #right-panel #keyModeGrid .toggle-chip {
+    padding-left: 2px;
+    padding-right: 2px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  #keyCurrentLabel {
+    font-weight: 600;
+    opacity: 0.85;
+  }
+
+  #keyBody.key-off {
+    opacity: 0.35;
+    pointer-events: none;
   }
 
   .notes-flex-container {
@@ -1826,16 +1871,34 @@
     <div class="menu-panel right-panel" id="right-panel">
 
       <div class="section">
+        <!-- Переключение приложений через оболочку index.html -->
         <div class="nav-tabs" id="appSwitchBar">
-          <button class="tab-btn" data-switch-level="frameCircle" data-i18n="appSwitchCircle">Квинтовый круг</button>
-          <button class="tab-btn" data-switch-level="frameNotes" data-i18n="appSwitchNotes">Ноты</button>
-          <button class="tab-btn active" data-switch-level="frameEar" data-i18n="appSwitchEar">Слух</button>
+          <button class="tab-btn" data-switch-level="frameCircle" data-i18n="switchCircle">Квинтовый круг</button>
+          <button class="tab-btn" data-switch-level="frameNotes" data-i18n="switchNotes">Ноты</button>
+          <button class="tab-btn active" data-switch-level="frameEar" data-i18n="switchEar">Слух</button>
         </div>
 
         <div class="nav-tabs" id="modeTabs">
           <button class="tab-btn active" data-mode="notes" data-i18n="tabNotes">Ноты</button>
           <button class="tab-btn" data-mode="intervals" data-i18n="tabIntervals">Интервалы</button>
           <button class="tab-btn" data-mode="chords" data-i18n="tabChords">Аккорды</button>
+        </div>
+
+        <!-- Тональность: общий фильтр для всех вкладок -->
+        <div class="section-block" id="keySection">
+          <div class="section-title">
+            <span data-i18n="keyTitle">Тональность</span>
+            <span class="quick-actions-inline"><span id="keyCurrentLabel"></span></span>
+          </div>
+          <label class="checkbox-row" style="margin-bottom:10px;">
+            <input type="checkbox" id="keyFilterCheckbox">
+            <div class="custom-checkbox"></div>
+            <span class="checkbox-label" data-i18n="keyFilterLabel">только ноты и аккорды выбранной тональности</span>
+          </label>
+          <div id="keyBody">
+            <div class="piano-grid" id="keyTonicGrid"></div>
+            <div id="keyModeGrid"></div>
+          </div>
         </div>
 
         <!-- Нота, от которой строить интервал/аккорд (интервалы и аккорды) -->
@@ -2105,9 +2168,23 @@ window.EAR_TRAINER_CONFIG = {
       debugPressedNotes: 'Нажатые ноты',
       nextQuestion: 'Новый вопрос',
       replay: 'Повторить',
+      switchCircle: 'Квинтовый круг',
+      switchNotes: 'Ноты',
+      switchEar: 'Слух',
       tabNotes: 'Ноты',
       tabIntervals: 'Интервалы',
       tabChords: 'Аккорды',
+      keyTitle: 'Тональность',
+      keyFilterLabel: 'только ноты и аккорды выбранной тональности',
+      keyModeMajor: 'Мажор',
+      keyModeMinor: 'Натуральный минор',
+      keyModeHarmonicMinor: 'Гармонический минор',
+      keyModeMelodicMinor: 'Мелодический минор',
+      keyModeDorian: 'Дорийский',
+      keyModePhrygian: 'Фригийский',
+      keyModeLydian: 'Лидийский',
+      keyModeMixolydian: 'Миксолидийский',
+      keyModeLocrian: 'Локрийский',
       rootNoteTitleDefault: 'Нота, от которой строить',
       rootNoteTitleIntervals: 'Нота, от которой строить интервал',
       rootNoteTitleChords: 'Нота, от которой строить аккорд',
@@ -2138,9 +2215,6 @@ window.EAR_TRAINER_CONFIG = {
       settingsPositionLeft: 'слева',
       settingsPositionCenter: 'по центру',
       settingsPositionRight: 'справа',
-      appSwitchCircle: 'Квинтовый круг',
-      appSwitchNotes: 'Ноты',
-      appSwitchEar: 'Слух',
       autoNextOnWrong: 'переходить к новому вопросу при неправильном ответе',
       langSectionTitle: 'Язык',
       audioOutputTitle: 'Вывод звука',
@@ -2180,6 +2254,7 @@ window.EAR_TRAINER_CONFIG = {
       alertNoInversion: 'Выберите ступень, которая подходит выбранным аккордам.',
       alertNoChordSpread: 'Выберите ширину аккорда.',
       alertNoChordInRange: 'Не удалось подобрать аккорд в выбранном диапазоне октав — выберите больше октав.',
+      alertKeyEmpty: 'В выбранной тональности нет подходящих вариантов — измените настройки или выключите ограничение по тональности.',
       midiOutNotSelected: 'MIDI-выход не выбран. Нажмите «Подключить MIDI».',
       webMidiUnsupported: 'Web MIDI API не поддерживается в этом браузере.',
       midiConnected: 'MIDI подключён.',
@@ -2200,9 +2275,23 @@ window.EAR_TRAINER_CONFIG = {
       debugPressedNotes: 'Pressed notes',
       nextQuestion: 'Next question',
       replay: 'Replay',
+      switchCircle: 'Circle of Fifths',
+      switchNotes: 'Notes',
+      switchEar: 'Ear',
       tabNotes: 'Notes',
       tabIntervals: 'Intervals',
       tabChords: 'Chords',
+      keyTitle: 'Key',
+      keyFilterLabel: 'only notes and chords from the selected key',
+      keyModeMajor: 'Major',
+      keyModeMinor: 'Natural minor',
+      keyModeHarmonicMinor: 'Harmonic minor',
+      keyModeMelodicMinor: 'Melodic minor',
+      keyModeDorian: 'Dorian',
+      keyModePhrygian: 'Phrygian',
+      keyModeLydian: 'Lydian',
+      keyModeMixolydian: 'Mixolydian',
+      keyModeLocrian: 'Locrian',
       rootNoteTitleDefault: 'Root note',
       rootNoteTitleIntervals: 'Note to build the interval from',
       rootNoteTitleChords: 'Note to build the chord from',
@@ -2233,9 +2322,6 @@ window.EAR_TRAINER_CONFIG = {
       settingsPositionLeft: 'left',
       settingsPositionCenter: 'centered',
       settingsPositionRight: 'right',
-      appSwitchCircle: 'Circle of Fifths',
-      appSwitchNotes: 'Notes',
-      appSwitchEar: 'Ear',
       autoNextOnWrong: 'advance to next question on wrong answer',
       langSectionTitle: 'Language',
       audioOutputTitle: 'Sound output',
@@ -2275,6 +2361,7 @@ window.EAR_TRAINER_CONFIG = {
       alertNoInversion: 'Choose an inversion that fits the selected chords.',
       alertNoChordSpread: 'Choose a chord spread.',
       alertNoChordInRange: 'Could not fit a chord in the selected octave range — choose more octaves.',
+      alertKeyEmpty: 'No options fit the selected key — change the settings or turn the key filter off.',
       midiOutNotSelected: 'MIDI output not selected. Press "Connect MIDI".',
       webMidiUnsupported: 'Web MIDI API is not supported in this browser.',
       midiConnected: 'MIDI connected.',
@@ -2295,9 +2382,23 @@ window.EAR_TRAINER_CONFIG = {
       debugPressedNotes: '已按下的音符',
       nextQuestion: '下一题',
       replay: '重播',
+      switchCircle: '五度圈',
+      switchNotes: '音符',
+      switchEar: '听觉',
       tabNotes: '音符',
       tabIntervals: '音程',
       tabChords: '和弦',
+      keyTitle: '调性',
+      keyFilterLabel: '仅使用所选调性内的音符和和弦',
+      keyModeMajor: '大调',
+      keyModeMinor: '自然小调',
+      keyModeHarmonicMinor: '和声小调',
+      keyModeMelodicMinor: '旋律小调',
+      keyModeDorian: '多利亚',
+      keyModePhrygian: '弗里几亚',
+      keyModeLydian: '利底亚',
+      keyModeMixolydian: '混合利底亚',
+      keyModeLocrian: '洛克里亚',
       rootNoteTitleDefault: '起始音',
       rootNoteTitleIntervals: '构建音程的起始音',
       rootNoteTitleChords: '构建和弦的起始音',
@@ -2328,9 +2429,6 @@ window.EAR_TRAINER_CONFIG = {
       settingsPositionLeft: '左侧',
       settingsPositionCenter: '居中',
       settingsPositionRight: '右侧',
-      appSwitchCircle: '五度圈',
-      appSwitchNotes: '音符',
-      appSwitchEar: '听觉',
       autoNextOnWrong: '答错后自动进入下一题',
       langSectionTitle: '语言',
       audioOutputTitle: '声音输出',
@@ -2370,6 +2468,7 @@ window.EAR_TRAINER_CONFIG = {
       alertNoInversion: '请选择一个适用于所选和弦的转位。',
       alertNoChordSpread: '请选择和弦跨度。',
       alertNoChordInRange: '无法在所选八度范围内找到合适的和弦——请选择更多八度。',
+      alertKeyEmpty: '所选调性内没有可用的选项——请更改设置或关闭调性限制。',
       midiOutNotSelected: '未选择 MIDI 输出。请点击"连接 MIDI"。',
       webMidiUnsupported: '此浏览器不支持 Web MIDI API。',
       midiConnected: 'MIDI 已连接。',
@@ -2427,6 +2526,7 @@ window.EAR_TRAINER_CONFIG = {
     if (dawBtn) dawBtn.textContent = t('outputDAW');
     document.documentElement.setAttribute('lang', getLang());
     document.title = t('pageTitle');
+    if (typeof updateKeyLabel === 'function') updateKeyLabel();
   }
 
   function getNoteNaming() { return (state.noteNaming === 'solfege') ? 'solfege' : 'ABC'; }
@@ -2477,6 +2577,20 @@ window.EAR_TRAINER_CONFIG = {
     { id: 'maj13', name: 'maj13', intervals: [0, 4, 7, 11, 14, 17, 21] },
     { id: 'm13', name: 'm13', intervals: [0, 3, 7, 10, 14, 17, 21] },
     { id: 'm(maj13)', name: 'm(maj13)', intervals: [0, 3, 7, 11, 14, 17, 21] },
+  ];
+
+  // ---------------- тональности (лады) ----------------
+  // steps — ступени лада в полутонах от тоники
+  const SCALE_MODES = [
+    { id: 'major', i18n: 'keyModeMajor', steps: [0, 2, 4, 5, 7, 9, 11] },
+    { id: 'minor', i18n: 'keyModeMinor', steps: [0, 2, 3, 5, 7, 8, 10] },
+    { id: 'harmonicMinor', i18n: 'keyModeHarmonicMinor', steps: [0, 2, 3, 5, 7, 8, 11] },
+    { id: 'melodicMinor', i18n: 'keyModeMelodicMinor', steps: [0, 2, 3, 5, 7, 9, 11] },
+    { id: 'dorian', i18n: 'keyModeDorian', steps: [0, 2, 3, 5, 7, 9, 10] },
+    { id: 'phrygian', i18n: 'keyModePhrygian', steps: [0, 1, 3, 5, 7, 8, 10] },
+    { id: 'lydian', i18n: 'keyModeLydian', steps: [0, 2, 4, 6, 7, 9, 11] },
+    { id: 'mixolydian', i18n: 'keyModeMixolydian', steps: [0, 2, 4, 5, 7, 9, 10] },
+    { id: 'locrian', i18n: 'keyModeLocrian', steps: [0, 1, 3, 5, 6, 8, 10] },
   ];
 
   // Аккорды, для которых доступны обращения
@@ -2563,16 +2677,18 @@ window.EAR_TRAINER_CONFIG = {
     });
 
     try { localStorage.setItem('earTrainerLang', lang); } catch (e) {}
-    if (window.__appBridgeSend) window.__appBridgeSend({ type: 'uiLang', lang: lang });
 
     if (!opts.initial) {
       buildPoolGrid();
       buildSelects();
       renderAnswerUI();
     }
+
+    if (window.__appBridgeSend) window.__appBridgeSend({ type: 'uiLang', lang: lang });
   }
 
-  // применение языка, пришедшего от оболочки (тем же путём, что и клик по кнопке)
+  // Язык, пришедший из соседнего приложения через оболочку —
+  // применяется тем же путём, что и клик по кнопке языка.
   window.__setUiLangExternal = function (lang) {
     if (lang !== 'ru' && lang !== 'en' && lang !== 'zh') return;
     applyLanguage(lang);
@@ -2638,6 +2754,9 @@ window.EAR_TRAINER_CONFIG = {
     sidePanelPinned: true,
     settingsPosition: null,
     chordByNotes: true,
+    keyFilter: false,
+    keyTonic: 0,
+    keyMode: 'major',
     hideActionButtons: true,
     showResult: true,
     autoNextOnWrong: false,
@@ -2655,19 +2774,28 @@ window.EAR_TRAINER_CONFIG = {
 
   function saveSettings() {
     settingsCache.mode = state.mode;
+    // При включённом фильтре по тональности варианты вне неё сняты принудительно.
+    // Сохраняем их отдельно, чтобы после выключения фильтра выбор пользователя вернулся.
+    const asPc = (el) => parseInt(el.dataset.pc, 10);
+    const asId = (el) => el.dataset.id;
+    // Выбранное + то, что временно снято фильтром по тональности
+    const withHidden = (gridSel, parse) => [...new Set([
+      ...[...document.querySelectorAll(gridSel + ' .toggle-chip.selected')].map(parse),
+      ...[...document.querySelectorAll(gridSel + ' .toggle-chip.out-of-key[data-key-hid-sel]')].map(parse),
+    ])];
     if (state.mode === 'notes') {
-      settingsCache.poolNotes = [...document.querySelectorAll('#pool-grid .toggle-chip.selected')].map((el) => parseInt(el.dataset.pc, 10));
+      settingsCache.poolNotes = withHidden('#pool-grid', asPc);
     } else if (state.mode === 'intervals') {
-      settingsCache.poolIntervals = [...document.querySelectorAll('#pool-grid .toggle-chip.selected')].map((el) => el.dataset.id);
+      settingsCache.poolIntervals = withHidden('#pool-grid', asId);
     } else if (state.mode === 'chords') {
-      settingsCache.poolChords = [...document.querySelectorAll('#pool-grid .toggle-chip.selected')].map((el) => el.dataset.id);
+      settingsCache.poolChords = withHidden('#pool-grid', asId);
       settingsCache.inversions = getSelectedInversions();
     }
     settingsCache.intervalDirections = getSelectedDirections();
     settingsCache.intervalSpreads = getSelectedSpreads();
     settingsCache.chordSpreads = getSelectedChordSpreads();
     if (state.mode === 'intervals' || state.mode === 'chords') {
-      settingsCache.rootPcs = [...document.querySelectorAll('#root-note-grid .toggle-chip.selected')].map((el) => parseInt(el.dataset.pc, 10));
+      settingsCache.rootPcs = withHidden('#root-note-grid', asPc);
     }
     settingsCache.octaves = getSelectedOctaves();
     settingsCache.outputMode = state.outputMode;
@@ -2679,6 +2807,8 @@ window.EAR_TRAINER_CONFIG = {
     settingsCache.noteNaming = state.noteNaming;
     const chNotesCb = $('chordByNotesCheckbox');
     if (chNotesCb) settingsCache.chordByNotes = chNotesCb.checked;
+    const keyCb = $('keyFilterCheckbox');
+    if (keyCb) settingsCache.keyFilter = keyCb.checked;
     const posCheckbox = document.querySelector('.settings-position-checkbox:checked');
     if (posCheckbox) settingsCache.settingsPosition = posCheckbox.dataset.position;
     const hideActCb = $('hideActionButtonsCheckbox');
@@ -2801,6 +2931,7 @@ window.EAR_TRAINER_CONFIG = {
       const pc = parseInt(el.dataset.pc, 10);
       el.textContent = pianoKeyLabel(pc, el.classList.contains('black-key'));
     });
+    updateKeyLabel();
   }
 
   function isShowResultOn() {
@@ -3038,8 +3169,12 @@ window.EAR_TRAINER_CONFIG = {
     if (octaves.length === 0) { alert(t('alertNoOctave')); return null; }
 
     if (state.mode === 'notes') {
-      const pool = getSelectedNotePcs();
+      let pool = getSelectedNotePcs();
       if (pool.length === 0) { alert(t('alertNoNote')); return null; }
+      if (isKeyFilterOn()) {
+        pool = pool.filter(pcInKey);
+        if (pool.length === 0) { showKeyEmptyInfo(); return null; }
+      }
       const usePool = pickPoolAvoidingRecent(pool, (pc) => String(pc));
       for (let a = 0; a < 60; a++) {
         const pc = usePool[randInt(usePool.length)];
@@ -3064,12 +3199,20 @@ window.EAR_TRAINER_CONFIG = {
       if (dirPool.length === 0) { alert(t('alertNoDirection')); return null; }
       const spreadPool = getSelectedSpreads();
       if (spreadPool.length === 0) { alert(t('alertNoIntervalSpread')); return null; }
-      for (let a = 0; a < 80; a++) {
-        const pc = rootPcs[randInt(rootPcs.length)];
+      // Допустимые сочетания «ступень + интервал + направление».
+      // При включённом фильтре остаются только те, где обе ноты входят в тональность.
+      const ivCombos = [];
+      rootPcs.forEach((pc) => usePool.forEach((iv) => dirPool.forEach((dir) => {
+        if (intervalFitsKey(pc, iv.semitones, dir)) ivCombos.push({ pc, iv, dir });
+      })));
+      if (ivCombos.length === 0) { showKeyEmptyInfo(); return null; }
+      for (let a = 0; a < 200; a++) {
+        const combo = ivCombos[randInt(ivCombos.length)];
+        const pc = combo.pc;
         const oct = octaves[randInt(octaves.length)];
         const root = pcOctaveToMidi(pc, oct);
-        const iv = usePool[randInt(usePool.length)];
-        const dir = dirPool[randInt(dirPool.length)];
+        const iv = combo.iv;
+        const dir = combo.dir;
         const spread = spreadPool[randInt(spreadPool.length)];
         const semis = iv.semitones + 12 * spread;
         let notes, ok;
@@ -3109,10 +3252,18 @@ window.EAR_TRAINER_CONFIG = {
     if (chordVariants.length === 0) { alert(t('alertNoInversion')); return null; }
     const chordSpreadPool = getSelectedChordSpreads();
     if (chordSpreadPool.length === 0) { alert(t('alertNoChordSpread')); return null; }
-    for (let a = 0; a < 80; a++) {
-      const pc = chordRootPcs[randInt(chordRootPcs.length)];
+    // Допустимые сочетания «ступень + аккорд».
+    // При включённом фильтре остаются только аккорды, все ноты которых входят в тональность.
+    const chordCombos = [];
+    chordRootPcs.forEach((pc) => chordVariants.forEach((v) => {
+      if (chordFitsKey(v.chord, pc)) chordCombos.push({ pc, variant: v });
+    }));
+    if (chordCombos.length === 0) { showKeyEmptyInfo(); return null; }
+    for (let a = 0; a < 200; a++) {
+      const combo = chordCombos[randInt(chordCombos.length)];
+      const pc = combo.pc;
       const oct = octaves[randInt(octaves.length)];
-      const variant = chordVariants[randInt(chordVariants.length)];
+      const variant = combo.variant;
       const chord = variant.chord;
       const chordSpread = chordSpreadPool[randInt(chordSpreadPool.length)];
       const invIntervals = applyInversion(chord.intervals, variant.inv);
@@ -3602,6 +3753,7 @@ window.EAR_TRAINER_CONFIG = {
   // Никакой новый вопрос не выдаём автоматически: ждём, пока пользователь сам
   // нажмёт «Новый вопрос» (или прокрутит колесо вниз / прокрутит питч вниз).
   function settingsChanged() {
+    applyKeyFilterToGrids();
     saveSettings();
     state.currentTarget = null;
     state.answered = false;
@@ -3912,6 +4064,196 @@ window.EAR_TRAINER_CONFIG = {
     playTarget(state.currentTarget);
   }
 
+  // ---------------- фильтр по тональности ----------------
+  // Если в выбранной тональности нет подходящих вариантов — не выдаём вопрос,
+  // а пишем это в строке над кнопками «Новый вопрос»/«Повторить».
+  // Надпись висит до следующего нажатия «Новый вопрос», где проверка повторяется.
+  function showKeyEmptyInfo() {
+    updateNoteSeqInfo(t('alertKeyEmpty'), true, true);
+  }
+
+  function isKeyFilterOn() { return !!settingsCache.keyFilter; }
+  function currentKeyTonic() {
+    const v = parseInt(settingsCache.keyTonic, 10);
+    return (isNaN(v) || v < 0 || v > 11) ? 0 : v;
+  }
+  function currentKeyMode() {
+    return SCALE_MODES.find((m) => m.id === settingsCache.keyMode) || SCALE_MODES[0];
+  }
+  function currentScalePcs() {
+    const tonic = currentKeyTonic();
+    return new Set(currentKeyMode().steps.map((st) => (tonic + st) % 12));
+  }
+  // Входит ли нота в выбранную тональность (при выключенном фильтре — всегда да)
+  function pcInKey(pc) {
+    if (!isKeyFilterOn()) return true;
+    return currentScalePcs().has(((pc % 12) + 12) % 12);
+  }
+  // Аккорд диатоничен, если ВСЕ его ноты входят в тональность
+  function chordFitsKey(chord, rootPc) {
+    if (!isKeyFilterOn()) return true;
+    const scale = currentScalePcs();
+    return chord.intervals.every((s) => scale.has(((rootPc + s) % 12 + 12) % 12));
+  }
+  // Интервал допустим, если обе его ноты входят в тональность
+  function intervalFitsKey(rootPc, semitones, dir) {
+    if (!isKeyFilterOn()) return true;
+    const scale = currentScalePcs();
+    const base = ((rootPc % 12) + 12) % 12;
+    if (!scale.has(base)) return false;
+    const other = ((dir === 'down' ? base - semitones : base + semitones) % 12 + 12) % 12;
+    return scale.has(other);
+  }
+  // Есть ли в тональности хоть одна ступень, от которой строится этот интервал
+  function intervalAvailableInKey(iv, dirs) {
+    if (!isKeyFilterOn()) return true;
+    const list = (dirs && dirs.length) ? dirs : ['up'];
+    return [...currentScalePcs()].some((pc) => list.some((d) => intervalFitsKey(pc, iv.semitones, d)));
+  }
+  // Есть ли в тональности хоть одна ступень, от которой этот аккорд диатоничен
+  function chordAvailableInKey(chord) {
+    if (!isKeyFilterOn()) return true;
+    return [...currentScalePcs()].some((pc) => chordFitsKey(chord, pc));
+  }
+  // Можно ли от этой ступени построить хоть какой-нибудь аккорд из списка
+  function rootPcAvailableForChords(pc) {
+    if (!isKeyFilterOn()) return true;
+    if (!pcInKey(pc)) return false;
+    return CHORDS.some((c) => chordFitsKey(c, pc));
+  }
+  // Можно ли от этой ступени построить хоть какой-нибудь интервал из списка
+  function rootPcAvailableForIntervals(pc, dirs) {
+    if (!isKeyFilterOn()) return true;
+    if (!pcInKey(pc)) return false;
+    const list = (dirs && dirs.length) ? dirs : ['up'];
+    return INTERVALS.some((iv) => list.some((d) => intervalFitsKey(pc, iv.semitones, d)));
+  }
+
+  function updateKeyLabel() {
+    const el = $('keyCurrentLabel');
+    if (!el) return;
+    // Название лада в подписи — со строчной буквы: «C мажор», «A гармонический минор»
+    el.textContent = noteName(currentKeyTonic()) + ' ' + t(currentKeyMode().i18n).toLowerCase();
+  }
+
+  function buildKeyUI() {
+    const tonicGrid = $('keyTonicGrid');
+    const modeGrid = $('keyModeGrid');
+    const cb = $('keyFilterCheckbox');
+    if (!tonicGrid || !modeGrid || !cb) return;
+
+    cb.checked = isKeyFilterOn();
+
+    // Тоника: 12 клавиш, выбирается ровно одна
+    tonicGrid.innerHTML = '';
+    tonicGrid.className = 'piano-grid';
+    const blacks = PIANO_KEYS.filter((k) => k.black);
+    const whites = PIANO_KEYS.filter((k) => !k.black);
+    [...blacks, ...whites].forEach((k) => {
+      const chip = document.createElement('div');
+      chip.className = 'toggle-chip' + (k.black ? ' black-key' : '') + (k.pc === currentKeyTonic() ? ' selected' : '');
+      chip.textContent = pianoKeyLabel(k.pc, k.black);
+      chip.dataset.pc = k.pc;
+      chip.style.gridColumn = k.col;
+      chip.addEventListener('click', () => {
+        settingsCache.keyTonic = k.pc;
+        tonicGrid.querySelectorAll('.toggle-chip').forEach((c) => c.classList.toggle('selected', c === chip));
+        updateKeyLabel();
+        // Пересобираем сетки: ноты, вернувшиеся в тональность, снова становятся доступны
+        buildPoolGrid();
+        settingsChanged();
+      });
+      tonicGrid.appendChild(chip);
+    });
+
+    // Лад: выбирается ровно один
+    modeGrid.innerHTML = '';
+    SCALE_MODES.forEach((m) => {
+      const chip = document.createElement('div');
+      chip.className = 'toggle-chip' + (m.id === currentKeyMode().id ? ' selected' : '');
+      chip.textContent = t(m.i18n);
+      chip.dataset.i18n = m.i18n;
+      chip.dataset.keymode = m.id;
+      chip.addEventListener('click', () => {
+        settingsCache.keyMode = m.id;
+        modeGrid.querySelectorAll('.toggle-chip').forEach((c) => c.classList.toggle('selected', c === chip));
+        updateKeyLabel();
+        // Пересобираем сетки: ноты, вернувшиеся в тональность, снова становятся доступны
+        buildPoolGrid();
+        settingsChanged();
+      });
+      modeGrid.appendChild(chip);
+    });
+
+    updateKeyLabel();
+    updateKeyBodyState();
+  }
+
+  function updateKeyBodyState() {
+    const body = $('keyBody');
+    if (body) body.classList.toggle('key-off', !isKeyFilterOn());
+  }
+
+  // Гасим в настройках всё, что не помещается в выбранную тональность
+  function applyKeyFilterToGrids() {
+    updateKeyBodyState();
+    const on = isKeyFilterOn();
+    const dirs = getSelectedDirections();
+    const pool = $('pool-grid');
+    const rootGrid = $('root-note-grid');
+
+    // Снимая вариант вне тональности, помним, что он был выбран:
+    // при возврате в тональность выбор восстанавливается
+    const mark = (chip, off) => {
+      chip.classList.toggle('out-of-key', off);
+      if (off) {
+        if (chip.classList.contains('selected')) chip.dataset.keyHidSel = '1';
+        chip.classList.remove('selected');
+      } else if (chip.dataset.keyHidSel) {
+        chip.classList.add('selected');
+        delete chip.dataset.keyHidSel;
+      }
+    };
+
+    if (pool) {
+      pool.querySelectorAll('.toggle-chip').forEach((chip) => {
+        let off = false;
+        if (on) {
+          if (state.mode === 'notes') {
+            off = !pcInKey(parseInt(chip.dataset.pc, 10));
+          } else if (state.mode === 'intervals') {
+            const iv = INTERVALS.find((i) => i.id === chip.dataset.id);
+            off = iv ? !intervalAvailableInKey(iv, dirs) : false;
+          } else {
+            const c = CHORDS.find((x) => x.id === chip.dataset.id);
+            off = c ? !chordAvailableInKey(c) : false;
+          }
+        }
+        mark(chip, off);
+      });
+    }
+
+    if (rootGrid && (state.mode === 'intervals' || state.mode === 'chords')) {
+      rootGrid.querySelectorAll('.toggle-chip').forEach((chip) => {
+        const pc = parseInt(chip.dataset.pc, 10);
+        const off = on && (state.mode === 'chords' ? !rootPcAvailableForChords(pc) : !rootPcAvailableForIntervals(pc, dirs));
+        mark(chip, off);
+      });
+    }
+
+    // Если после фильтра ничего не осталось выбранным — включаем первую доступную ступень/вариант
+    [pool, rootGrid].forEach((grid) => {
+      if (!grid) return;
+      const chips = [...grid.querySelectorAll('.toggle-chip')];
+      if (!chips.length) return;
+      if (chips.some((c) => c.classList.contains('selected'))) return;
+      const keep = chips.find((c) => !c.classList.contains('out-of-key') && !c.classList.contains('disabled'));
+      if (keep) keep.classList.add('selected');
+    });
+
+    if (state.mode === 'chords') updateInversionAvailability();
+  }
+
   // ---------------- building settings UI ----------------
   function buildPianoGrid(grid, defaultSelectedPcs, onToggle, protectLast) {
     grid.innerHTML = '';
@@ -3949,7 +4291,9 @@ window.EAR_TRAINER_CONFIG = {
     const grid = $('root-note-grid');
     if (!grid) return;
     if (grid.querySelectorAll('.toggle-chip.selected').length === 0) {
-      const keep = grid.querySelector('.toggle-chip[data-pc="0"]') || grid.querySelector('.toggle-chip');
+      const keep = grid.querySelector('.toggle-chip[data-pc="0"]:not(.out-of-key)')
+        || grid.querySelector('.toggle-chip:not(.out-of-key)')
+        || grid.querySelector('.toggle-chip');
       if (keep) keep.classList.add('selected');
     }
   }
@@ -3964,7 +4308,9 @@ window.EAR_TRAINER_CONFIG = {
     const chips = [...grid.querySelectorAll('.toggle-chip')];
     if (!chips.length) return;
     if (chips.some((c) => c.classList.contains('selected'))) return;
-    const keep = chips.find((c) => c.dataset.pc === '0' && !c.classList.contains('disabled'))
+    const usable = (c) => !c.classList.contains('disabled') && !c.classList.contains('out-of-key');
+    const keep = chips.find((c) => c.dataset.pc === '0' && usable(c))
+      || chips.find(usable)
       || chips.find((c) => !c.classList.contains('disabled'))
       || chips[0];
     if (keep) keep.classList.add('selected');
@@ -4051,6 +4397,8 @@ window.EAR_TRAINER_CONFIG = {
       });
       buildInversionGrid();
     }
+
+    applyKeyFilterToGrids();
   }
 
   function buildInversionGrid() {
@@ -4197,6 +4545,17 @@ window.EAR_TRAINER_CONFIG = {
       if (cb) cb.addEventListener('change', () => { settingsChanged(); });
     });
 
+    const keyCb = $('keyFilterCheckbox');
+    if (keyCb) {
+      keyCb.addEventListener('change', () => {
+        settingsCache.keyFilter = keyCb.checked;
+        // При включении фильтра — заново собираем сетки, чтобы вернуть
+        // сохранённый выбор и уже поверх него применить тональность
+        buildPoolGrid();
+        settingsChanged();
+      });
+    }
+
     document.querySelectorAll('#modeTabs .tab-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('#modeTabs .tab-btn').forEach((b) => b.classList.remove('active'));
@@ -4211,7 +4570,10 @@ window.EAR_TRAINER_CONFIG = {
     });
 
     $('selectAllPool').addEventListener('click', () => {
-      document.querySelectorAll('#pool-grid .toggle-chip').forEach((c) => c.classList.add('selected'));
+      // Варианты вне выбранной тональности не включаем
+      document.querySelectorAll('#pool-grid .toggle-chip').forEach((c) => {
+        if (!c.classList.contains('out-of-key')) c.classList.add('selected');
+      });
       updateInversionAvailability();
       settingsChanged();
     });
@@ -4219,19 +4581,23 @@ window.EAR_TRAINER_CONFIG = {
     $('selectNonePool').addEventListener('click', () => {
       const chips = [...document.querySelectorAll('#pool-grid .toggle-chip')];
       chips.forEach((c) => c.classList.remove('selected'));
-      const keep = chips.find((c) => c.dataset.pc === '0') || chips[0];
+      const free = (c) => !c.classList.contains('out-of-key');
+      const keep = chips.find((c) => c.dataset.pc === '0' && free(c)) || chips.find(free) || chips[0];
       if (keep) keep.classList.add('selected');
       updateInversionAvailability();
       settingsChanged();
     });
 
     $('selectAllRoot').addEventListener('click', () => {
-      document.querySelectorAll('#root-note-grid .toggle-chip').forEach((c) => c.classList.add('selected'));
+      // Ступени вне выбранной тональности не включаем
+      document.querySelectorAll('#root-note-grid .toggle-chip').forEach((c) => {
+        if (!c.classList.contains('out-of-key')) c.classList.add('selected');
+      });
       saveSettings();
     });
     $('selectNoneRoot').addEventListener('click', () => {
       document.querySelectorAll('#root-note-grid .toggle-chip').forEach((c) => {
-        if (c.dataset.pc === '0') c.classList.add('selected');
+        if (c.dataset.pc === '0' && !c.classList.contains('out-of-key')) c.classList.add('selected');
         else c.classList.remove('selected');
       });
       ensureRootNoteSelection();
@@ -4320,6 +4686,13 @@ window.EAR_TRAINER_CONFIG = {
       syncSettingsBackdrop();
     }
 
+    function setSettingsPositionValue(pos) {
+      settingsPositionCheckboxes.forEach((cb) => { cb.checked = cb.dataset.position === pos; });
+      applySettingsPositionMode(true);
+      saveSettings();
+      if (window.__appBridgeSend) window.__appBridgeSend({ type: 'settingsPosition', value: pos });
+    }
+
     if (settingsPositionCheckboxes.length) {
       const savedPos = settingsCache.settingsPosition || 'left';
       settingsPositionCheckboxes.forEach((cb) => {
@@ -4330,26 +4703,20 @@ window.EAR_TRAINER_CONFIG = {
             cb.checked = true;
             return;
           }
-          settingsPositionCheckboxes.forEach((other) => {
-            if (other !== cb) other.checked = false;
-          });
-          applySettingsPositionMode(true);
-          saveSettings();
-          if (window.__appBridgeSend) window.__appBridgeSend({ type: 'settingsPosition', value: cb.dataset.position });
+          setSettingsPositionValue(cb.dataset.position);
         });
       });
     }
     applySettingsPositionMode();
 
-    // применение положения панели, пришедшего от оболочки
+    // Положение панели, пришедшее из соседнего приложения через оболочку —
+    // применяется тем же путём, что и клик по галке.
     window.__setSettingsPositionExternal = function (pos) {
       if (pos !== 'left' && pos !== 'center' && pos !== 'right') return;
-      settingsPositionCheckboxes.forEach((cb) => { cb.checked = cb.dataset.position === pos; });
-      applySettingsPositionMode(true);
-      saveSettings();
+      setSettingsPositionValue(pos);
     };
     window.__appGetState = function () {
-      return { lang: state.lang, pos: getSettingsPosition() };
+      return { lang: getLang(), pos: getSettingsPosition() };
     };
     if (isFirstVisit) {
       showSettingsPanel();
@@ -4659,6 +5026,7 @@ window.EAR_TRAINER_CONFIG = {
 
     if ($('chordByNotesCheckbox')) $('chordByNotesCheckbox').checked = settingsCache.chordByNotes !== false;
 
+    buildKeyUI();
     buildPoolGrid();
     buildDirectionGrid();
     buildSpreadGrid();
@@ -4666,6 +5034,7 @@ window.EAR_TRAINER_CONFIG = {
     buildOctaveGrid();
     buildSelects();
     ensureAllGridSelections();
+    applyKeyFilterToGrids();
 
     // Тема
     document.body.setAttribute('data-theme', settingsCache.theme);
