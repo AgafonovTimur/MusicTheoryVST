@@ -3,75 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<!-- ===== Мост для оболочки index.html (три приложения в iframe) =====
-     Стоит в <head> сразу после viewport: приложения отправляют язык уже при
-     инициализации, поэтому функция отправки должна существовать раньше их
-     основных скриптов. Вне iframe скрипт молча ничего не делает. -->
-<script>
-(function(){
-  'use strict';
-
-  var inFrame = false;
-  try { inFrame = (window.parent && window.parent !== window); } catch(e){ inFrame = false; }
-
-  // Пока применяется значение, пришедшее снаружи, отправка молчит —
-  // иначе три приложения зациклят пересылку одного и того же значения.
-  window.__bridgeSuppress = false;
-
-  window.__appBridgeSend = function(msg){
-    if(!inFrame || window.__bridgeSuppress) return;
-    try { window.parent.postMessage(msg, '*'); } catch(e){}
-  };
-
-  function getState(){
-    try {
-      if(typeof window.__appGetState === 'function') return window.__appGetState() || {};
-    } catch(e){}
-    return {};
-  }
-
-  function applyExternal(fnName, value){
-    window.__bridgeSuppress = true;
-    try {
-      if(typeof window[fnName] === 'function') window[fnName](value);
-    } catch(e){}
-    window.__bridgeSuppress = false;
-  }
-
-  window.addEventListener('message', function(e){
-    var d = e.data;
-    if(!d || typeof d !== 'object') return;
-
-    if(d.type === 'uiLang'){
-      applyExternal('__setUiLangExternal', d.lang);
-      return;
-    }
-    if(d.type === 'settingsPosition'){
-      applyExternal('__setSettingsPositionExternal', d.value);
-      return;
-    }
-    if(d.type === 'requestState'){
-      var s = getState();
-      window.__appBridgeSend({ type:'appState', lang: s.lang, pos: s.pos });
-      return;
-    }
-  });
-
-  // Кнопки переключения уровней — делегированно, чтобы работать и с теми,
-  // что появляются в разметке позже.
-  document.addEventListener('click', function(e){
-    var t = e.target;
-    var btn = (t && t.closest) ? t.closest('[data-switch-level]') : null;
-    if(!btn) return;
-    window.__appBridgeSend({ type:'switchLevel', target: btn.getAttribute('data-switch-level') });
-  });
-
-  window.addEventListener('load', function(){
-    var s = getState();
-    window.__appBridgeSend({ type:'appReady', lang: s.lang, pos: s.pos });
-  });
-})();
-</script>
 <title data-i18n="pageTitle">Тренировка слуха</title>
 <style>
   /* ===== Темы ===== */
@@ -1871,13 +1802,6 @@
     <div class="menu-panel right-panel" id="right-panel">
 
       <div class="section">
-        <!-- Переключение приложений через оболочку index.html -->
-        <div class="nav-tabs" id="appSwitchBar">
-          <button class="tab-btn" data-switch-level="frameCircle" data-i18n="switchCircle">Квинтовый круг</button>
-          <button class="tab-btn" data-switch-level="frameNotes" data-i18n="switchNotes">Ноты</button>
-          <button class="tab-btn active" data-switch-level="frameEar" data-i18n="switchEar">Слух</button>
-        </div>
-
         <div class="nav-tabs" id="modeTabs">
           <button class="tab-btn active" data-mode="notes" data-i18n="tabNotes">Ноты</button>
           <button class="tab-btn" data-mode="intervals" data-i18n="tabIntervals">Интервалы</button>
@@ -2168,9 +2092,6 @@ window.EAR_TRAINER_CONFIG = {
       debugPressedNotes: 'Нажатые ноты',
       nextQuestion: 'Новый вопрос',
       replay: 'Повторить',
-      switchCircle: 'Квинтовый круг',
-      switchNotes: 'Ноты',
-      switchEar: 'Слух',
       tabNotes: 'Ноты',
       tabIntervals: 'Интервалы',
       tabChords: 'Аккорды',
@@ -2275,9 +2196,6 @@ window.EAR_TRAINER_CONFIG = {
       debugPressedNotes: 'Pressed notes',
       nextQuestion: 'Next question',
       replay: 'Replay',
-      switchCircle: 'Circle of Fifths',
-      switchNotes: 'Notes',
-      switchEar: 'Ear',
       tabNotes: 'Notes',
       tabIntervals: 'Intervals',
       tabChords: 'Chords',
@@ -2382,9 +2300,6 @@ window.EAR_TRAINER_CONFIG = {
       debugPressedNotes: '已按下的音符',
       nextQuestion: '下一题',
       replay: '重播',
-      switchCircle: '五度圈',
-      switchNotes: '音符',
-      switchEar: '听觉',
       tabNotes: '音符',
       tabIntervals: '音程',
       tabChords: '和弦',
@@ -2683,16 +2598,7 @@ window.EAR_TRAINER_CONFIG = {
       buildSelects();
       renderAnswerUI();
     }
-
-    if (window.__appBridgeSend) window.__appBridgeSend({ type: 'uiLang', lang: lang });
   }
-
-  // Язык, пришедший из соседнего приложения через оболочку —
-  // применяется тем же путём, что и клик по кнопке языка.
-  window.__setUiLangExternal = function (lang) {
-    if (lang !== 'ru' && lang !== 'en' && lang !== 'zh') return;
-    applyLanguage(lang);
-  };
 
   const OCTAVES = [
     { o: 1, label: 'C1' }, { o: 2, label: 'C2' },
@@ -4686,13 +4592,6 @@ window.EAR_TRAINER_CONFIG = {
       syncSettingsBackdrop();
     }
 
-    function setSettingsPositionValue(pos) {
-      settingsPositionCheckboxes.forEach((cb) => { cb.checked = cb.dataset.position === pos; });
-      applySettingsPositionMode(true);
-      saveSettings();
-      if (window.__appBridgeSend) window.__appBridgeSend({ type: 'settingsPosition', value: pos });
-    }
-
     if (settingsPositionCheckboxes.length) {
       const savedPos = settingsCache.settingsPosition || 'left';
       settingsPositionCheckboxes.forEach((cb) => {
@@ -4703,21 +4602,15 @@ window.EAR_TRAINER_CONFIG = {
             cb.checked = true;
             return;
           }
-          setSettingsPositionValue(cb.dataset.position);
+          settingsPositionCheckboxes.forEach((other) => {
+            if (other !== cb) other.checked = false;
+          });
+          applySettingsPositionMode(true);
+          saveSettings();
         });
       });
     }
     applySettingsPositionMode();
-
-    // Положение панели, пришедшее из соседнего приложения через оболочку —
-    // применяется тем же путём, что и клик по галке.
-    window.__setSettingsPositionExternal = function (pos) {
-      if (pos !== 'left' && pos !== 'center' && pos !== 'right') return;
-      setSettingsPositionValue(pos);
-    };
-    window.__appGetState = function () {
-      return { lang: getLang(), pos: getSettingsPosition() };
-    };
     if (isFirstVisit) {
       showSettingsPanel();
       saveSettings();

@@ -7,75 +7,6 @@
      сделаны короткими ТАПАМИ без сдвига, поэтому они не конфликтуют с
      нативным двупальцевым "щипком" (там пальцы заметно двигаются). -->
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<!-- ===== Мост для оболочки index.html (три приложения в iframe) =====
-     Стоит в <head> сразу после viewport: приложения отправляют язык уже при
-     инициализации, поэтому функция отправки должна существовать раньше их
-     основных скриптов. Вне iframe скрипт молча ничего не делает. -->
-<script>
-(function(){
-  'use strict';
-
-  var inFrame = false;
-  try { inFrame = (window.parent && window.parent !== window); } catch(e){ inFrame = false; }
-
-  // Пока применяется значение, пришедшее снаружи, отправка молчит —
-  // иначе три приложения зациклят пересылку одного и того же значения.
-  window.__bridgeSuppress = false;
-
-  window.__appBridgeSend = function(msg){
-    if(!inFrame || window.__bridgeSuppress) return;
-    try { window.parent.postMessage(msg, '*'); } catch(e){}
-  };
-
-  function getState(){
-    try {
-      if(typeof window.__appGetState === 'function') return window.__appGetState() || {};
-    } catch(e){}
-    return {};
-  }
-
-  function applyExternal(fnName, value){
-    window.__bridgeSuppress = true;
-    try {
-      if(typeof window[fnName] === 'function') window[fnName](value);
-    } catch(e){}
-    window.__bridgeSuppress = false;
-  }
-
-  window.addEventListener('message', function(e){
-    var d = e.data;
-    if(!d || typeof d !== 'object') return;
-
-    if(d.type === 'uiLang'){
-      applyExternal('__setUiLangExternal', d.lang);
-      return;
-    }
-    if(d.type === 'settingsPosition'){
-      applyExternal('__setSettingsPositionExternal', d.value);
-      return;
-    }
-    if(d.type === 'requestState'){
-      var s = getState();
-      window.__appBridgeSend({ type:'appState', lang: s.lang, pos: s.pos });
-      return;
-    }
-  });
-
-  // Кнопки переключения уровней — делегированно, чтобы работать и с теми,
-  // что появляются в разметке позже.
-  document.addEventListener('click', function(e){
-    var t = e.target;
-    var btn = (t && t.closest) ? t.closest('[data-switch-level]') : null;
-    if(!btn) return;
-    window.__appBridgeSend({ type:'switchLevel', target: btn.getAttribute('data-switch-level') });
-  });
-
-  window.addEventListener('load', function(){
-    var s = getState();
-    window.__appBridgeSend({ type:'appReady', lang: s.lang, pos: s.pos });
-  });
-})();
-</script>
 <title>Кварто-квинтовый круг</title>
 <style>
 
@@ -947,15 +878,6 @@
     display:grid;
     grid-template-columns:1fr 1fr 1fr;
     gap:8px;
-    width:100%;
-  }
-  /* Ряд переключения приложений (оболочка index.html). Оформлен теми же
-     кнопками .topTabBtn, что и вкладки. По ширине 4px между кнопками,
-     вертикальный отступ не задаём — его даёт gap самой панели настроек. */
-  #appSwitchBar{
-    display:grid;
-    grid-template-columns:1fr 1fr 1fr;
-    gap:4px;
     width:100%;
   }
   .topTabBtn{
@@ -2082,12 +2004,22 @@
     box-shadow:0 4px 12px rgba(0,0,0,0.45);
     z-index:9999;
     pointer-events:none;
+    /* переносы строк (\n) в тексте подсказки показываются как новая строка */
+    white-space:pre-line;
   }
   /* Подсветка формулы (напр. "1 3 5 b7") внутри подсказки — отдельный
      красный, чтобы настроить: меняйте --tip-formula-red в :root вверху
      файла (цвет и/или прозрачность через rgba). */
   .tipFormulaHighlight{
     color:var(--tip-formula-red);
+  }
+  /* Разделительная черта между частями подсказки (в тексте подсказки
+     части разделяются пустой строкой "\n\n"). Черта всегда во всю ширину
+     подсказки. Цвет — цвет текста подсказки, яркость — opacity. */
+  .tipDivider{
+    border-top:1px solid currentColor;
+    opacity:0.35;
+    margin:6px 0;
   }
 
   /* ===== Вписывание круга в экран на мобильной раскладке =====
@@ -2206,13 +2138,6 @@
      настроек; клик по нему закрывает панель. -->
 <div id="sidePanelBackdrop"></div>
 <div id="sidePanel">
-
-  <!-- Переключение приложений через оболочку index.html -->
-  <div id="appSwitchBar">
-    <button class="topTabBtn active" data-switch-level="frameCircle" data-i18n="switchCircle">Квинтовый круг</button>
-    <button class="topTabBtn" data-switch-level="frameNotes" data-i18n="switchNotes">Ноты</button>
-    <button class="topTabBtn" data-switch-level="frameEar" data-i18n="switchEar">Слух</button>
-  </div>
 
   <div id="topTabBar">
     <button class="topTabBtn" id="topTabTrainingBtn" data-tab="training" data-i18n="tabTraining">Обучение</button>
@@ -2469,39 +2394,39 @@
       <div id="level3ModeButtons" class="chordGridCard cols3">
         <div class="ringBtnRow">
           <button class="ringBtn" id="level3ModeLydianBtn" type="button" data-mode="lydian" data-i18n="modeLydian">Лидийский</button>
-          <span class="infoIcon" data-i18n-tip="tipMode0_6" data-tip="@@0-6@@. 0 нот слева от выбранной ноты, 6 справа">i</span>
+          <span class="infoIcon" data-i18n-tip="tipMode0_6" data-tip="@@0-6@@. 0 нот слева от выбранной ноты, 6 справа&#10;&#10;@@тон тон тон полутон тон тон полутон@@&#10;&#10;в полутонах : @@222 122 1@@">i</span>
         </div>
         <div class="ringBtnRow">
           <button class="ringBtn" id="level3ModeMajorBtn" type="button" data-mode="major" data-i18n="modeMajor">Мажор</button>
-          <span class="infoIcon" data-i18n-tip="tipMode1_5" data-tip="@@1-5@@. 1 нота слева от выбранной ноты, 5 справа">i</span>
+          <span class="infoIcon" data-i18n-tip="tipMode1_5" data-tip="@@1-5@@. 1 нота слева от выбранной ноты, 5 справа&#10;&#10;@@тон тон полутон тон тон тон полутон@@&#10;&#10;в полутонах : @@221 222 1@@">i</span>
         </div>
         <div class="ringBtnRow">
           <button class="ringBtn" id="level3ModeMixolydianBtn" type="button" data-mode="mixolydian" data-i18n="modeMixolydian">Миксолидийский</button>
-          <span class="infoIcon" data-i18n-tip="tipMode2_4" data-tip="@@2-4@@. 2 ноты слева от выбранной ноты, 4 справа">i</span>
+          <span class="infoIcon" data-i18n-tip="tipMode2_4" data-tip="@@2-4@@. 2 ноты слева от выбранной ноты, 4 справа&#10;&#10;@@тон тон полутон тон тон полутон тон@@&#10;&#10;в полутонах : @@221 221 2@@">i</span>
         </div>
         <div class="ringBtnRow">
           <button class="ringBtn" id="level3ModeDorianBtn" type="button" data-mode="dorian" data-i18n="modeDorian">Дорийский</button>
-          <span class="infoIcon" data-i18n-tip="tipMode3_3" data-tip="@@3-3@@. 3 ноты слева от выбранной ноты, 3 справа">i</span>
+          <span class="infoIcon" data-i18n-tip="tipMode3_3" data-tip="@@3-3@@. 3 ноты слева от выбранной ноты, 3 справа&#10;&#10;@@тон полутон тон тон тон полутон тон@@&#10;&#10;в полутонах : @@212 221 2@@">i</span>
         </div>
         <div class="ringBtnRow">
           <button class="ringBtn" id="level3ModeMinorBtn" type="button" data-mode="minor" data-i18n="modeMinor">Минор</button>
-          <span class="infoIcon" data-i18n-tip="tipMode4_2" data-tip="@@4-2@@. 4 ноты слева от выбранной ноты, 2 справа">i</span>
+          <span class="infoIcon" data-i18n-tip="tipMode4_2" data-tip="@@4-2@@. 4 ноты слева от выбранной ноты, 2 справа&#10;&#10;@@тон полутон тон тон полутон тон тон@@&#10;&#10;в полутонах : @@212 212 2@@">i</span>
         </div>
         <div class="ringBtnRow">
           <button class="ringBtn" id="level3ModePhrygianBtn" type="button" data-mode="phrygian" data-i18n="modePhrygian">Фригийский</button>
-          <span class="infoIcon" data-i18n-tip="tipMode5_1" data-tip="@@5-1@@. 5 нот слева от выбранной ноты, 1 справа">i</span>
+          <span class="infoIcon" data-i18n-tip="tipMode5_1" data-tip="@@5-1@@. 5 нот слева от выбранной ноты, 1 справа&#10;&#10;@@полутон тон тон тон полутон тон тон@@&#10;&#10;в полутонах : @@122 212 2@@">i</span>
         </div>
         <div class="ringBtnRow">
           <button class="ringBtn" id="level3ModeLocrianBtn" type="button" data-mode="locrian" data-i18n="modeLocrian">Локрийский</button>
-          <span class="infoIcon" data-i18n-tip="tipMode6_0" data-tip="@@6-0@@. 6 нот слева от выбранной ноты, 0 справа">i</span>
+          <span class="infoIcon" data-i18n-tip="tipMode6_0" data-tip="@@6-0@@. 6 нот слева от выбранной ноты, 0 справа&#10;&#10;@@полутон тон тон полутон тон тон тон@@&#10;&#10;в полутонах : @@122 122 2@@">i</span>
         </div>
         <div class="ringBtnRow">
           <button class="ringBtn" id="level3ModeHarmMinorBtn" type="button" data-mode="harmMinor" data-i18n="modeHarmMinor">Гармон минор</button>
-          <span class="infoIcon" data-i18n-tip="tipModeHarmMinorL3" data-tip="формула @@4-2@@ (4 слева от тоники-2 справа) формула, но на схеме @@вторая нота от тоники заменена на ноту на пол тона выше@@ для удобства запоминания и она выделена цветом, чтобы не забыть при изучении - для C maj : @@C D Eb F G Ab B@@. Засчитываются оба варианта на мажорном кольце : Bb и B(второй вариант под формулу 4-2).">i</span>
+          <span class="infoIcon" data-i18n-tip="tipModeHarmMinorL3" data-tip="формула @@4-2@@ (4 слева от тоники-2 справа), но на схеме @@вторая нота от тоники заменена на ноту на пол тона выше@@ для удобства запоминания и она выделена цветом, чтобы не забыть при изучении - для C maj : @@C D Eb F G Ab B@@. Засчитываются оба варианта на мажорном кольце : Bb и B(второй вариант под формулу 4-2).&#10;&#10;@@тон полутон тон тон полутон полтора тона полутон@@&#10;&#10;в полутонах : @@212 213 1@@">i</span>
         </div>
         <div class="ringBtnRow">
           <button class="ringBtn" id="level3ModeMelMinorBtn" type="button" data-mode="melMinor" data-i18n="modeMelMinor">Мелод минор</button>
-          <span class="infoIcon" data-i18n-tip="tipModeMelMinorL3" data-tip="формула @@4-2@@ (4 слева от тоники-2 справа) , но на схеме @@вторая и четвертая слева ноты от тоники заменены на ноту на пол тона выше@@ для удобства запоминания и они выделена цветом, чтобы не забыть при изучении - для C maj : @@C D Eb F G A B@@. Засчитываются оба варианта на мажорном кольце : Bb и B(второй вариант под формулу 4-2).">i</span>
+          <span class="infoIcon" data-i18n-tip="tipModeMelMinorL3" data-tip="формула @@4-2@@ (4 слева от тоники-2 справа) , но на схеме @@вторая и четвертая слева ноты от тоники заменены на ноту на пол тона выше@@ для удобства запоминания и они выделена цветом, чтобы не забыть при изучении - для C maj : @@C D Eb F G A B@@. Засчитываются оба варианта на мажорном кольце : Bb и B(второй вариант под формулу 4-2).&#10;&#10;@@тон полутон тон тон тон тон полутон@@&#10;&#10;в полутонах : @@212 222 1@@">i</span>
         </div>
       </div>
 
@@ -2687,39 +2612,39 @@
         <div id="trainModeGroups" class="chordGridCard cols3">
           <div class="ringBtnRow">
             <button class="ringBtn" id="trainModeLydianBtn" data-mode="lydian" data-i18n="modeLydian">Лидийский</button>
-            <span class="infoIcon" data-i18n-tip="tipMode0_6" data-tip="@@0-6@@. 0 нот слева от выбранной ноты, 6 справа">i</span>
+            <span class="infoIcon" data-i18n-tip="tipMode0_6" data-tip="@@0-6@@. 0 нот слева от выбранной ноты, 6 справа&#10;&#10;@@тон тон тон полутон тон тон полутон@@&#10;&#10;в полутонах : @@222 122 1@@">i</span>
           </div>
           <div class="ringBtnRow">
             <button class="ringBtn" id="trainModeMajorBtn" data-mode="major" data-i18n="modeMajor">Мажор</button>
-            <span class="infoIcon" data-i18n-tip="tipMode1_5" data-tip="@@1-5@@. 1 нота слева от выбранной ноты, 5 справа">i</span>
+            <span class="infoIcon" data-i18n-tip="tipMode1_5" data-tip="@@1-5@@. 1 нота слева от выбранной ноты, 5 справа&#10;&#10;@@тон тон полутон тон тон тон полутон@@&#10;&#10;в полутонах : @@221 222 1@@">i</span>
           </div>
           <div class="ringBtnRow">
             <button class="ringBtn" id="trainModeMixolydianBtn" data-mode="mixolydian" data-i18n="modeMixolydian">Миксолидийский</button>
-            <span class="infoIcon" data-i18n-tip="tipMode2_4" data-tip="@@2-4@@. 2 ноты слева от выбранной ноты, 4 справа">i</span>
+            <span class="infoIcon" data-i18n-tip="tipMode2_4" data-tip="@@2-4@@. 2 ноты слева от выбранной ноты, 4 справа&#10;&#10;@@тон тон полутон тон тон полутон тон@@&#10;&#10;в полутонах : @@221 221 2@@">i</span>
           </div>
           <div class="ringBtnRow">
             <button class="ringBtn" id="trainModeDorianBtn" data-mode="dorian" data-i18n="modeDorian">Дорийский</button>
-            <span class="infoIcon" data-i18n-tip="tipMode3_3" data-tip="@@3-3@@. 3 ноты слева от выбранной ноты, 3 справа">i</span>
+            <span class="infoIcon" data-i18n-tip="tipMode3_3" data-tip="@@3-3@@. 3 ноты слева от выбранной ноты, 3 справа&#10;&#10;@@тон полутон тон тон тон полутон тон@@&#10;&#10;в полутонах : @@212 221 2@@">i</span>
           </div>
           <div class="ringBtnRow">
             <button class="ringBtn" id="trainModeMinorBtn" data-mode="minor" data-i18n="modeMinor">Минор</button>
-            <span class="infoIcon" data-i18n-tip="tipMode4_2" data-tip="@@4-2@@. 4 ноты слева от выбранной ноты, 2 справа">i</span>
+            <span class="infoIcon" data-i18n-tip="tipMode4_2" data-tip="@@4-2@@. 4 ноты слева от выбранной ноты, 2 справа&#10;&#10;@@тон полутон тон тон полутон тон тон@@&#10;&#10;в полутонах : @@212 212 2@@">i</span>
           </div>
           <div class="ringBtnRow">
             <button class="ringBtn" id="trainModePhrygianBtn" data-mode="phrygian" data-i18n="modePhrygian">Фригийский</button>
-            <span class="infoIcon" data-i18n-tip="tipMode5_1" data-tip="@@5-1@@. 5 нот слева от выбранной ноты, 1 справа">i</span>
+            <span class="infoIcon" data-i18n-tip="tipMode5_1" data-tip="@@5-1@@. 5 нот слева от выбранной ноты, 1 справа&#10;&#10;@@полутон тон тон тон полутон тон тон@@&#10;&#10;в полутонах : @@122 212 2@@">i</span>
           </div>
           <div class="ringBtnRow">
             <button class="ringBtn" id="trainModeLocrianBtn" data-mode="locrian" data-i18n="modeLocrian">Локрийский</button>
-            <span class="infoIcon" data-i18n-tip="tipMode6_0" data-tip="@@6-0@@. 6 нот слева от выбранной ноты, 0 справа">i</span>
+            <span class="infoIcon" data-i18n-tip="tipMode6_0" data-tip="@@6-0@@. 6 нот слева от выбранной ноты, 0 справа&#10;&#10;@@полутон тон тон полутон тон тон тон@@&#10;&#10;в полутонах : @@122 122 2@@">i</span>
           </div>
           <div class="ringBtnRow">
             <button class="ringBtn" id="trainModeHarmMinorBtn" data-mode="harmMinor" data-i18n="modeHarmMinor">Гармон минор</button>
-            <span class="infoIcon" data-i18n-tip="tipModeHarmMinorTrain" data-tip="формула @@4-2@@ (4 слева от тоники-2 справа) формула, но на схеме @@вторая нота от тоники заменена на ноту на пол тона выше@@ для удобства запоминания и она выделена цветом, чтобы не забыть при изучении - для C maj : @@C D Eb F G Ab B@@. Засчитываются оба варианта на мажорном кольце : Bb и B(второй вариант под формулу 4-2).">i</span>
+            <span class="infoIcon" data-i18n-tip="tipModeHarmMinorTrain" data-tip="формула @@4-2@@ (4 слева от тоники-2 справа), но на схеме @@вторая нота от тоники заменена на ноту на пол тона выше@@ для удобства запоминания и она выделена цветом, чтобы не забыть при изучении - для C maj : @@C D Eb F G Ab B@@. Засчитываются оба варианта на мажорном кольце : Bb и B(второй вариант под формулу 4-2).&#10;&#10;@@тон полутон тон тон полутон полтора тона полутон@@&#10;&#10;в полутонах : @@212 213 1@@">i</span>
           </div>
           <div class="ringBtnRow">
             <button class="ringBtn" id="trainModeMelMinorBtn" data-mode="melMinor" data-i18n="modeMelMinor">Мелод минор</button>
-            <span class="infoIcon" data-i18n-tip="tipModeMelMinorTrain" data-tip="формула @@4-2@@ (4 слева от тоники-2 справа) , но на схеме @@вторая и четвертая слева ноты от тоники заменены на ноту на пол тона выше@@ для удобства запоминания и они выделена цветом, чтобы не забыть при изучении - для C maj : @@C D Eb F G A B@@. Засчитываются оба варианта на мажорном кольце : Bb и B(второй вариант под формулу 4-2).">i</span>
+            <span class="infoIcon" data-i18n-tip="tipModeMelMinorTrain" data-tip="формула @@4-2@@ (4 слева от тоники-2 справа) , но на схеме @@вторая и четвертая слева ноты от тоники заменены на ноту на пол тона выше@@ для удобства запоминания и они выделена цветом, чтобы не забыть при изучении - для C maj : @@C D Eb F G A B@@. Засчитываются оба варианта на мажорном кольце : Bb и B(второй вариант под формулу 4-2).&#10;&#10;@@тон полутон тон тон тон тон полутон@@&#10;&#10;в полутонах : @@212 222 1@@">i</span>
           </div>
         </div>
       </div>
@@ -3066,9 +2991,6 @@ function setNoteNamingSystem(system){
    ========================================================= */
 const APP_LANG_KEY = 'circleAppLang';
 const I18N = {
-  switchCircle:        { ru:'Квинтовый круг', en:'Circle of Fifths', zh:'五度圈' },
-  switchNotes:         { ru:'Ноты', en:'Notes', zh:'音符' },
-  switchEar:           { ru:'Слух', en:'Ear', zh:'听觉' },
   tabTraining:        { ru:'Обучение',  en:'Training',  zh:'训练' },
   tabNotes:            { ru:'Ноты',      en:'Notes',     zh:'音符' },
   tabChords:           { ru:'Аккорды/Лады', en:'Chords/Modes', zh:'和弦/调式' },
@@ -3157,59 +3079,59 @@ const I18N = {
   modePhrygian:        { ru:'Фригийский', en:'Phrygian', zh:'弗里几亚调式' },
   modeLocrian:         { ru:'Локрийский', en:'Locrian', zh:'洛克利亚调式' },
   tipMode0_6: {
-    ru:'@@0-6@@. 0 нот слева от выбранной ноты, 6 справа',
-    en:'@@0-6@@. 0 notes to the left of the selected note, 6 to the right',
-    zh:'@@0-6@@。所选音符左边 0 个音，右边 6 个'
+    ru:'@@0-6@@. 0 нот слева от выбранной ноты, 6 справа\n\n@@тон тон тон полутон тон тон полутон@@\n\nв полутонах : @@222 122 1@@',
+    en:'@@0-6@@. 0 notes to the left of the selected note, 6 to the right\n\n@@tone tone tone semitone tone tone semitone@@\n\nin semitones : @@222 122 1@@',
+    zh:'@@0-6@@。所选音符左边 0 个音，右边 6 个\n\n@@全音 全音 全音 半音 全音 全音 半音@@\n\n半音数 : @@222 122 1@@'
   },
   tipMode1_5: {
-    ru:'@@1-5@@. 1 нота слева от выбранной ноты, 5 справа',
-    en:'@@1-5@@. 1 note to the left of the selected note, 5 to the right',
-    zh:'@@1-5@@。所选音符左边 1 个音，右边 5 个'
+    ru:'@@1-5@@. 1 нота слева от выбранной ноты, 5 справа\n\n@@тон тон полутон тон тон тон полутон@@\n\nв полутонах : @@221 222 1@@',
+    en:'@@1-5@@. 1 note to the left of the selected note, 5 to the right\n\n@@tone tone semitone tone tone tone semitone@@\n\nin semitones : @@221 222 1@@',
+    zh:'@@1-5@@。所选音符左边 1 个音，右边 5 个\n\n@@全音 全音 半音 全音 全音 全音 半音@@\n\n半音数 : @@221 222 1@@'
   },
   tipMode2_4: {
-    ru:'@@2-4@@. 2 ноты слева от выбранной ноты, 4 справа',
-    en:'@@2-4@@. 2 notes to the left of the selected note, 4 to the right',
-    zh:'@@2-4@@。所选音符左边 2 个音，右边 4 个'
+    ru:'@@2-4@@. 2 ноты слева от выбранной ноты, 4 справа\n\n@@тон тон полутон тон тон полутон тон@@\n\nв полутонах : @@221 221 2@@',
+    en:'@@2-4@@. 2 notes to the left of the selected note, 4 to the right\n\n@@tone tone semitone tone tone semitone tone@@\n\nin semitones : @@221 221 2@@',
+    zh:'@@2-4@@。所选音符左边 2 个音，右边 4 个\n\n@@全音 全音 半音 全音 全音 半音 全音@@\n\n半音数 : @@221 221 2@@'
   },
   tipMode3_3: {
-    ru:'@@3-3@@. 3 ноты слева от выбранной ноты, 3 справа',
-    en:'@@3-3@@. 3 notes to the left of the selected note, 3 to the right',
-    zh:'@@3-3@@。所选音符左边 3 个音，右边 3 个'
+    ru:'@@3-3@@. 3 ноты слева от выбранной ноты, 3 справа\n\n@@тон полутон тон тон тон полутон тон@@\n\nв полутонах : @@212 221 2@@',
+    en:'@@3-3@@. 3 notes to the left of the selected note, 3 to the right\n\n@@tone semitone tone tone tone semitone tone@@\n\nin semitones : @@212 221 2@@',
+    zh:'@@3-3@@。所选音符左边 3 个音，右边 3 个\n\n@@全音 半音 全音 全音 全音 半音 全音@@\n\n半音数 : @@212 221 2@@'
   },
   tipMode4_2: {
-    ru:'@@4-2@@. 4 ноты слева от выбранной ноты, 2 справа',
-    en:'@@4-2@@. 4 notes to the left of the selected note, 2 to the right',
-    zh:'@@4-2@@。所选音符左边 4 个音，右边 2 个'
+    ru:'@@4-2@@. 4 ноты слева от выбранной ноты, 2 справа\n\n@@тон полутон тон тон полутон тон тон@@\n\nв полутонах : @@212 212 2@@',
+    en:'@@4-2@@. 4 notes to the left of the selected note, 2 to the right\n\n@@tone semitone tone tone semitone tone tone@@\n\nin semitones : @@212 212 2@@',
+    zh:'@@4-2@@。所选音符左边 4 个音，右边 2 个\n\n@@全音 半音 全音 全音 半音 全音 全音@@\n\n半音数 : @@212 212 2@@'
   },
   tipMode5_1: {
-    ru:'@@5-1@@. 5 нот слева от выбранной ноты, 1 справа',
-    en:'@@5-1@@. 5 notes to the left of the selected note, 1 to the right',
-    zh:'@@5-1@@。所选音符左边 5 个音，右边 1 个'
+    ru:'@@5-1@@. 5 нот слева от выбранной ноты, 1 справа\n\n@@полутон тон тон тон полутон тон тон@@\n\nв полутонах : @@122 212 2@@',
+    en:'@@5-1@@. 5 notes to the left of the selected note, 1 to the right\n\n@@semitone tone tone tone semitone tone tone@@\n\nin semitones : @@122 212 2@@',
+    zh:'@@5-1@@。所选音符左边 5 个音，右边 1 个\n\n@@半音 全音 全音 全音 半音 全音 全音@@\n\n半音数 : @@122 212 2@@'
   },
   tipMode6_0: {
-    ru:'@@6-0@@. 6 нот слева от выбранной ноты, 0 справа',
-    en:'@@6-0@@. 6 notes to the left of the selected note, 0 to the right',
-    zh:'@@6-0@@。所选音符左边 6 个音，右边 0 个'
+    ru:'@@6-0@@. 6 нот слева от выбранной ноты, 0 справа\n\n@@полутон тон тон полутон тон тон тон@@\n\nв полутонах : @@122 122 2@@',
+    en:'@@6-0@@. 6 notes to the left of the selected note, 0 to the right\n\n@@semitone tone tone semitone tone tone tone@@\n\nin semitones : @@122 122 2@@',
+    zh:'@@6-0@@。所选音符左边 6 个音，右边 0 个\n\n@@半音 全音 全音 半音 全音 全音 全音@@\n\n半音数 : @@122 122 2@@'
   },
   tipModeHarmMinorL3: {
-    ru:'формула @@4-2@@ (4 слева от тоники-2 справа) формула, но на схеме @@вторая нота от тоники заменена на ноту на пол тона выше@@ для удобства запоминания и она выделена цветом, чтобы не забыть при изучении - для C maj : @@C D Eb F G Ab B@@. Засчитываются оба варианта на мажорном кольце : Bb и B(второй вариант под формулу 4-2).',
-    en:'formula @@4-2@@ (4 to the left of the tonic, 2 to the right), but on the diagram @@the second note to the left of the tonic is replaced with the note a semitone higher@@ for easier memorising and it is highlighted so you do not forget while studying - for C maj: @@C D Eb F G Ab B@@. Both variants count on the major ring: Bb and B (the second one matches the 4-2 formula).',
-    zh:'公式 @@4-2@@（主音左边4个，右边2个），但在图上为方便记忆，@@主音左边第二个音被替换为高半音的音@@，并用颜色标出以便学习时不要忘记 - 对于 C maj：@@C D Eb F G Ab B@@。在大调音环上两种写法都算正确：Bb 和 B（第二种对应4-2公式）。'
+    ru:'формула @@4-2@@ (4 слева от тоники-2 справа), но на схеме @@вторая нота от тоники заменена на ноту на пол тона выше@@ для удобства запоминания и она выделена цветом, чтобы не забыть при изучении - для C maj : @@C D Eb F G Ab B@@. Засчитываются оба варианта на мажорном кольце : Bb и B(второй вариант под формулу 4-2).\n\n@@тон полутон тон тон полутон полтора тона полутон@@\n\nв полутонах : @@212 213 1@@',
+    en:'formula @@4-2@@ (4 to the left of the tonic, 2 to the right), but on the diagram @@the second note to the left of the tonic is replaced with the note a semitone higher@@ for easier memorising and it is highlighted so you do not forget while studying - for C maj: @@C D Eb F G Ab B@@. Both variants count on the major ring: Bb and B (the second one matches the 4-2 formula).\n\n@@tone semitone tone tone semitone tone and a half semitone@@\n\nin semitones : @@212 213 1@@',
+    zh:'公式 @@4-2@@（主音左边4个，右边2个），但在图上为方便记忆，@@主音左边第二个音被替换为高半音的音@@，并用颜色标出以便学习时不要忘记 - 对于 C maj：@@C D Eb F G Ab B@@。在大调音环上两种写法都算正确：Bb 和 B（第二种对应4-2公式）。\n\n@@全音 半音 全音 全音 半音 增二度 半音@@\n\n半音数 : @@212 213 1@@'
   },
   tipModeMelMinorL3: {
-    ru:'формула @@4-2@@ (4 слева от тоники-2 справа) , но на схеме @@вторая и четвертая слева ноты от тоники заменены на ноту на пол тона выше@@ для удобства запоминания и они выделена цветом, чтобы не забыть при изучении - для C maj : @@C D Eb F G A B@@. Засчитываются оба варианта на мажорном кольце : Bb и B(второй вариант под формулу 4-2).',
-    en:'formula @@4-2@@ (4 to the left of the tonic, 2 to the right), but on the diagram @@the second and fourth notes to the left of the tonic are replaced with the notes a semitone higher@@ for easier memorising and they are highlighted so you do not forget while studying - for C maj: @@C D Eb F G A B@@. Both variants count on the major ring: Bb and B (the second one matches the 4-2 formula).',
-    zh:'公式 @@4-2@@（主音左边4个，右边2个），但在图上为方便记忆，@@主音左边第二个和第四个音被替换为高半音的音@@，并用颜色标出以便学习时不要忘记 - 对于 C maj：@@C D Eb F G A B@@。在大调音环上两种写法都算正确：Bb 和 B（第二种对应4-2公式）。'
+    ru:'формула @@4-2@@ (4 слева от тоники-2 справа) , но на схеме @@вторая и четвертая слева ноты от тоники заменены на ноту на пол тона выше@@ для удобства запоминания и они выделена цветом, чтобы не забыть при изучении - для C maj : @@C D Eb F G A B@@. Засчитываются оба варианта на мажорном кольце : Bb и B(второй вариант под формулу 4-2).\n\n@@тон полутон тон тон тон тон полутон@@\n\nв полутонах : @@212 222 1@@',
+    en:'formula @@4-2@@ (4 to the left of the tonic, 2 to the right), but on the diagram @@the second and fourth notes to the left of the tonic are replaced with the notes a semitone higher@@ for easier memorising and they are highlighted so you do not forget while studying - for C maj: @@C D Eb F G A B@@. Both variants count on the major ring: Bb and B (the second one matches the 4-2 formula).\n\n@@tone semitone tone tone tone tone semitone@@\n\nin semitones : @@212 222 1@@',
+    zh:'公式 @@4-2@@（主音左边4个，右边2个），但在图上为方便记忆，@@主音左边第二个和第四个音被替换为高半音的音@@，并用颜色标出以便学习时不要忘记 - 对于 C maj：@@C D Eb F G A B@@。在大调音环上两种写法都算正确：Bb 和 B（第二种对应4-2公式）。\n\n@@全音 半音 全音 全音 全音 全音 半音@@\n\n半音数 : @@212 222 1@@'
   },
   tipModeHarmMinorTrain: {
-    ru:'формула @@4-2@@ (4 слева от тоники-2 справа) формула, но на схеме @@вторая нота от тоники заменена на ноту на пол тона выше@@ для удобства запоминания и она выделена цветом, чтобы не забыть при изучении - для C maj : @@C D Eb F G Ab B@@. Засчитываются оба варианта на мажорном кольце : Bb и B(второй вариант под формулу 4-2).',
-    en:'formula @@4-2@@ (4 to the left of the tonic, 2 to the right), but on the diagram @@the second note to the left of the tonic is replaced with the note a semitone higher@@ for easier memorising and it is highlighted so you do not forget while studying - for C maj: @@C D Eb F G Ab B@@. Both variants count on the major ring: Bb and B (the second one matches the 4-2 formula).',
-    zh:'公式 @@4-2@@（主音左边4个，右边2个），但在图上为方便记忆，@@主音左边第二个音被替换为高半音的音@@，并用颜色标出以便学习时不要忘记 - 对于 C maj：@@C D Eb F G Ab B@@。在大调音环上两种写法都算正确：Bb 和 B（第二种对应4-2公式）。'
+    ru:'формула @@4-2@@ (4 слева от тоники-2 справа), но на схеме @@вторая нота от тоники заменена на ноту на пол тона выше@@ для удобства запоминания и она выделена цветом, чтобы не забыть при изучении - для C maj : @@C D Eb F G Ab B@@. Засчитываются оба варианта на мажорном кольце : Bb и B(второй вариант под формулу 4-2).\n\n@@тон полутон тон тон полутон полтора тона полутон@@\n\nв полутонах : @@212 213 1@@',
+    en:'formula @@4-2@@ (4 to the left of the tonic, 2 to the right), but on the diagram @@the second note to the left of the tonic is replaced with the note a semitone higher@@ for easier memorising and it is highlighted so you do not forget while studying - for C maj: @@C D Eb F G Ab B@@. Both variants count on the major ring: Bb and B (the second one matches the 4-2 formula).\n\n@@tone semitone tone tone semitone tone and a half semitone@@\n\nin semitones : @@212 213 1@@',
+    zh:'公式 @@4-2@@（主音左边4个，右边2个），但在图上为方便记忆，@@主音左边第二个音被替换为高半音的音@@，并用颜色标出以便学习时不要忘记 - 对于 C maj：@@C D Eb F G Ab B@@。在大调音环上两种写法都算正确：Bb 和 B（第二种对应4-2公式）。\n\n@@全音 半音 全音 全音 半音 增二度 半音@@\n\n半音数 : @@212 213 1@@'
   },
   tipModeMelMinorTrain: {
-    ru:'формула @@4-2@@ (4 слева от тоники-2 справа) , но на схеме @@вторая и четвертая слева ноты от тоники заменены на ноту на пол тона выше@@ для удобства запоминания и они выделена цветом, чтобы не забыть при изучении - для C maj : @@C D Eb F G A B@@. Засчитываются оба варианта на мажорном кольце : Bb и B(второй вариант под формулу 4-2).',
-    en:'formula @@4-2@@ (4 to the left of the tonic, 2 to the right), but on the diagram @@the second and fourth notes to the left of the tonic are replaced with the notes a semitone higher@@ for easier memorising and they are highlighted so you do not forget while studying - for C maj: @@C D Eb F G A B@@. Both variants count on the major ring: Bb and B (the second one matches the 4-2 formula).',
-    zh:'公式 @@4-2@@（主音左边4个，右边2个），但在图上为方便记忆，@@主音左边第二个和第四个音被替换为高半音的音@@，并用颜色标出以便学习时不要忘记 - 对于 C maj：@@C D Eb F G A B@@。在大调音环上两种写法都算正确：Bb 和 B（第二种对应4-2公式）。'
+    ru:'формула @@4-2@@ (4 слева от тоники-2 справа) , но на схеме @@вторая и четвертая слева ноты от тоники заменены на ноту на пол тона выше@@ для удобства запоминания и они выделена цветом, чтобы не забыть при изучении - для C maj : @@C D Eb F G A B@@. Засчитываются оба варианта на мажорном кольце : Bb и B(второй вариант под формулу 4-2).\n\n@@тон полутон тон тон тон тон полутон@@\n\nв полутонах : @@212 222 1@@',
+    en:'formula @@4-2@@ (4 to the left of the tonic, 2 to the right), but on the diagram @@the second and fourth notes to the left of the tonic are replaced with the notes a semitone higher@@ for easier memorising and they are highlighted so you do not forget while studying - for C maj: @@C D Eb F G A B@@. Both variants count on the major ring: Bb and B (the second one matches the 4-2 formula).\n\n@@tone semitone tone tone tone tone semitone@@\n\nin semitones : @@212 222 1@@',
+    zh:'公式 @@4-2@@（主音左边4个，右边2个），但在图上为方便记忆，@@主音左边第二个和第四个音被替换为高半音的音@@，并用颜色标出以便学习时不要忘记 - 对于 C maj：@@C D Eb F G A B@@。在大调音环上两种写法都算正确：Bb 和 B（第二种对应4-2公式）。\n\n@@全音 半音 全音 全音 全音 全音 半音@@\n\n半音数 : @@212 222 1@@'
   },
   noInputsOption:      { ru:'Нет входов', en:'No inputs', zh:'无输入设备' },
   noOutputsOption:     { ru:'Нет выходов', en:'No outputs', zh:'无输出设备' },
@@ -3325,12 +3247,7 @@ function applyLanguage(lang){
   try{
     if(typeof populateDawOutputSelect === 'function') populateDawOutputSelect();
   }catch(e){}
-  if(window.__appBridgeSend) window.__appBridgeSend({ type:'uiLang', lang: appLang });
 }
-
-// Язык, пришедший из соседнего приложения через оболочку —
-// применяется тем же путём, что и клик по кнопке языка.
-window.__setUiLangExternal = function(lang){ applyLanguage(lang); };
 
 (function initLangSwitch(){
   const ruBtn = document.getElementById('langRuBtn');
@@ -10348,11 +10265,7 @@ function syncTrainingPanelHeight(){
   const rowGapPx = parseFloat(sidePanelCs.rowGap || sidePanelCs.gap) || 0;
   const paddingPx = (parseFloat(sidePanelCs.paddingTop) || 0) + (parseFloat(sidePanelCs.paddingBottom) || 0);
   const borderPx = (parseFloat(sidePanelCs.borderTopWidth) || 0) + (parseFloat(sidePanelCs.borderBottomWidth) || 0);
-  // Ряд переключения приложений (оболочка index.html) стоит над вкладками
-  // и тоже занимает высоту — иначе короткие вкладки вылезали бы за экран.
-  const appSwitchBarEl = document.getElementById('appSwitchBar');
-  const appSwitchBarH = appSwitchBarEl ? (appSwitchBarEl.offsetHeight + rowGapPx) : 0;
-  const chromeHeight = (topTabBarEl ? topTabBarEl.offsetHeight : 0) + appSwitchBarH + rowGapPx + paddingPx + borderPx;
+  const chromeHeight = (topTabBarEl ? topTabBarEl.offsetHeight : 0) + rowGapPx + paddingPx + borderPx;
   const viewportBudget = Math.max(300, Math.round(window.innerHeight * 0.9) - chromeHeight);
   const targetH = Math.min(maxH, viewportBudget);
 
@@ -10844,18 +10757,7 @@ function updateSidePanelLayout(){
 function setSidePanelPosition(position){
   localStorage.setItem(SIDE_PANEL_PIN_KEY, position);
   updateSidePanelLayout();
-  if(window.__appBridgeSend) window.__appBridgeSend({ type:'settingsPosition', value: position });
 }
-
-// Положение панели настроек, пришедшее из соседнего приложения через оболочку —
-// применяется тем же путём, что и клик по галке.
-window.__setSettingsPositionExternal = function(pos){
-  if(pos !== 'left' && pos !== 'center' && pos !== 'right') return;
-  setSidePanelPosition(pos);
-};
-window.__appGetState = function(){
-  return { lang: appLang, pos: getSidePanelPositionFor(currentTopTab()) };
-};
 if(sidePanelPinLeftCheckbox){
   sidePanelPinLeftCheckbox.addEventListener('change', ()=>{
     setSidePanelPosition(sidePanelPinLeftCheckbox.checked ? 'left' : 'center');
@@ -12772,18 +12674,27 @@ applyPianoZoom();
     // начале файла, там же можно поменять цвет/прозрачность). Можно
     // сколько угодно таких кусков в одной подсказке.
     if(text.indexOf('@@') !== -1){
-      var parts = text.split('@@');
       tip.textContent = '';
-      parts.forEach(function(part, i){
-        if(part === '') return;
-        if(i % 2 === 1){
-          var span = document.createElement('span');
-          span.className = 'tipFormulaHighlight';
-          span.textContent = part;
-          tip.appendChild(span);
-        } else {
-          tip.appendChild(document.createTextNode(part));
+      // Части подсказки, разделённые пустой строкой ("\n\n"), отделяются
+      // друг от друга разделительной чертой (.tipDivider).
+      text.split('\n\n').forEach(function(block, bi){
+        if(bi > 0){
+          var divider = document.createElement('div');
+          divider.className = 'tipDivider';
+          tip.appendChild(divider);
         }
+        var parts = block.split('@@');
+        parts.forEach(function(part, i){
+          if(part === '') return;
+          if(i % 2 === 1){
+            var span = document.createElement('span');
+            span.className = 'tipFormulaHighlight';
+            span.textContent = part;
+            tip.appendChild(span);
+          } else {
+            tip.appendChild(document.createTextNode(part));
+          }
+        });
       });
       tip.style.display = 'block';
       positionTip(icon);

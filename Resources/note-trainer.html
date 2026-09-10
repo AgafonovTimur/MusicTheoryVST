@@ -3,75 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<!-- ===== Мост для оболочки index.html (три приложения в iframe) =====
-     Стоит в <head> сразу после viewport: приложения отправляют язык уже при
-     инициализации, поэтому функция отправки должна существовать раньше их
-     основных скриптов. Вне iframe скрипт молча ничего не делает. -->
-<script>
-(function(){
-  'use strict';
-
-  var inFrame = false;
-  try { inFrame = (window.parent && window.parent !== window); } catch(e){ inFrame = false; }
-
-  // Пока применяется значение, пришедшее снаружи, отправка молчит —
-  // иначе три приложения зациклят пересылку одного и того же значения.
-  window.__bridgeSuppress = false;
-
-  window.__appBridgeSend = function(msg){
-    if(!inFrame || window.__bridgeSuppress) return;
-    try { window.parent.postMessage(msg, '*'); } catch(e){}
-  };
-
-  function getState(){
-    try {
-      if(typeof window.__appGetState === 'function') return window.__appGetState() || {};
-    } catch(e){}
-    return {};
-  }
-
-  function applyExternal(fnName, value){
-    window.__bridgeSuppress = true;
-    try {
-      if(typeof window[fnName] === 'function') window[fnName](value);
-    } catch(e){}
-    window.__bridgeSuppress = false;
-  }
-
-  window.addEventListener('message', function(e){
-    var d = e.data;
-    if(!d || typeof d !== 'object') return;
-
-    if(d.type === 'uiLang'){
-      applyExternal('__setUiLangExternal', d.lang);
-      return;
-    }
-    if(d.type === 'settingsPosition'){
-      applyExternal('__setSettingsPositionExternal', d.value);
-      return;
-    }
-    if(d.type === 'requestState'){
-      var s = getState();
-      window.__appBridgeSend({ type:'appState', lang: s.lang, pos: s.pos });
-      return;
-    }
-  });
-
-  // Кнопки переключения уровней — делегированно, чтобы работать и с теми,
-  // что появляются в разметке позже.
-  document.addEventListener('click', function(e){
-    var t = e.target;
-    var btn = (t && t.closest) ? t.closest('[data-switch-level]') : null;
-    if(!btn) return;
-    window.__appBridgeSend({ type:'switchLevel', target: btn.getAttribute('data-switch-level') });
-  });
-
-  window.addEventListener('load', function(){
-    var s = getState();
-    window.__appBridgeSend({ type:'appReady', lang: s.lang, pos: s.pos });
-  });
-})();
-</script>
 <title>Ноты и ритм</title>
 <style>
   :root{
@@ -88,6 +19,10 @@
     --btn-hover: #626269;
 
     --accent: #c9a04a;
+
+    /* Красный цвет формул в подсказках к ладам (i) в "Ладах" — как --tip-formula-red
+       в circle of fifths. Меняй цвет/прозрачность здесь. */
+    --tip-formula-red: rgba(250, 82, 86, 1);
 
     /* Выделенная (выбранная) кнопка — фон, текст, рамка. Значения ниже = как было до тем. */
     --sel-bg: #55555c;
@@ -545,6 +480,41 @@
     box-shadow: 0 4px 14px rgba(0,0,0,0.4);
   }
   .info-tooltip.tooltip-visible{ display:block; }
+
+  /* Подсказка к ладу в "Ладах" (значок i у кнопки лада): формула тонами,
+     формула в полутонах, формула на кварто-квинтовом круге. Размеры/шрифт/черта
+     взяты из подсказок circle of fifths. Лежит прямо в <body> поверх всех окон
+     (z-index выше панели настроек и окна ошибок), мышь не перехватывает. */
+  #scaleModeTooltip{
+    display:none;
+    position:fixed;
+    max-width:min(320px, 90vw);
+    width:max-content;
+    background: var(--panel-bg);
+    color: var(--text-main);
+    border: 1px solid var(--panel-border);
+    font-style:normal;
+    font-weight:normal;
+    font-size:18px;
+    line-height:1.4;
+    padding:8px 10px;
+    border-radius:8px;
+    box-shadow:0 4px 12px rgba(0,0,0,0.45);
+    z-index:100000;
+    pointer-events:none;
+    white-space:pre-line;
+    text-transform:none;
+    letter-spacing:0;
+  }
+  #scaleModeTooltip.tooltip-visible{ display:block; }
+  /* красная часть текста (формулы) */
+  #scaleModeTooltip .tipFormulaHighlight{ color: var(--tip-formula-red); }
+  /* разделительная черта между строками подсказки */
+  #scaleModeTooltip .tipDivider{
+    border-top:1px solid currentColor;
+    opacity:0.35;
+    margin:6px 0;
+  }
 
   .segmented{
     display:flex;
@@ -1397,7 +1367,7 @@
   }
   #settingsPanel .scale-type-cell > button{
     padding:9px 2px;
-    font-size:12px;
+    font-size:14px;   /* как у остальных кнопок настроек (названия ладов укорочены и влезают) */
     display:flex;
     align-items:center;
     justify-content:center;
@@ -1586,6 +1556,8 @@
   body.mobile-mode #settingsPanel #durGrid{ grid-template-columns:repeat(3, 1fr); }
   body.mobile-mode #settingsPanel #nrTagGrid{ grid-template-columns:repeat(3, 1fr); }
   body.mobile-mode #settingsPanel .scale-types{ grid-template-columns:repeat(3, 1fr); }
+  /* на телефоне панель уже — оставляем прежний размер шрифта кнопок ладов */
+  body.mobile-mode #settingsPanel .scale-type-cell > button{ font-size:12px; }
 </style>
 </head>
 <body>
@@ -1596,13 +1568,6 @@
 <div id="settingsBackdrop"></div>
 
 <div class="panel-card" id="settingsPanel">
-
-  <!-- Переключение приложений через оболочку index.html -->
-  <div class="level-tabs" id="appSwitchBar">
-    <button data-switch-level="frameCircle" data-i18n="switch_circle">Квинтовый круг</button>
-    <button data-switch-level="frameNotes" class="active" data-i18n="switch_notes">Ноты</button>
-    <button data-switch-level="frameEar" data-i18n="switch_ear">Слух</button>
-  </div>
 
   <div class="level-tabs" id="levelTabs">
     <button data-level="notes" class="active" data-i18n="lvl_notes">Ноты</button>
@@ -2980,9 +2945,6 @@
   // Единый язык на всё приложение (settings.uiLang). Кнопки-переключатели продублированы
   // в 4 местах (Ноты, Лады, Ритм → Одна нота, Ритм → Бесконечно) — все синхронизированы.
   const I18N = {
-    switch_circle: { ru: "Квинтовый круг", en: "Circle of Fifths", zh: "五度圈" },
-    switch_notes: { ru: "Ноты", en: "Notes", zh: "音符" },
-    switch_ear: { ru: "Слух", en: "Ear", zh: "听觉" },
     lvl_notes: { ru: "Ноты", en: "Notes", zh: "音符" },
     lvl_scales: { ru: "Лады", en: "Scales", zh: "调式" },
     lvl_rhythm: { ru: "Ритм", en: "Rhythm", zh: "节奏" },
@@ -3102,9 +3064,9 @@
     naming_solfege: { ru: "До Ре Ми", en: "Do Re Mi", zh: "首调唱名" },
 
     lad_major:    { ru: "Мажор",                en: "Major",           zh: "大调" },
-    lad_natmin:   { ru: "Натуральный минор",    en: "Natural minor",   zh: "自然小调" },
-    lad_harmin:   { ru: "Гармонический минор",  en: "Harmonic minor",  zh: "和声小调" },
-    lad_melmin:   { ru: "Мелодический минор",   en: "Melodic minor",   zh: "旋律小调" },
+    lad_natmin:   { ru: "Минор",                en: "Natural minor",   zh: "自然小调" },
+    lad_harmin:   { ru: "Гармон минор",         en: "Harmonic minor",  zh: "和声小调" },
+    lad_melmin:   { ru: "Мелод минор",          en: "Melodic minor",   zh: "旋律小调" },
     lad_dorian:   { ru: "Дорийский",            en: "Dorian",          zh: "多利亚调式" },
     lad_phrygian: { ru: "Фригийский",           en: "Phrygian",        zh: "弗里几亚调式" },
     lad_lydian:   { ru: "Лидийский",            en: "Lydian",          zh: "利底亚调式" },
@@ -3159,6 +3121,53 @@
     btn_start: { ru: "Старт", en: "Start", zh: "开始" },
     btn_stop:  { ru: "Стоп",  en: "Stop",  zh: "停止" },
 
+    // ---- подсказки к ладам в "Ладах" (значок i): формула тонами / в полутонах / на кварто-квинтовом круге.
+    // Текст с кварто-квинтового круга взят из circle of fifths. @@...@@ — красным, пустая строка — разделительная черта.
+    tip_scale_major: {
+      ru: "@@тон тон полутон тон тон тон полутон@@\n\nв полутонах: @@221 222 1@@\n\nна кварто-квинтовом круге: @@1-5@@. 1 нота слева от выбранной ноты, 5 справа",
+      en: "@@tone tone semitone tone tone tone semitone@@\n\nin semitones: @@221 222 1@@\n\non the circle of fifths: @@1-5@@. 1 note to the left of the selected note, 5 to the right",
+      zh: "@@全音 全音 半音 全音 全音 全音 半音@@\n\n半音数：@@221 222 1@@\n\n在五度圈上：@@1-5@@。所选音符左边 1 个音，右边 5 个"
+    },
+    tip_scale_natMin: {
+      ru: "@@тон полутон тон тон полутон тон тон@@\n\nв полутонах: @@212 212 2@@\n\nна кварто-квинтовом круге: @@4-2@@. 4 ноты слева от выбранной ноты, 2 справа",
+      en: "@@tone semitone tone tone semitone tone tone@@\n\nin semitones: @@212 212 2@@\n\non the circle of fifths: @@4-2@@. 4 notes to the left of the selected note, 2 to the right",
+      zh: "@@全音 半音 全音 全音 半音 全音 全音@@\n\n半音数：@@212 212 2@@\n\n在五度圈上：@@4-2@@。所选音符左边 4 个音，右边 2 个"
+    },
+    tip_scale_harMin: {
+      ru: "@@тон полутон тон тон полутон полтора тона полутон@@\n\nв полутонах: @@212 213 1@@\n\nна кварто-квинтовом круге: формула @@4-2@@ (4 слева от тоники-2 справа)",
+      en: "@@tone semitone tone tone semitone tone and a half semitone@@\n\nin semitones: @@212 213 1@@\n\non the circle of fifths: formula @@4-2@@ (4 to the left of the tonic, 2 to the right)",
+      zh: "@@全音 半音 全音 全音 半音 增二度 半音@@\n\n半音数：@@212 213 1@@\n\n在五度圈上：公式 @@4-2@@（主音左边4个，右边2个）"
+    },
+    tip_scale_melMin: {
+      ru: "@@тон полутон тон тон тон тон полутон@@\n\nв полутонах: @@212 222 1@@\n\nна кварто-квинтовом круге: формула @@4-2@@ (4 слева от тоники-2 справа)",
+      en: "@@tone semitone tone tone tone tone semitone@@\n\nin semitones: @@212 222 1@@\n\non the circle of fifths: formula @@4-2@@ (4 to the left of the tonic, 2 to the right)",
+      zh: "@@全音 半音 全音 全音 全音 全音 半音@@\n\n半音数：@@212 222 1@@\n\n在五度圈上：公式 @@4-2@@（主音左边4个，右边2个）"
+    },
+    tip_scale_dorian: {
+      ru: "@@тон полутон тон тон тон полутон тон@@\n\nв полутонах: @@212 221 2@@\n\nна кварто-квинтовом круге: @@3-3@@. 3 ноты слева от выбранной ноты, 3 справа",
+      en: "@@tone semitone tone tone tone semitone tone@@\n\nin semitones: @@212 221 2@@\n\non the circle of fifths: @@3-3@@. 3 notes to the left of the selected note, 3 to the right",
+      zh: "@@全音 半音 全音 全音 全音 半音 全音@@\n\n半音数：@@212 221 2@@\n\n在五度圈上：@@3-3@@。所选音符左边 3 个音，右边 3 个"
+    },
+    tip_scale_phrygian: {
+      ru: "@@полутон тон тон тон полутон тон тон@@\n\nв полутонах: @@122 212 2@@\n\nна кварто-квинтовом круге: @@5-1@@. 5 нот слева от выбранной ноты, 1 справа",
+      en: "@@semitone tone tone tone semitone tone tone@@\n\nin semitones: @@122 212 2@@\n\non the circle of fifths: @@5-1@@. 5 notes to the left of the selected note, 1 to the right",
+      zh: "@@半音 全音 全音 全音 半音 全音 全音@@\n\n半音数：@@122 212 2@@\n\n在五度圈上：@@5-1@@。所选音符左边 5 个音，右边 1 个"
+    },
+    tip_scale_lydian: {
+      ru: "@@тон тон тон полутон тон тон полутон@@\n\nв полутонах: @@222 122 1@@\n\nна кварто-квинтовом круге: @@0-6@@. 0 нот слева от выбранной ноты, 6 справа",
+      en: "@@tone tone tone semitone tone tone semitone@@\n\nin semitones: @@222 122 1@@\n\non the circle of fifths: @@0-6@@. 0 notes to the left of the selected note, 6 to the right",
+      zh: "@@全音 全音 全音 半音 全音 全音 半音@@\n\n半音数：@@222 122 1@@\n\n在五度圈上：@@0-6@@。所选音符左边 0 个音，右边 6 个"
+    },
+    tip_scale_mixo: {
+      ru: "@@тон тон полутон тон тон полутон тон@@\n\nв полутонах: @@221 221 2@@\n\nна кварто-квинтовом круге: @@2-4@@. 2 ноты слева от выбранной ноты, 4 справа",
+      en: "@@tone tone semitone tone tone semitone tone@@\n\nin semitones: @@221 221 2@@\n\non the circle of fifths: @@2-4@@. 2 notes to the left of the selected note, 4 to the right",
+      zh: "@@全音 全音 半音 全音 全音 半音 全音@@\n\n半音数：@@221 221 2@@\n\n在五度圈上：@@2-4@@。所选音符左边 2 个音，右边 4 个"
+    },
+    tip_scale_locrian: {
+      ru: "@@полутон тон тон полутон тон тон тон@@\n\nв полутонах: @@122 122 2@@\n\nна кварто-квинтовом круге: @@6-0@@. 6 нот слева от выбранной ноты, 0 справа",
+      en: "@@semitone tone tone semitone tone tone tone@@\n\nin semitones: @@122 122 2@@\n\non the circle of fifths: @@6-0@@. 6 notes to the left of the selected note, 0 to the right",
+      zh: "@@半音 全音 全音 半音 全音 全音 全音@@\n\n半音数：@@122 122 2@@\n\n在五度圈上：@@6-0@@。所选音符左边 6 个音，右边 0 个"
+    },
     info_chord_complexity: {
       ru: "<b>Простые:</b><br>maj (мажорное трезвучие)<br>min (минорное трезвучие)<br>sus2 (трезвучие с секундой вместо терции)<br>sus4 (трезвучие с квартой вместо терции)<br><br><b>Средние:</b><br>maj7 (большой мажорный септаккорд)<br>7 (доминантсептаккорд)<br>m7 (малый минорный септаккорд)<br>m(Maj7) (минорный септаккорд с большой септимой)<br>9 (доминантнонаккорд)<br>maj9 (большой мажорный нонаккорд)<br>m9 (минорный нонаккорд)<br>m(Maj9) (минорный нонаккорд с большой септимой)<br>add9 (трезвучие с добавленной ноной)<br><br><b>Сложные:</b><br>11 (доминантовый ундецимаккорд)<br>maj11 (большой мажорный ундецимаккорд)<br>m11 (минорный ундецимаккорд)<br>13 (доминантовый терцдецимаккорд)<br>maj13 (большой мажорный терцдецимаккорд)<br>m13 (минорный терцдецимаккорд)",
       en: "<b>Simple:</b><br>maj (major triad)<br>min (minor triad)<br>sus2 (suspended second)<br>sus4 (suspended fourth)<br><br><b>Medium:</b><br>maj7 (major seventh)<br>7 (dominant seventh)<br>m7 (minor seventh)<br>m(Maj7) (minor-major seventh)<br>9 (dominant ninth)<br>maj9 (major ninth)<br>m9 (minor ninth)<br>m(Maj9) (minor-major ninth)<br>add9 (added ninth triad)<br><br><b>Complex:</b><br>11 (dominant eleventh)<br>maj11 (major eleventh)<br>m11 (minor eleventh)<br>13 (dominant thirteenth)<br>maj13 (major thirteenth)<br>m13 (minor thirteenth)",
@@ -3202,27 +3211,15 @@
   window.__i18nRefresh = [];
   function runI18nRefresh(){ window.__i18nRefresh.forEach(fn => { try{ fn(); }catch(e){} }); }
 
-  function setUiLang(lang){
-    settings.uiLang = lang;
-    applyUiLang();
-    runI18nRefresh();
-    saveSettings();
-    if(window.__appBridgeSend) window.__appBridgeSend({ type:"uiLang", lang: settings.uiLang });
-  }
-
   document.querySelectorAll(".lang-switch-group").forEach(g => {
     g.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
-      setUiLang(b.dataset.value);
+      settings.uiLang = b.dataset.value;
+      applyUiLang();
+      runI18nRefresh();
+      saveSettings();
     }));
   });
   applyUiLang();
-
-  // Язык, пришедший из соседнего приложения через оболочку —
-  // применяется тем же путём, что и клик по кнопке языка.
-  window.__setUiLangExternal = function(lang){
-    if(lang !== "ru" && lang !== "en" && lang !== "zh") return;
-    setUiLang(lang);
-  };
 
   function wireRangeField(rangeEl, numEl, min, max, getVal, setVal, onChange){
     if(!rangeEl || !numEl) return;
@@ -3447,15 +3444,6 @@
     syncSettingsBackdrop();
   }
 
-  function setSettingsPositionValue(pos){
-    settingsPositionCheckboxes.forEach((cb) => { cb.checked = cb.dataset.position === pos; });
-    settings.settingsPosition = pos;
-    applySettingsPositionMode(true);
-    applyErrorsPosVars();
-    saveSettings();
-    if(window.__appBridgeSend) window.__appBridgeSend({ type:"settingsPosition", value: pos });
-  }
-
   if(settingsPositionCheckboxes.length){
     const savedPos = settings.settingsPosition || "center";
     settingsPositionCheckboxes.forEach((cb) => {
@@ -3466,21 +3454,15 @@
           cb.checked = true;
           return;
         }
-        setSettingsPositionValue(cb.dataset.position);
+        settingsPositionCheckboxes.forEach((other) => { if(other !== cb) other.checked = false; });
+        settings.settingsPosition = cb.dataset.position;
+        applySettingsPositionMode(true);
+        applyErrorsPosVars();
+        saveSettings();
       });
     });
   }
   applySettingsPositionMode(true);
-
-  // Положение панели, пришедшее из соседнего приложения через оболочку —
-  // применяется тем же путём, что и клик по галке.
-  window.__setSettingsPositionExternal = function(pos){
-    if(pos !== "left" && pos !== "center" && pos !== "right") return;
-    setSettingsPositionValue(pos);
-  };
-  window.__appGetState = function(){
-    return { lang: settings.uiLang, pos: settings.settingsPosition || "center" };
-  };
 
   // при первом открытии приложения (нет сохранённых настроек) окно настроек
   // должно быть открыто само по себе; это состояние не сохраняется в localStorage
@@ -4221,12 +4203,14 @@
   }
 
   // Подсказка по клавише Z (KeyZ — по коду клавиши, работает и в русской раскладке на "Я"):
-  // справа от каждой линейки показывается название ноты, которая на ней стоит.
+  // сразу за правым концом линеек показывается название ноты, которая на линейке стоит
+  // (одинаковое место в "Нотах" и "Ладах").
+  const STAFF_HINT_X = STAFF_LINE_X2 + 6;
   function buildStaffHint(lines, xOverride){
     el.staffHint.innerHTML = "";
     lines.forEach(({ y, letter }) => {
       const t = ns("text");
-      t.setAttribute("x", xOverride != null ? xOverride : "294");
+      t.setAttribute("x", xOverride != null ? xOverride : STAFF_HINT_X);
       t.setAttribute("y", y + 4);
       t.textContent = letter;
       el.staffHint.appendChild(t);
@@ -4313,11 +4297,19 @@
     });
 
     // ---- подсказка (Z / Я) для нот на добавочных линейках: их нет в фиксированном списке ----
-    // Сдвинута правее (x=316), чтобы не пересекаться с подписями обычных линий/промежутков (x=294).
+    // Стоят в том же столбце, что и подписи линеек стана. Правее сдвигается только подпись,
+    // которая иначе налезла бы на соседнюю (нота в промежутке вплотную к подписанной линейке,
+    // например D4 под E4 или G5 над F5).
+    const hintColumnYs = Array.from(el.staffHint.children).map(t => parseFloat(t.getAttribute("y")));
     positions.forEach(p => {
       if(p.note.step < 0 || p.note.step > 8){
+        const ty = p.y + 4;
+        // на этой высоте уже есть подпись (например, C4 между станами в режиме "оба ключа") — не дублируем
+        if(hintColumnYs.some(y => Math.abs(y - ty) < 1)) return;
         const t = ns("text");
-        t.setAttribute("x", "316");
+        const collides = hintColumnYs.some(y => Math.abs(y - ty) < 12);
+        if(!collides) hintColumnYs.push(ty);
+        t.setAttribute("x", collides ? STAFF_HINT_X + 22 : STAFF_HINT_X);
         t.setAttribute("y", p.y + 4);
         t.textContent = p.note.letter + p.note.octave;
         el.staffHint.appendChild(t);
@@ -5399,16 +5391,17 @@
     ];
 
     // 8 значений (0..7 ступень, 7-я = тоника октавой выше = 12 полутонов)
+    // порядок = порядок кнопок в настройках (как в circle of fifths): 3 ряда по 3
     const SCALE_TYPES = [
-      { key:"major",   labelKey:"lad_major",   semis:[0,2,4,5,7,9,11,12] },
-      { key:"natMin",  labelKey:"lad_natmin",  semis:[0,2,3,5,7,8,10,12] },
-      { key:"harMin",  labelKey:"lad_harmin",  semis:[0,2,3,5,7,8,11,12] },
-      { key:"melMin",  labelKey:"lad_melmin",  semis:[0,2,3,5,7,9,11,12] },
-      { key:"dorian",  labelKey:"lad_dorian",  semis:[0,2,3,5,7,9,10,12] },
-      { key:"phrygian",labelKey:"lad_phrygian",semis:[0,1,3,5,7,8,10,12] },
       { key:"lydian",  labelKey:"lad_lydian",  semis:[0,2,4,6,7,9,11,12] },
+      { key:"major",   labelKey:"lad_major",   semis:[0,2,4,5,7,9,11,12] },
       { key:"mixo",    labelKey:"lad_mixo",    semis:[0,2,4,5,7,9,10,12] },
-      { key:"locrian", labelKey:"lad_locrian", semis:[0,1,3,5,6,8,10,12] }
+      { key:"dorian",  labelKey:"lad_dorian",  semis:[0,2,3,5,7,9,10,12] },
+      { key:"natMin",  labelKey:"lad_natmin",  semis:[0,2,3,5,7,8,10,12] },
+      { key:"phrygian",labelKey:"lad_phrygian",semis:[0,1,3,5,7,8,10,12] },
+      { key:"locrian", labelKey:"lad_locrian", semis:[0,1,3,5,6,8,10,12] },
+      { key:"harMin",  labelKey:"lad_harmin",  semis:[0,2,3,5,7,8,11,12] },
+      { key:"melMin",  labelKey:"lad_melmin",  semis:[0,2,3,5,7,9,11,12] }
     ];
     SCALE_TYPES.forEach(t => Object.defineProperty(t, "label", { get(){ return window.__t ? window.__t(t.labelKey) : t.labelKey; } }));
 
@@ -5677,10 +5670,10 @@
       cell.appendChild(b);
       cell.appendChild(icon);
       icon.addEventListener("click", (e) => e.stopPropagation());
-      icon.addEventListener("mouseenter", (e) => { e.stopPropagation(); scPreviewShow(t.key); });
-      icon.addEventListener("mouseleave", (e) => { e.stopPropagation(); scPreviewHide(); });
-      icon.addEventListener("focus", (e) => { e.stopPropagation(); scPreviewShow(t.key); });
-      icon.addEventListener("blur", (e) => { e.stopPropagation(); scPreviewHide(); });
+      icon.addEventListener("mouseenter", (e) => { e.stopPropagation(); scPreviewShow(t.key); scModeTipShow(icon, t.key); });
+      icon.addEventListener("mouseleave", (e) => { e.stopPropagation(); scPreviewHide(); scModeTipHide(); });
+      icon.addEventListener("focus", (e) => { e.stopPropagation(); scPreviewShow(t.key); scModeTipShow(icon, t.key); });
+      icon.addEventListener("blur", (e) => { e.stopPropagation(); scPreviewHide(); scModeTipHide(); });
       b.classList.toggle("selected", !!scaleSettings.types[t.key]);
       b.addEventListener("click", (e) => {
         if(e.target.closest(".info-icon")) return;
@@ -5745,6 +5738,7 @@
 
     let scaleCurrent = null;   // { tonic, type, target:[8 notes], progress }
     let placedHistory = [];
+    let scLedgerSteps = new Set(); // добавочные линейки, нарисованные в scRenderStaff (эффективные ступени)
 
     // ---- предпросмотр лада при наведении на "i" рядом с кнопкой лада в настройках:
     // временно подменяем scaleCurrent/placedHistory нотами выбранного лада от C4 вверх
@@ -5771,6 +5765,84 @@
       if(scaleCurrent){ scRenderStaff(); }
       else { el.notesGroup.innerHTML = ""; el.ledgerLines.innerHTML = ""; }
     }
+
+    // ---- всплывающее окно с формулами лада при наведении на "i" у кнопки лада ----
+    // Текст — в I18N (tip_scale_<ключ лада>): @@...@@ красится красным,
+    // пустая строка ("\n\n") — разделительная черта (как в circle of fifths).
+    let scModeTipEl = null;
+    let scModeTipIcon = null;
+    function scModeTipRender(text){
+      scModeTipEl.textContent = "";
+      text.split("\n\n").forEach((block, bi) => {
+        if(bi > 0){
+          const divider = document.createElement("div");
+          divider.className = "tipDivider";
+          scModeTipEl.appendChild(divider);
+        }
+        block.split("@@").forEach((part, i) => {
+          if(part === "") return;
+          if(i % 2 === 1){
+            const span = document.createElement("span");
+            span.className = "tipFormulaHighlight";
+            span.textContent = part;
+            scModeTipEl.appendChild(span);
+          } else {
+            scModeTipEl.appendChild(document.createTextNode(part));
+          }
+        });
+      });
+    }
+    function scModeTipPosition(icon){
+      const margin = 8;
+      const viewportW = document.documentElement.clientWidth;
+      const viewportH = document.documentElement.clientHeight;
+      scModeTipEl.style.left = "0px";
+      scModeTipEl.style.top = "0px";
+      const tw = scModeTipEl.offsetWidth;
+      const th = scModeTipEl.offsetHeight;
+      const r = icon.getBoundingClientRect();
+      // По горизонтали держим окно в пределах панели настроек, чтобы оно
+      // не закрывало нотный стан, на котором показываются ноты лада.
+      const panel = icon.closest("#settingsPanel");
+      const pr = panel ? panel.getBoundingClientRect() : { left: 0, right: viewportW };
+      let left = r.left + r.width / 2 - tw / 2;
+      if(left + tw > pr.right - margin) left = pr.right - margin - tw;
+      if(left < pr.left + margin) left = pr.left + margin;
+      // Сначала над значком, если не влезает — под ним.
+      let top = r.top - th - margin;
+      if(top < margin) top = r.bottom + margin;
+      // не вылезать за края окна
+      if(left + tw > viewportW - margin) left = viewportW - margin - tw;
+      if(left < margin) left = margin;
+      if(top + th > viewportH - margin) top = viewportH - margin - th;
+      if(top < margin) top = margin;
+      scModeTipEl.style.left = left + "px";
+      scModeTipEl.style.top = top + "px";
+    }
+    function scModeTipShow(icon, typeKey){
+      const tr = window.__t;
+      const key = "tip_scale_" + typeKey;
+      const text = tr ? tr(key) : "";
+      if(!text || text === key) return;
+      if(!scModeTipEl){
+        scModeTipEl = document.createElement("div");
+        scModeTipEl.id = "scaleModeTooltip";
+        document.body.appendChild(scModeTipEl);
+      } else if(scModeTipEl.parentNode !== document.body || document.body.lastElementChild !== scModeTipEl){
+        document.body.appendChild(scModeTipEl); // всегда последним в body — поверх остальных окон
+      }
+      scModeTipIcon = icon;
+      scModeTipRender(text);
+      scModeTipEl.classList.add("tooltip-visible");
+      scModeTipPosition(icon);
+    }
+    function scModeTipHide(){
+      scModeTipIcon = null;
+      if(scModeTipEl) scModeTipEl.classList.remove("tooltip-visible");
+    }
+    // при прокрутке/изменении размера окна — скрываем, чтобы не висело не на месте
+    window.addEventListener("scroll", () => { if(scModeTipIcon) scModeTipHide(); }, true);
+    window.addEventListener("resize", () => { if(scModeTipIcon) scModeTipHide(); });
 
     // ---- отдельная подсказка-надпись для уровня "Лады" (R — держать, T — закрепить) ----
     // Не зависит от подсказки из режима "Нот" (lastResult/current там относятся к другому
@@ -5816,24 +5888,26 @@
       if(scRevealPinned) scShowReveal(); else scHideReveal();
     };
 
-    // ---- отдельная подсказка тоники (Z/Я) — линейка, с которой реально начинается
-    // текущий звукоряд. Показывается всегда (не только со случайной ступенью), чтобы
-    // клавиша работала так же надёжно, как в режиме "Нот".
+    // ---- подсказка (Z / Я) в "Ладах": подписи всех 5 линеек стана (в режиме "оба ключа" —
+    // обоих станов) + подписи добавочных линеек, которые нарисованы под нотами лада.
+    // Подписи стоят сразу за правым концом линеек — там же, где в "Нотах".
+    // эффективная ступень стана "Ладов" -> название линейки (E4, G4, ... без знаков)
+    function scStepLabel(effSt, clefMode){
+      const trebleStep = clefMode === "treble" ? effSt : effSt - 12; // 0 = E4 в скрипичной системе
+      const idx = trebleStep + 2; // 0 = C4
+      const letter = "CDEFGAB"[((idx % 7) + 7) % 7];
+      const octave = 4 + Math.floor(idx / 7);
+      return letter + octave;
+    }
+    function scBuildStaffHint(){
+      const clefMode = scaleSettings.clef || "treble";
+      const steps = clefMode === "both" ? [0, 2, 4, 6, 8, 12, 14, 16, 18, 20] : [0, 2, 4, 6, 8];
+      scLedgerSteps.forEach(s => { if(!steps.includes(s)) steps.push(s); });
+      buildStaffHint(steps.map(s => ({ y: STAFF_BASE_Y - s * STEP_PX, letter: scStepLabel(s, clefMode) })));
+    }
     function scShowStartHint(){
       if(!scaleCurrent) return;
-      const startNote = scaleCurrent.target[0];
-      const clefMode = scaleSettings.clef || "treble";
-      const effStep = clefMode === "treble" ? startNote.step : startNote.step + 12;
-      const y = STAFF_BASE_Y - effStep * STEP_PX;
-      const accSign = startNote.accidental === "sharp" ? "\u266F" : startNote.accidental === "flat" ? "\u266D" : "";
-      // x подписи должен следовать за реальным правым краем расширенного стана "Ладов"
-      // (staffHint по умолчанию рисуется на x=294, рассчитанном для НЕрасширенного стана
-      // режима "Нот" — здесь добавляем тот же сдвиг "shift", что и scRenderStaff())
-      const n = scaleCurrent.target.length;
-      const baseX0 = 50, baseX1 = 280;
-      const baseSpacing = (baseX1 - baseX0) / (n - 1);
-      const shift = baseSpacing * 3;
-      buildStaffHint([{ y, letter: startNote.letter + accSign + startNote.octave }], 294 + shift);
+      scBuildStaffHint();
       el.staffHint.style.display = "";
     }
     function scHideStartHint(){ el.staffHint.style.display = "none"; }
@@ -5942,6 +6016,7 @@
       // Во всех остальных случаях (нота реально лежит на одном из двух станов) линейки
       // не рисуются вовсе.
       const ledgerSeen = new Set();
+      scLedgerSteps = new Set();
       placedHistory.forEach((p, i) => {
         const x = x0 + spacing * i;
         const st = effStep(p.note.step);
@@ -5959,6 +6034,7 @@
           else if(st > 8){ for(let s = 10; s <= st + (st % 2); s += 2) steps.push(s); }
         }
         steps.forEach(s => {
+          scLedgerSteps.add(s);
           const key = s + "|" + x;
           if(ledgerSeen.has(key)) return;
           ledgerSeen.add(key);
@@ -6021,6 +6097,9 @@
 
         el.notesGroup.appendChild(g);
       });
+
+      // если подсказка (Z / Я) сейчас удерживается — обновляем подписи под новые ноты
+      if(window.__scaleLevelActive && el.staffHint.style.display !== "none") scBuildStaffHint();
     }
 
     window.__submitScaleNote = submitScaleNote;
