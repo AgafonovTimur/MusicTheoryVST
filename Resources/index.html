@@ -133,10 +133,19 @@
     FRAME_IDS.forEach(function(fid){
       frames[fid].classList.toggle('active', fid === id);
     });
+    sendVisibility();
     try { localStorage.setItem(ACTIVE_KEY, id); } catch(e){}
     updateTitle();
     // фокус в открытую вкладку, чтобы сразу работали горячие клавиши
     try { frames[id].contentWindow.focus(); } catch(e){}
+  }
+
+  // Сообщаем каждому приложению, открыто оно сейчас или скрыто —
+  // скрытые не должны реагировать на нажатия MIDI-клавиатуры.
+  function sendVisibility(){
+    FRAME_IDS.forEach(function(fid){
+      send(fid, { type: 'appVisibility', active: fid === activeId });
+    });
   }
 
   function applyLang(lang, fromId){
@@ -183,6 +192,8 @@
         }
       }
       if(d.type === 'appReady'){
+        // приложение только что загрузилось — сообщаем ему, видно ли оно
+        if(fromId) send(fromId, { type: 'appVisibility', active: fromId === activeId });
         readyCount++;
         if(readyCount >= FRAME_IDS.length) firstSync();
       }

@@ -179,7 +179,15 @@
     // Без этого приложение стартует в режиме 'off' и ничего не шлёт.
     if (!Object.prototype.hasOwnProperty.call(store, 'circleOfFifths_dawOutMode_v1'))
       store['circleOfFifths_dawOutMode_v1'] = 'together';
+
+    // Тренажёр слуха: запоминаем, есть ли у него уже настройки в проекте.
+    // Сами настройки здесь не подставляем — иначе приложение решит, что это
+    // не первый запуск, и пропустит своё поведение первого запуска
+    // (открыть панель настроек, поставить её по центру).
+    EAR_FIRST_RUN = !Object.prototype.hasOwnProperty.call(store, 'earTrainerSettings');
   }
+
+  var EAR_FIRST_RUN = false;
 
   /* ---------------------------------------------------------------
      2. Web MIDI -> MIDI-вход и выход плагина
@@ -314,6 +322,19 @@
     if (button) { try { button.click(); } catch (e) {} }
   }
 
+  /* Тренажёр слуха в плагине играет через MIDI в DAW. В браузерной
+     версии по умолчанию стоит «Онлайн (звук в браузере)», поэтому при
+     первом запуске в проекте нажимаем кнопку «DAW» — так же, как это
+     сделал бы пользователь: приложение само переключит поля и сохранит
+     выбор. Дальше выбор остаётся за пользователем и не перебивается. */
+  function ensureEarDawOutput() {
+    if (!EAR_FIRST_RUN) return;
+    var dawButton = document.querySelector('#outputSegment [data-output="daw"]');
+    if (!dawButton) return;                       // это не тренажёр слуха
+    if (dawButton.classList.contains('active')) return;
+    try { dawButton.click(); } catch (e) {}
+  }
+
   function onReady(fn) {
     if (document.readyState === 'loading')
       document.addEventListener('DOMContentLoaded', fn);
@@ -332,8 +353,8 @@
     hideMidiSettings();
     // приложения вешают обработчики в скриптах в конце страницы —
     // даём им долистать до конца и только потом "нажимаем" кнопку
-    setTimeout(function () { hideMidiSettings(); autoConnect(); }, 60);
-    setTimeout(autoConnect, 400);
+    setTimeout(function () { hideMidiSettings(); autoConnect(); ensureEarDawOutput(); }, 60);
+    setTimeout(function () { autoConnect(); ensureEarDawOutput(); }, 400);
   });
 
   // Контекстное меню браузера в окне плагина не нужно
