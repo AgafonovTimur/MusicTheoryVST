@@ -3271,7 +3271,7 @@
         </div>
         <div class="dawOutFieldRow dawOnly">
           <label>Velocity:</label>
-          <input type="text" id="l3DawVelocityInput" class="dawVelocityCopy" inputmode="numeric" value="100">
+          <input type="text" id="l3DawVelocityInput" class="dawVelocityCopy" inputmode="numeric" value="50">
         </div>
           </div>
       </div>
@@ -3614,7 +3614,7 @@
         </div>
         <div class="dawOutFieldRow dawOnly">
           <label>Velocity:</label>
-          <input type="text" id="dawVelocityInput" inputmode="numeric" value="100">
+          <input type="text" id="dawVelocityInput" inputmode="numeric" value="50">
         </div>
 
         <label class="dawOutFieldRow dawSplitToggleRow dawOnly" for="dawSplitChannelsCheckbox">
@@ -15793,7 +15793,8 @@ allMidiReconnectBtns().forEach(btn => btn.addEventListener('click', refreshMidiI
    ========================================================= */
 const DAW_OUT_MODE_KEY = 'circleOfFifths_dawOutMode_v1'; // 'off' | 'together' | 'sequence'
 const DAW_OUT_INTERVAL_KEY = 'circleOfFifths_dawOutInterval_v1';
-const DAW_OUT_VELOCITY_KEY = 'circleOfFifths_dawOutVelocity_v1';
+// v2: значение по умолчанию сменено на 50 (старое сохранённое 100 не подхватывается)
+const DAW_OUT_VELOCITY_KEY = 'circleOfFifths_dawOutVelocity_v2';
 const DAW_OUT_FORMAT_KEY = 'circleOfFifths_dawOutFormat_v1'; // '127' | '65536'
 const DAW_OUT_PORT_KEY = 'circleOfFifths_dawOutPort_v1'; // имя выбранного MIDI-выхода
 
@@ -15834,13 +15835,13 @@ dawIntervalInput.addEventListener('blur', saveDawInterval);
 // velocity: любое целое число (интерпретация зависит от выбранного формата)
 function parseDawVelocity(raw){
   const n = parseInt(String(raw).trim().replace(',', '.'), 10);
-  if(!isFinite(n) || isNaN(n)) return 100;
+  if(!isFinite(n) || isNaN(n)) return 50;
   return n;
 }
 function loadDawVelocity(){
   let saved = null;
   try{ saved = localStorage.getItem(DAW_OUT_VELOCITY_KEY); }catch(e){}
-  return (saved !== null && saved !== '') ? saved : '100';
+  return (saved !== null && saved !== '') ? saved : '50';
 }
 dawVelocityInput.value = loadDawVelocity();
 function saveDawVelocity(){

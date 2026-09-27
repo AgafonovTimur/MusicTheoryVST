@@ -18,6 +18,9 @@
   // иначе три приложения зациклят пересылку одного и того же значения.
   window.__bridgeSuppress = false;
 
+  // Открыто ли сейчас это приложение в оболочке. Вне оболочки — всегда да.
+  window.__appIsActive = true;
+
   window.__appBridgeSend = function(msg){
     if(!inFrame || window.__bridgeSuppress) return;
     try { window.parent.postMessage(msg, '*'); } catch(e){}
@@ -48,6 +51,10 @@
     }
     if(d.type === 'settingsPosition'){
       applyExternal('__setSettingsPositionExternal', d.value);
+      return;
+    }
+    if(d.type === 'appVisibility'){
+      window.__appIsActive = !!d.active;
       return;
     }
     if(d.type === 'requestState'){
@@ -2516,7 +2523,7 @@
 
             <div class="midiPanelRow">
               <span class="field-label">Velocity</span>
-              <input type="number" id="minVelocityInput" min="1" max="127" value="100">
+              <input type="number" id="minVelocityInput" min="1" max="127" value="50">
             </div>
 
             <div class="hint-text" id="midiStatus"></div>
@@ -3273,7 +3280,7 @@ window.EAR_TRAINER_CONFIG = {
     onlineInstrument: 'builtin',
     onlineVolume: 50,
     octaveMatch: 'any',
-    minVelocity: 100,
+    minVelocity: 50,
     currentTarget: null,
     pendingPc: null,
     pendingChoiceId: null,
@@ -3321,7 +3328,7 @@ window.EAR_TRAINER_CONFIG = {
     onlineInstrument: 'builtin',
     onlineVolume: 50,
     octaveMatch: 'any',
-    minVelocity: 100,
+    minVelocity: 50,
     theme: '1',
     sidePanelPinned: true,
     settingsPosition: null,
@@ -4789,6 +4796,8 @@ window.EAR_TRAINER_CONFIG = {
   }
 
   async function playOnline(notes, velocities, delays) {
+    // Онлайн-звук не зависит от поля Velocity (оно только для DAW) — громкость как раньше
+    velocities = notes.map(() => 100);
     ensureAudioCtx();
     const volMult = (state.onlineVolume / 100) * 2;
     const dl = (i) => (delays ? delays[i] : 0);
@@ -7052,7 +7061,7 @@ window.EAR_TRAINER_CONFIG = {
 
     $('minVelocityInput').addEventListener('change', (e) => {
       let v = parseInt(e.target.value, 10);
-      if (isNaN(v)) v = 100;
+      if (isNaN(v)) v = 50;
       v = Math.min(127, Math.max(1, v));
       e.target.value = v;
       state.minVelocity = v;
