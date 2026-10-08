@@ -180,6 +180,12 @@
     if (!Object.prototype.hasOwnProperty.call(store, 'circleOfFifths_dawOutMode_v1'))
       store['circleOfFifths_dawOutMode_v1'] = 'together';
 
+    // Квинтовый круг, блок "Сыграть аккорд в": в браузерной версии по
+    // умолчанию "Без звука", в плагине — сразу "DAW". Если пользователь
+    // потом выберет другое, его выбор сохранится и здесь не перебивается.
+    if (!Object.prototype.hasOwnProperty.call(store, 'circleOfFifths_soundOutMode_v1'))
+      store['circleOfFifths_soundOutMode_v1'] = 'daw';
+
     // Тренажёр слуха: запоминаем, есть ли у него уже настройки в проекте.
     // Сами настройки здесь не подставляем — иначе приложение решит, что это
     // не первый запуск, и пропустит своё поведение первого запуска
@@ -294,15 +300,48 @@
     }
   }
 
+  /* То, что прятать нельзя ни в коем случае: вывод звука, настройки
+     отправки в DAW, кнопки переключения приложений, названия нот. */
+  var KEEP_VISIBLE = '.soundOutBox, #dawVelocityInput, #dawIntervalInput, ' +
+                     '#dawSplitChannelsCheckbox, #dawPlayTogetherBtn, ' +
+                     '[data-switch-level], .noteNamingBtn';
+
+  function containsKept(el) {
+    return !!(el && (el.matches(KEEP_VISIBLE) || el.querySelector(KEEP_VISIBLE)));
+  }
+
+  /* Квинтовый круг: блок выбора портов ищем от его списка "Количество
+     MIDI входов". Если в этом блоке нет ничего нужного — прячем блок
+     целиком вместе с его заголовком "MIDI". Если в нём лежат и другие
+     настройки (так было в старых версиях) — прячем только строки портов. */
+  function hideCirclePortsBox(countSelect) {
+    var box = countSelect.closest('.midiPanel');
+
+    if (box && !containsKept(box)) {
+      hide(box);
+      var title = box.previousElementSibling;
+      if (title && title.classList.contains('cofBoxTitle') && title.textContent.trim() === 'MIDI')
+        hide(title);
+      return;
+    }
+
+    var scope = box || document;
+    hide(countSelect.closest('.midiPanelRow') || countSelect);
+
+    var parts = scope.querySelectorAll('.midiInputSelectsContainer, .midiStatusLine, .midiReconnectBtn');
+    for (var i = 0; i < parts.length; i++) if (!containsKept(parts[i])) hide(parts[i]);
+
+    var outputs = scope.querySelectorAll('.dawOutputSelect');
+    for (var j = 0; j < outputs.length; j++) {
+      var row = outputs[j].closest('#dawOutPanel') || outputs[j].closest('.midiPanelRow') || outputs[j];
+      if (!containsKept(row)) hide(row);
+    }
+  }
+
   function hideMidiSettings() {
-    // --- Квинтовый круг ---
-    // Панели во вкладках "Обучение" и "Аккорды/Лады" целиком про MIDI
-    hideAll('#notesMidiPanel, #l3MidiPanel');
-    // В главной панели прячем только строки портов: настройки отправки
-    // в DAW (velocity, интервал, формат, "Разделить сигнал на каналы")
-    // остаются на месте
-    hideRowOf('#midiInputCountSelect', '.midiPanelRow');
-    hideAll('#midiInputSelectsContainer, #dawOutPanel, #midiStatusLine, #midiReconnectBtn');
+    // --- Квинтовый круг --- (во всех вкладках: "Обучение", "Ноты", "Аккорды/Лады")
+    var countSelects = document.querySelectorAll('.midiInputCountSelect');
+    for (var i = 0; i < countSelects.length; i++) hideCirclePortsBox(countSelects[i]);
 
     // --- Тренажёр нот --- (блок целиком: заголовок, порты, статус, кнопка)
     hideAll('.settings-block.midi-row');

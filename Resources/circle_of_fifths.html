@@ -165,6 +165,16 @@
     --purple-solid:rgb(217,179,255);
     --lime-solid:rgb(220,255,179);
 
+    /* "Модуляция" во вкладке "Обучение": заливка ячеек тональности 1 / 2
+       (общие — --green), подписи их названий и ступеней, обводка тоник. */
+    --mod-k1:#3f6fb0;
+    --mod-k2:#b07a3c;
+    --mod-k1-text:#8fb4ea;
+    --mod-k2-text:#e8b77a;
+    --mod-common-deg1:#cfe3ff;
+    --mod-common-deg2:#ffe0b8;
+    --mod-deg:#ffffff;
+
     /* палитра настроек — как на скриншотах */
     --menu-bg:#1e1e1e;
     --menu-border:#333333;
@@ -833,6 +843,36 @@
     /* рамка — как у блоков меню настроек (.cofBox) */
     border:1px solid var(--group-box-border, var(--menu-border));
   }
+  /* Подсказка средней ширины (data-tip-mid) — в 2 раза уже широкой
+     (подсказка "Модуляции" в "Обучении"). */
+  #globalInfoTooltip.tipMid{
+    max-width:min(560px, 96vw);
+    width:min(560px, 96vw);
+    font-size:18px;
+    line-height:1.4;
+    border:1px solid var(--group-box-border, var(--menu-border));
+  }
+  /* Таблица внутри подсказки: строки текста подсказки вида
+     "ячейка | ячейка | ячейка" (первая такая строка — заголовок). */
+  #globalInfoTooltip .tipTable{
+    border-collapse:collapse;
+    width:100%;
+    margin-top:4px;
+    white-space:normal;
+  }
+  #globalInfoTooltip .tipTable td,
+  #globalInfoTooltip .tipTable th{
+    padding:4px 8px 4px 0;
+    text-align:left;
+    font-weight:normal;
+    border-bottom:1px solid var(--shadow);
+  }
+  #globalInfoTooltip .tipTable th{
+    opacity:0.7;
+  }
+  #globalInfoTooltip .tipTableTitle{
+    font-weight:bold;
+  }
   /* Список горячих клавиш — в 3 колонки:
      1) Везде + Ноты, 2) Обучение, 3) Аккорды/Лады + MIDI */
   #globalInfoTooltip .tipCols{
@@ -1495,14 +1535,33 @@
     font-size:13px;
     white-space:nowrap;
   }
-  #l3NameAnswers .l3NameAnswerNum{
+  /* ===== Кнопки ответов режима "Ступени тональности" ("Аккорды/Лады") =====
+     Стоят по центру круга, под названием тональности (круг в этом
+     режиме скрыт). 6 кнопок, 3 в ряд. Положение по высоте и масштаб
+     считает layoutL3DegreeAnswers() — вместе с размером круга (+/-).
+     5 кнопок — два ряда (.l3DegAnswerRow), каждый по центру.
+     --l3-deg-btn-width — ширина одной кнопки. */
+  #l3DegreeAnswers{
+    --l3-deg-btn-width:120px;
     position:absolute;
-    top:2px;
-    right:4px;
-    font-size:10px;
-    line-height:1;
-    opacity:0.6;
-    pointer-events:none;
+    left:50%;
+    top:0;
+    width:calc(var(--l3-deg-btn-width) * 3 + 16px);
+    flex-direction:column;
+    gap:8px;
+    z-index:2;
+    transform-origin:center top;
+  }
+  #l3DegreeAnswers .l3DegAnswerRow{
+    display:flex;
+    justify-content:center;
+    gap:8px;
+  }
+  #l3DegreeAnswers .ringBtn{
+    width:var(--l3-deg-btn-width);
+    padding:10px 4px;
+    font-size:15px;
+    white-space:nowrap;
   }
   /* Мобильное положение #l3PianoWrap задано общим правилом выше
      (вместе с #trainPianoWrap) — под кругом, во всю ширину экрана. */
@@ -1972,6 +2031,34 @@
   }
   #level3KeyRow input[type="checkbox"]{
     cursor:pointer;
+  }
+  /* "Из тональности" (подпункт "Модуляции") + списки "Лад" и "Тоника" */
+  #level3ModFromBox{
+    display:flex;
+    flex-direction:column;
+    align-self:stretch;
+    gap:10px;
+    margin-left:48px;
+  }
+  #level3ModFromRow{
+    display:flex;
+    align-items:center;
+    align-self:flex-start;
+    gap:6px;
+  }
+  #level3ModFromRow.disabled{
+    opacity:0.4;
+  }
+  #level3ModFromRow.disabled label,
+  #level3ModFromRow.disabled input[type="checkbox"]{
+    cursor:not-allowed;
+  }
+  /* "Ступени тональности" + (i) — как строка "Выбрать тональность" */
+  #level3DegreeRow{
+    display:flex;
+    align-items:center;
+    align-self:flex-start;
+    gap:6px;
   }
   .l3KeySelectRow{
     font-family:var(--font);
@@ -2517,6 +2604,113 @@
     box-sizing:border-box;
     z-index:3;
   }
+  /* Строки "галка + (i)": общие правила #...ExtraSettings label прижимают
+     подпись к верху строки (align-self:flex-start), из-за чего (i) стоял
+     на 2px ниже текста. Здесь подпись выравнивается по центру строки. */
+  #trainModRow > label,
+  #level3DegreeRow > label,
+  #level3ModFromRow > label,
+  #level3NameModeRow > label,
+  #trainExtraSettings .invStyleItem > label,
+  #level3ExtraSettings .invStyleItem > label{
+    align-self:center;
+  }
+  /* ===== "Модуляция" (Обучение): панель сбоку от круга ===== */
+  #trainModRow{
+    display:flex;
+    align-items:center;
+    align-self:flex-start;
+    gap:6px;
+  }
+  /* положение (left/right/top) считает layoutTrainModPanel(): сбоку от
+     нарисованного круга с отступом TRAIN_MOD_PANEL_GAP, на телефоне — под ним */
+  #trainModPanel{
+    position:absolute;
+    left:0;
+    top:0;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    width:max-content;
+    max-width:440px;
+    background:var(--menu-bg);
+    border-radius:12px;
+    padding:16px;
+    box-sizing:border-box;
+    z-index:3;
+    font-family:var(--font);
+    font-size:15px;
+    color:var(--app-text-color);
+  }
+  body.is-mobile #trainModPanel{
+    transform:translateX(-50%);
+    max-width:calc(100vw - 24px);
+    padding:10px 12px;
+    gap:6px;
+    font-size:14px;
+  }
+  #trainModPanel .trainModSelRow > span:not(.trainModSwatch){
+    white-space:nowrap;
+  }
+  #trainModPanel .trainModSelRow{
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  #trainModPanel .trainModSwatch{
+    flex:0 0 auto;
+    width:14px;
+    height:14px;
+    border-radius:4px;
+  }
+  #trainModPanel select{
+    margin-left:auto;
+    background:var(--btn-bg);
+    color:var(--btn-text);
+    border:none;
+    border-radius:6px;
+    padding:6px;
+    font-family:var(--font);
+    font-size:14px;
+  }
+  #trainModPanel .trainModTitle{
+    font-weight:bold;
+    margin-top:4px;
+  }
+  #trainModPanel table{
+    border-collapse:collapse;
+    width:100%;
+  }
+  #trainModPanel td, #trainModPanel th{
+    padding:4px 8px 4px 0;
+    text-align:left;
+    font-weight:normal;
+    border-bottom:1px solid var(--shadow);
+  }
+  /* заголовки таблицы "Общие аккорды" — тем же цветом, что и строки ниже */
+  #trainModPanel th{
+    font-size:15px;
+    color:var(--app-text-color);
+  }
+  .trainModDeg{
+    pointer-events:none;
+    user-select:none;
+    text-anchor:middle;
+    dominant-baseline:middle;
+    font-family:var(--font);
+    font-weight:bold;
+    font-size:12px;
+    fill:var(--app-text-color);
+  }
+  .trainModCenter{
+    pointer-events:none;
+    user-select:none;
+    text-anchor:middle;
+    dominant-baseline:middle;
+    font-family:var(--font);
+    font-weight:bold;
+    fill:var(--app-text-color);
+  }
   /* Настройки справа от круга (body.piano-left) — клавиатура уезжает
      влево от круга, легенда едет за ней, чтобы остаться над клавиатурой. */
   body.piano-left:not(.is-mobile) #trainLegend{
@@ -3038,6 +3232,9 @@
            клавиатура выключена или стоит "под нотой" — на том же месте).
            Положение и число колонок считает layoutL3NameAnswers(). -->
       <div id="l3NameAnswers" style="display:none"></div>
+      <!-- Кнопки ответов режима "Ступени тональности" (5 штук, ряды 3 + 2),
+           по центру круга под названием тональности. См. renderL3DegreeAnswers(). -->
+      <div id="l3DegreeAnswers" style="display:none"></div>
     </div>
   </div>
   <div id="trainCircleWrap" style="display:none">
@@ -3049,6 +3246,9 @@
            внутри #trainPianoWrap — поэтому от клавиатуры не зависит и
            вместе с ней не двигается. -->
       <div id="trainLegend" style="display:none"></div>
+      <!-- "Модуляция": лады двух тональностей и список общих аккордов —
+           сбоку от круга (на телефоне — под кругом), как легенда выше. -->
+      <div id="trainModPanel" style="display:none"></div>
       <div id="trainPianoWrap" style="display:none">
         <svg id="trainPianoSvg"></svg>
         <!-- Кнопки обращений (основное/первое/второе/третье) под мини-
@@ -3564,6 +3764,59 @@
           -->
         </div>
         <div id="level3InversionBtns"></div>
+        <!-- "Ступени тональности": тональность берётся из нот, выбранных в
+             "Выберите ноты" (ячейка мажорного кольца — мажор, минорного —
+             натуральный минор). Круг скрывается, в центре — вопрос, ниже —
+             5 вариантов ответа. Подпункты: "Аккорд" (дана ступень, выбрать
+             аккорд), "Ступень" (дан аккорд, выбрать ступень) и "Модуляция"
+             (дан переход между тональностями и общий аккорд — выбрать пару
+             ступеней); нажат всегда один. См. блок "Ступени тональности" в <script>. -->
+        <div id="level3DegreeRow">
+          <label><input type="checkbox" id="level3DegreeCheckbox"><span data-i18n="l3KeyDegrees">Ступени тональности</span></label>
+          <span class="infoIcon" data-i18n-tip="tipKeyDegrees" data-tip="Аккорд и Ступень: ячейка мажорного кольца даёт мажор (C → C мажор), минорного — натуральный минор (Am → A минор).&#10;&#10;Модуляция: ячейка даёт только тонику (C и Cm — тоника C), лад выбирается в меню «Выберите лады».&#10;&#10;Аккорд: кнопки с аккордами расположены как на круге — сверху мажорные, снизу минорные, слева направо по порядку круга.">i</span>
+        </div>
+        <div id="level3DegreeKindRow" class="invStyleRow" style="margin-left:24px;">
+          <label class="invStyleOption"><input type="checkbox" id="level3DegreeChordCheckbox"><span data-i18n="degreeKindChord">Аккорд</span></label>
+          <label class="invStyleOption"><input type="checkbox" id="level3DegreeStepCheckbox"><span data-i18n="degreeKindStep">Ступень</span></label>
+          <label class="invStyleOption"><input type="checkbox" id="level3DegreeModCheckbox"><span data-i18n="degreeKindMod">Модуляция</span></label>
+        </div>
+        <!-- Подпункты "Модуляции": какие переходы выпадают — "Тоника та же",
+             "Ноты те же", "Из тональности", "Любые" (нажат всегда один) -->
+        <div id="level3ModPairRow" class="invStyleRow" style="margin-left:48px;">
+          <label class="invStyleOption"><input type="checkbox" id="level3ModPairSameTonic"><span data-i18n="modPairSameTonic">Тоника та же</span></label>
+          <label class="invStyleOption"><input type="checkbox" id="level3ModPairSameNotes"><span data-i18n="modPairSameNotes">Ноты те же</span></label>
+        </div>
+        <!-- "Из тональности" (один из 4 подпунктов): первая тональность
+             (откуда переход) — из списков "Лад" и "Тоника", вторая — из
+             выбранных ячеек и кнопок ладов. Переход только в одну сторону.
+             См. pickNewModulationQuestionL3(). -->
+        <div id="level3ModFromBox">
+          <div id="level3ModFromRow">
+            <label><input type="checkbox" id="level3ModFromCheckbox"><span data-i18n="modFromKey">Из тональности</span></label>
+            <span class="infoIcon" data-i18n-tip="tipModFromKey" data-tip="Первая тональность (откуда переход) — лад и тоника в списках ниже.&#10;&#10;Вторая (куда переход) — из выбранного: тоника — ячейки «Выберите ноты», лад — кнопки «Выберите лады». Выпадают все такие тональности, у которых есть общие аккорды с первой.&#10;&#10;Переход идёт только в одну сторону. Чтобы переходы шли в обе стороны между выбранными тональностями, выберите «Любые».">i</span>
+          </div>
+          <div class="themeSelectRow l3KeySelectRow" id="level3ModFromModeRow">
+            <span data-i18n="modFromModeLabel">Лад:</span>
+            <select id="level3ModFromModeSelect">
+              <option value="lydian" data-i18n="modeLydian">Лидийский</option>
+              <option value="major" data-i18n="btnMajor">Мажор</option>
+              <option value="mixolydian" data-i18n="modeMixolydian">Миксолидийский</option>
+              <option value="dorian" data-i18n="modeDorian">Дорийский</option>
+              <option value="minor" data-i18n="btnMinor">Минор</option>
+              <option value="phrygian" data-i18n="modePhrygian">Фригийский</option>
+              <option value="locrian" data-i18n="modeLocrian">Локрийский</option>
+              <option value="harmMinor" data-i18n="keyHarmMinor">Гармонический минор</option>
+              <option value="melMinor" data-i18n="keyMelMinor">Мелодический минор</option>
+            </select>
+          </div>
+          <div class="themeSelectRow l3KeySelectRow" id="level3ModFromTonicRow">
+            <span data-i18n="keyTonicLabel">Тоника:</span>
+            <select id="level3ModFromTonicSelect"></select>
+          </div>
+        </div>
+        <div id="level3ModPairAnyRow" class="invStyleRow" style="margin-left:48px;">
+          <label class="invStyleOption"><input type="checkbox" id="level3ModPairAny"><span data-i18n="modPairAny">Любые</span></label>
+        </div>
       </div>
 
       <!-- ===== Копия MIDI-настроек из "Обучения" — см. подробный
@@ -3908,6 +4161,13 @@
           <span class="invStyleItem"><label class="invStyleOption"><input type="checkbox" id="trainInvStyleAccCheckbox"><span data-i18n="invStyleAcc">С бемолями\диезами</span></label><span class="infoIcon" data-i18n-tip="tipInvStyleAcc" data-tip="Ноты расположены близко друг к другу чтобы проще запоминать, некоторые ноты заменены на ступень выше или ниже">i</span></span>
           <span class="invStyleItem"><label class="invStyleOption"><input type="checkbox" id="trainInvStyleCorrectCheckbox"><span data-i18n="invStyleCorrect">Правильно</span></label><span class="infoIcon" data-i18n-tip="tipInvStyleCorrect" data-tip="Точный вариант от первой ноты до последней">i</span></span>
         </div>
+        <!-- "Модуляция" (под "Выбор обращения"): две тональности на круге, их общие аккорды и ступени.
+             Лады тональностей и список общих аккордов — в панели рядом с
+             кругом (#trainModPanel). См. блок "Модуляция (Обучение)" в <script>. -->
+        <div id="trainModRow">
+          <label><input type="checkbox" id="trainModCheckbox"><span data-i18n="trainModulation">Модуляция</span></label>
+          <span class="infoIcon" data-tip-mid data-i18n-tip="tipTrainModulation" data-tip="Нажимайте ячейки по очереди: первая — тоника тональности 1, вторая — тональности 2. Лад каждой тональности выбирается рядом с кругом (по умолчанию: тональность 1 — мажор, 2 — минор).&#10;&#10;Синие — аккорды только тональности 1, оранжевые — только тональности 2, зелёные — общие; на общих — ступень в обеих тональностях. Уменьшённых и увеличенных аккордов на круге нет: у мажора, минора и других натуральных ладов 6 ячеек, у гармонического и мелодического минора — 4. Увеличенные аккорды (III+) учитываются в числе общих аккордов и в списке рядом с кругом.&#10;&#10;Правило: расстояние по кругу&#10;Окна сдвинуты на | Общих | Пример&#10;0 | 6 | C мажор ↔ A минор (одно окно)&#10;1 | 4 | C мажор ↔ G мажор&#10;2 | 2 | C мажор ↔ D мажор&#10;3 и больше | 0 | C мажор ↔ A мажор">i</span>
+        </div>
       </div>
 
       <div id="trainAltNoteSettings">
@@ -4047,10 +4307,12 @@ Z / Я — подсказка на круге
 1–9, 0 и Пробел + цифра — добавить/убрать тип аккорда (порядок как в «Обучении»)
 Если выбраны лады: 1–9 — добавить/убрать лад (порядок как у кнопок ладов)
 «Назови аккорд/лад»: 1–9, 0 — ответы 1–10, Пробел + цифра — ответы 11–20
+«Ступени тональности»: 1–5 — ответы
 
 MIDI
 Колесо Pitch Bend вверх — мажорное кольцо, вниз — минорное
-«Назови аккорд/лад»: белые клавиши C–B — ответы 1–7`,
+«Назови аккорд/лад»: белые клавиши C–B — ответы 1–7
+«Ступени тональности»: белые клавиши C–G — ответы 1–5`,
 en:`Everywhere
 Y or middle mouse button — open/close settings
 V — hide the mouse cursor, move the mouse to show it again
@@ -4077,10 +4339,12 @@ Z — hint on the circle
 1–9, 0 and Space + digit — add/remove a chord type (same order as in "Training")
 If modes are selected: 1–9 — add/remove a mode (same order as the mode buttons)
 "Name the chord/mode": 1–9, 0 — answers 1–10, Space + digit — answers 11–20
+"Key degrees": 1–5 — answers
 
 MIDI
 Pitch Bend wheel up — major ring, down — minor ring
-"Name the chord/mode": white keys C–B — answers 1–7`,
+"Name the chord/mode": white keys C–B — answers 1–7
+"Key degrees": white keys C–G — answers 1–5`,
 zh:`通用
 Y 或鼠标中键 — 打开/关闭设置
 V — 隐藏鼠标光标，移动鼠标后光标重新出现
@@ -4107,10 +4371,12 @@ Z — 圈上的提示
 1–9、0 及空格 + 数字 — 添加/移除和弦类型（顺序与“训练”中相同）
 选择调式时：1–9 — 添加/移除调式（顺序与调式按钮相同）
 “说出和弦/调式”：1–9、0 — 答案 1–10，空格 + 数字 — 答案 11–20
+“调性音级”：1–5 — 答案
 
 MIDI
 弯音轮向上 — 大调环，向下 — 小调环
-“说出和弦/调式”：白键 C–B — 答案 1–7`
+“说出和弦/调式”：白键 C–B — 答案 1–7
+“调性音级”：白键 C–G — 答案 1–5`
 };
 (function(){
   const icon = document.getElementById('hotkeysInfoIcon');
@@ -4373,13 +4639,15 @@ function refreshAllNoteNameDisplays(){
   if(typeof centerText !== 'undefined' && centerText){
     if(typeof practiceLevel !== 'undefined' && practiceLevel === 1 && typeof current !== 'undefined' && current){
       setNoteText(centerText, current.name);
-    } else if(typeof practiceLevel !== 'undefined' && practiceLevel === 3 && typeof currentL3 !== 'undefined' && currentL3){
+    } else if(typeof practiceLevel !== 'undefined' && practiceLevel === 3 && ((typeof currentL3 !== 'undefined' && currentL3) || (l3DegreeMode && l3DegQ))){
       setNoteText(centerText, l3CenterDisplayName());
     }
   }
   if(typeof renderLevel3Hint === 'function') renderLevel3Hint();
   if(typeof updateTrainPiano === 'function') updateTrainPiano();
   if(typeof updateL3Piano === 'function') updateL3Piano();
+  try{ if(l3DegreeMode && typeof updateL3CenterModeLabel === 'function') updateL3CenterModeLabel(); }catch(e){}
+  try{ if(trainModOn && typeof renderTrainMod === 'function') renderTrainMod(); }catch(e){}
 }
 
 function setNoteNamingSystem(system){
@@ -4481,6 +4749,38 @@ const I18N = {
   invStyleAcc:         { ru:'С бемолями\\диезами', en:'With flats\\sharps', zh:'降号\\升号' },
   invStyleEasy:        { ru:'Удобно (beta)', en:'Convenient (beta)', zh:'方便 (beta)' },
   nameChordMode:       { ru:'Назови аккорд/лад', en:'Name the chord/mode', zh:'说出和弦/调式' },
+  l3KeyDegrees:        { ru:'Ступени тональности', en:'Key degrees', zh:'调性音级' },
+  tipKeyDegrees:       { ru:'Аккорд и Ступень: ячейка мажорного кольца даёт мажор (C → C мажор), минорного — натуральный минор (Am → A минор).\n\nМодуляция: ячейка даёт только тонику (C и Cm — тоника C), лад выбирается в меню «Выберите лады».\n\nАккорд: кнопки с аккордами расположены как на круге — сверху мажорные, снизу минорные, слева направо по порядку круга.',
+                         en:'Chord and Degree: a cell on the major ring gives a major key (C → C major), on the minor ring — a natural minor key (Am → A minor).\n\nModulation: a cell gives only the tonic (C and Cm — tonic C), the mode is chosen in the «Choose modes» menu.\n\nChord: the chord buttons are laid out as on the circle — major on top, minor below, left to right in circle order.',
+                         zh:'和弦和音级：大调圆环上的格子对应大调（C → C 大调），小调圆环上的格子对应自然小调（Am → A 小调）。\n\n转调：格子只决定主音（C 和 Cm — 主音 C），调式在「选择调式」菜单中选择。\n\n和弦：和弦按钮的排列与圆上相同 — 上排为大调和弦，下排为小调和弦，从左到右按圆上的顺序。' },
+  degreeKindChord:     { ru:'Аккорд', en:'Chord', zh:'和弦' },
+  degreeKindStep:      { ru:'Ступень', en:'Degree', zh:'音级' },
+  degreeKindMod:       { ru:'Модуляция', en:'Modulation', zh:'转调' },
+  modNoCommonChords:   { ru:'Нет подходящих переходов', en:'No suitable transitions', zh:'没有合适的转调' },
+  modPairSameTonic:    { ru:'Тоника та же', en:'Same tonic', zh:'主音相同' },
+  modPairSameNotes:    { ru:'Ноты те же', en:'Same notes', zh:'音相同' },
+  modPairAny:          { ru:'Любые', en:'Any', zh:'任意' },
+  modFromKey:          { ru:'Из тональности', en:'From key', zh:'从调性' },
+  trainModulation:     { ru:'Модуляция', en:'Modulation', zh:'转调' },
+  trainModMode1:       { ru:'Лад тональности 1:', en:'Mode of key 1:', zh:'调性 1 的调式：' },
+  trainModMode2:       { ru:'Лад тональности 2:', en:'Mode of key 2:', zh:'调性 2 的调式：' },
+  trainModCommon:      { ru:'Общие аккорды', en:'Common chords', zh:'共同和弦' },
+  trainModChord:       { ru:'Аккорд', en:'Chord', zh:'和弦' },
+  trainModNone:        { ru:'Общих аккордов нет', en:'No common chords', zh:'没有共同和弦' },
+  trainModCount:       { ru:'Общих аккордов: ', en:'Common chords: ', zh:'共同和弦：' },
+  tipTrainModulation: {
+    ru:'Нажимайте ячейки по очереди: первая — тоника тональности 1, вторая — тональности 2. Лад каждой тональности выбирается рядом с кругом (по умолчанию: тональность 1 — мажор, 2 — минор).\n\nСиние — аккорды только тональности 1, оранжевые — только тональности 2, зелёные — общие; на общих — ступень в обеих тональностях. Уменьшённых и увеличенных аккордов на круге нет: у мажора, минора и других натуральных ладов 6 ячеек, у гармонического и мелодического минора — 4. Увеличенные аккорды (III+) учитываются в числе общих аккордов и в списке рядом с кругом.\n\nПравило: расстояние по кругу\nОкна сдвинуты на | Общих | Пример\n0 | 6 | C мажор ↔ A минор (одно окно)\n1 | 4 | C мажор ↔ G мажор\n2 | 2 | C мажор ↔ D мажор\n3 и больше | 0 | C мажор ↔ A мажор',
+    en:'Click cells in turn: the first is the tonic of key 1, the second — of key 2. The mode of each key is chosen next to the circle (by default: key 1 — major, key 2 — minor).\n\nBlue — chords of key 1 only, orange — of key 2 only, green — common; common chords show their degree in both keys. Diminished and augmented chords have no cells on the circle: major, minor and the other natural modes have 6 cells, harmonic and melodic minor have 4. Augmented chords (III+) are still counted among the common chords and in the list next to the circle.\n\nRule: distance around the circle\nWindows shifted by | Common | Example\n0 | 6 | C major ↔ A minor (same window)\n1 | 4 | C major ↔ G major\n2 | 2 | C major ↔ D major\n3 or more | 0 | C major ↔ A major',
+    zh:'依次点击格子：第一个是调性 1 的主音，第二个是调性 2 的主音。每个调性的调式在圆旁边选择（默认：调性 1 — 大调，调性 2 — 小调）。\n\n蓝色 — 仅属于调性 1 的和弦，橙色 — 仅属于调性 2，绿色 — 共同和弦；共同和弦上显示它在两个调性中的音级。减三和弦和增三和弦在圆上没有格子：大调、小调及其他自然调式有 6 个格子，和声小调和旋律小调有 4 个。增三和弦（III+）仍计入共同和弦数和圆旁边的列表。\n\n规则：圆上的距离\n窗口相隔 | 共同和弦 | 例子\n0 | 6 | C 大调 ↔ A 小调（同一窗口）\n1 | 4 | C 大调 ↔ G 大调\n2 | 2 | C 大调 ↔ D 大调\n3 及以上 | 0 | C 大调 ↔ A 大调'
+  },
+  modFromModeLabel:    { ru:'Лад:', en:'Mode:', zh:'调式：' },
+  tipModFromKey: {
+    ru:'Первая тональность (откуда переход) — лад и тоника в списках ниже.\n\nВторая (куда переход) — из выбранного: тоника — ячейки «Выберите ноты», лад — кнопки «Выберите лады». Выпадают все такие тональности, у которых есть общие аккорды с первой.\n\nПереход идёт только в одну сторону. Чтобы переходы шли в обе стороны между выбранными тональностями, выберите «Любые».',
+    en:'The first key (where the transition starts) — the mode and tonic in the lists below.\n\nThe second key (where it goes) — from your selection: the tonic from the «Select notes» cells, the mode from the «Choose modes» buttons. Every such key that shares chords with the first one is used.\n\nThe transition goes one way only. For transitions in both directions between the selected keys, choose «Any».',
+    zh:'第一个调性（转调的起点）— 在下方列表中选择调式和主音。\n\n第二个调性（转调的终点）— 来自所选内容：主音来自「选择音符」的格子，调式来自「选择调式」按钮。所有与第一个调性有共同和弦的调性都会出现。\n\n转调只朝一个方向。要在所选调性之间双向转调，请选择「任意」。'
+  },
+  keyWordMajor:        { ru:'мажор', en:'major', zh:'大调' },
+  keyWordMinor:        { ru:'минор', en:'minor', zh:'小调' },
   tipNameMode: { ru:'Отображается аккорд или лад. Нужно выбрать из предложенных вариантов.', en:'A chord or mode is shown. Choose from the options offered.', zh:'显示一个和弦或调式。需要从给出的选项中选择。' },
   invRoot:             { ru:'Основное', en:'Root', zh:'原位' },
   inv1:                { ru:'Первое', en:'1st', zh:'第一' },
@@ -4748,6 +5048,9 @@ function applyLanguage(lang){
   try{
     if(typeof renderTrainLegend === 'function') renderTrainLegend();
   }catch(e){}
+  try{
+    if(typeof renderTrainMod === 'function' && trainModOn) renderTrainMod();
+  }catch(e){}
   // кнопки обращений и подпись обращения в центре круга подписаны через
   // t(), поэтому их нужно перерисовать при смене языка
   try{
@@ -4954,6 +5257,51 @@ let l3NameHighlighted = [];   // ячейки круга, подсвеченны
 let l3NameBusy = false;       // верный ответ мигает — ждём следующий вопрос
 let l3NameAnswersSig = '';    // какой набор кнопок сейчас нарисован
 
+/* ===== Режим "Ступени тональности" (вкладка "Аккорды/Лады") =====
+   Состояние объявлено здесь, в начале (var), т.к. его читают функции,
+   которые вызываются ещё при загрузке страницы. Вся логика — в блоке
+   "Ступени тональности" ниже (после "Назови аккорд/лад"). */
+var L3_DEGREE_MODE_KEY = 'circleL3DegreeMode';
+var L3_DEGREE_KIND_KEY = 'circleL3DegreeKind';
+var l3DegreeMode = localStorage.getItem(L3_DEGREE_MODE_KEY) === '1';
+// 'chord'  — подпункт "Аккорд" (дана ступень, выбрать аккорд),
+// 'degree' — подпункт "Ступень" (дан аккорд, выбрать ступень),
+// 'mod'    — подпункт "Модуляция" (дан переход и аккорд, выбрать пару ступеней)
+var l3DegreeKind = (function(){
+  const v = localStorage.getItem(L3_DEGREE_KIND_KEY);
+  return (v === 'degree' || v === 'mod') ? v : 'chord';
+})();
+// У "Модуляции" свой набор выбранных нот (по умолчанию C и Am)
+var SELECTED_NOTES_L3_MOD_KEY = 'circleSelectedNotesL3Mod';
+// ...и свой набор ладов (кнопки "Выберите лады"), по умолчанию Мажор и Минор
+var L3_MOD_MODES_KEY = 'circleL3ModModes';
+var l3ModModes = (function(){
+  let arr = null;
+  try{ arr = JSON.parse(localStorage.getItem(L3_MOD_MODES_KEY)); }catch(e){ arr = null; }
+  return new Set(Array.isArray(arr) && arr.length ? arr : ['major', 'minor']);
+})();
+// "Из тональности": первая тональность — из списков "Лад" и "Тоника"
+var L3_MOD_FROM_MODE_KEY = 'circleL3ModFromMode';
+var L3_MOD_FROM_TONIC_KEY = 'circleL3ModFromTonic';
+var l3ModFromMode = localStorage.getItem(L3_MOD_FROM_MODE_KEY) || 'major';
+var l3ModFromTonicPc = (function(){
+  const v = parseInt(localStorage.getItem(L3_MOD_FROM_TONIC_KEY), 10);
+  return (v >= 0 && v < 12) ? v : 0;   // по умолчанию C
+})();
+// какие переходы выпадают (нажат один подпункт): 'tonic' — тоника та же,
+// 'notes' — ноты те же, 'from' — из тональности, 'any' — любые
+var L3_MOD_PAIR_KEY = 'circleL3ModPair';
+var l3ModPair = (function(){
+  const v = localStorage.getItem(L3_MOD_PAIR_KEY);
+  return (v === 'tonic' || v === 'notes' || v === 'from') ? v : 'any';
+})();
+function l3ModSelectionActive(){
+  return !l3KeyMode && l3DegreeMode && l3DegreeKind === 'mod';
+}
+var l3DegQ = null;        // текущий вопрос
+var l3DegBusy = false;    // верный ответ мигает — ждём следующий вопрос
+var l3DegHistory = [];    // последние вопросы (без повторов подряд)
+
 function buildRing(ringName, rInner, rOuter, baseColor){
   for(let i=0;i<12;i++){
     const startA = i*30 - 15 + WEDGE_GAP_ANGLE;
@@ -5077,7 +5425,12 @@ function applyCrosshairVisibility(){
   let tab = 'p1';
   try{ tab = currentTopTab(); }catch(e){ tab = 'p1'; }
   const on = tab === 'p3' ? crosshairEnabledP3 : crosshairEnabledP1;
-  const vis = (tab === 'training' || !on) ? 'none' : '';
+  // круг скрыт ("Скрыть ячейки круга", "Ступени тональности", "Скрыть
+  // круг" в "Нотах") — чёрточки тоже не показываем; круг снова виден —
+  // чёрточки возвращаются, если включены
+  let circleHidden = false;
+  try{ circleHidden = !!l3WedgesCurrentlyHidden; }catch(e){ circleHidden = false; }
+  const vis = (tab === 'training' || !on || circleHidden) ? 'none' : '';
   crosshairLayerBottom.style.display = vis;
   crosshairLayerTop.style.display = vis;
   if(tab !== 'training'){
@@ -5294,6 +5647,16 @@ function loadSelectedNotesL3(){
     saved = JSON.parse(localStorage.getItem(l3KeyMode ? SELECTED_NOTES_L3_KEYMODE_KEY : SELECTED_NOTES_L3_KEY));
   }catch(e){ saved = null; }
   const result = {};
+  // "Модуляция": свой набор; если ничего не сохранено — C и Am
+  if(l3ModSelectionActive()){
+    let savedMod = null;
+    try{ savedMod = JSON.parse(localStorage.getItem(SELECTED_NOTES_L3_MOD_KEY)); }catch(e){ savedMod = null; }
+    allChords.forEach(c=>{
+      const key = c.ring+'-'+c.index;
+      result[key] = savedMod ? !!savedMod[key] : (key === 'major-0' || key === 'minor-0');
+    });
+    return result;
+  }
   if(l3KeyMode){
     // только ячейки тональности; если ничего не сохранено — выбраны все 7
     const keyCells = l3KeyCellKeys();
@@ -5316,7 +5679,8 @@ function loadSelectedNotesL3(){
 const selectedNotesL3 = loadSelectedNotesL3();
 
 function saveSelectedNotesL3(){
-  localStorage.setItem(l3KeyMode ? SELECTED_NOTES_L3_KEYMODE_KEY : SELECTED_NOTES_L3_KEY, JSON.stringify(selectedNotesL3));
+  localStorage.setItem(l3ModSelectionActive() ? SELECTED_NOTES_L3_MOD_KEY
+    : (l3KeyMode ? SELECTED_NOTES_L3_KEYMODE_KEY : SELECTED_NOTES_L3_KEY), JSON.stringify(selectedNotesL3));
 }
 
 function activeChordsL3(){
@@ -5743,6 +6107,14 @@ function onSelectWedgeClick3(e){
   updateSelectWedgeVisual3(ring, index);
   saveSelectedNotesL3();
 
+  // "Ступени тональности": сняли ноту, от которой строится вопрос — новый вопрос
+  if(l3DegreeMode){
+    if(!l3DegQ || (!selectedNotesL3[key] && l3DegQ.cells.indexOf(key) !== -1)){
+      pickNewChordL3();
+    }
+    return;
+  }
+
   if(l3KeyMode){
     // кнопки аккордов, которые на выбранных нотах не выпадают, — серые
     applyL3KeyModeUI();
@@ -5779,6 +6151,9 @@ document.querySelectorAll('#selectButtons3 .ringBtn[data-ring]').forEach(btn=>{
     }
     updateAllSelectVisuals3();
     saveSelectedNotesL3();
+    // "Ступени тональности": вопроса не было (напр. в "Модуляции" не
+    // хватало тональностей) — загадываем
+    if(l3DegreeMode && !l3DegQ && practiceLevel === 3) pickNewChordL3();
   });
 });
 
@@ -5807,12 +6182,17 @@ document.getElementById('clearAllBtn3').addEventListener('click', ()=>{
     pickNewChordL3();
     return;
   }
+  // "Модуляция": остаются C и Am (нужны 2 тональности)
+  const keepAm = l3ModSelectionActive();
   allChords.forEach(c=>{
     const key = c.ring+'-'+c.index;
-    selectedNotesL3[key] = (c.ring === 'major' && c.index === 0);
+    selectedNotesL3[key] = (c.ring === 'major' && c.index === 0) || (keepAm && c.ring === 'minor' && c.index === 0);
   });
   updateAllSelectVisuals3();
   saveSelectedNotesL3();
+  if(l3DegreeMode && (!l3DegQ || l3DegQ.cells.some(k => !selectedNotesL3[k]))){
+    pickNewChordL3();
+  }
   if(currentL3 && !(currentL3.ring === 'major' && currentL3.index === 0)){
     pickNewChordL3();
   }
@@ -6040,6 +6420,8 @@ function repositionTrainRing(ringName, names, rInner, rOuter){
       item.chordLettersRadius = chordLettersRadius;
       const offsets = chordLetterOffsets(item.chordLetterCount || item.chordLetterEls.length);
       item.chordLetterEls.forEach((letterEl, k) => {
+        // запасные (скрытые) места под буквы, которых у аккорда нет, не трогаем
+        if(k >= offsets.length) return;
         const pos = polar(CX, CY, chordLettersRadius, trA(i*30) + offsets[k]);
         letterEl.setAttribute('x', pos.x);
         letterEl.setAttribute('y', pos.y);
@@ -6050,6 +6432,13 @@ function repositionTrainRing(ringName, names, rInner, rOuter){
     const romanManualOffset = ROMAN_LABEL_MANUAL_OFFSETS[names[i]] || { dx: 0, dy: 0 };
     item.romanEl.setAttribute('x', romanPos.x + romanManualOffset.dx);
     item.romanEl.setAttribute('y', romanPos.y - romanManualOffset.dy);
+
+    // "Модуляция": ступени под названием ячейки
+    if(item.modDegEl){
+      const p = trainModDegPos(item, ringName);
+      item.modDegEl.setAttribute('x', p.x);
+      item.modDegEl.setAttribute('y', p.y);
+    }
   }
 }
 
@@ -7349,12 +7738,14 @@ function updateMobilePianoLayout(){
   let on = false;
   try{
     if(isMobile){
-      if(appMode === 'training') on = !!trainShowPiano || trainInvButtonsWanted();
+      // "Модуляция": круг поднят, под ним — панель ладов и общих аккордов
+      if(appMode === 'training') on = !!trainShowPiano || trainInvButtonsWanted() || !!trainModOn;
       // "Назови аккорд/лад" в вертикальном положении телефона: круг тоже
       // поднимается — под ним стоят кнопки ответов (в горизонтальном
       // положении кнопки встают сбоку от круга, подъём не нужен)
+      // "Ступени тональности": круг поднят так же, как при "Показывать клавиатуру"
       else if(appMode === 'practice' && practiceLevel === 3)
-        on = !!l3ShowPiano || (!!l3NameMode && window.innerHeight >= window.innerWidth);
+        on = !!l3DegreeMode || !!l3ShowPiano || (!!l3NameMode && window.innerHeight >= window.innerWidth);
     }
   }catch(e){ on = false; }
   // Размер круга зависит ещё и от вкладки (в "Обучении" в горизонтальном
@@ -8035,7 +8426,7 @@ function updateL3WedgeVisibility(){
   //  - "Скрыть ячейки круга" в "Аккордах/Ладах" (Практика 3);
   //  - "Скрыть круг" в "Нотах" (Практика 2, только режим "Пары" +
   //    ответ с MIDI/ПК клавиатуры).
-  const hideL3 = l3HideWedges && appMode === 'practice' && practiceLevel === 3;
+  const hideL3 = (l3HideWedges || l3DegreeMode) && appMode === 'practice' && practiceLevel === 3;
   const hideNotes = notesPairsHideCircle && notesPairsMode
     && appMode === 'practice' && practiceLevel === 2;
   const shouldHide = hideL3 || hideNotes;
@@ -8068,13 +8459,14 @@ function updateL3WedgeVisibility(){
     });
   }
   l3WedgesCurrentlyHidden = shouldHide;
+  applyCrosshairVisibility();
 }
 
 function updateL3Piano(){
   updateMobilePianoLayout();
   const inP3 = appMode === 'practice' && practiceLevel === 3;
-  const nameMode = inP3 && l3NameMode;
-  const shouldShow = inP3 && l3ShowPiano;
+  const nameMode = inP3 && l3NameMode && !l3DegreeMode;
+  const shouldShow = inP3 && l3ShowPiano && !l3DegreeMode;
   updateL3WedgeVisibility();
   applyL3NameCircleHighlight();
   const notes = shouldShow ? computeL3PianoNotes() : null;
@@ -8089,6 +8481,7 @@ function updateL3Piano(){
     updateL3PianoPlacement();
   }
   renderL3NameAnswers(nameMode && !!currentL3);
+  renderL3DegreeAnswers(inP3 && l3DegreeMode && !!l3DegQ);
 }
 
 /* Включает/выключает режим "Клавиатура под нотой": вешает или снимает
@@ -8111,6 +8504,8 @@ function updateL3PianoPlacement(){
 function updateL3PianoOffset(){
   if(!l3PianoWrapEl) return;
   if(typeof layoutL3NameAnswers === 'function') layoutL3NameAnswers();
+  if(typeof layoutL3DegreeAnswers === 'function') layoutL3DegreeAnswers();
+  if(typeof layoutTrainModPanel === 'function') layoutTrainModPanel();
   const zoom = (typeof zoomPractice === 'number' && !isNaN(zoomPractice)) ? zoomPractice : 100;
   if(l3PianoWrapEl.classList.contains('underNote')){
     /* Режим "Клавиатура под нотой": отступа от правого края круга нет,
@@ -8177,6 +8572,8 @@ if(level3ShowPianoCheckbox){
     setL3HideWedgesAvailability(l3ShowPiano);
     setL3PianoUnderAvailability(l3ShowPiano && l3HideWedges);
     updateL3Piano();
+    // "Показывать клавиатуру" и "Ступени тональности" — включена только одна
+    if(l3ShowPiano && l3DegreeMode) setL3DegreeMode(false);
   });
 }
 
@@ -11376,7 +11773,7 @@ function l3VariantButtonList(){
 function l3InversionsEnabled(){
   let family = 'chords';
   try{ family = level3Family; }catch(e){ family = 'chords'; }
-  return family !== 'modes' && !l3NameMode;
+  return family !== 'modes' && !l3NameMode && !l3DegreeMode;
 }
 
 // Строка "Выбор обращения" гаснет вместе с кнопками, когда выбран лад
@@ -11384,7 +11781,7 @@ function l3InversionsEnabled(){
 function updateL3InversionsRowAvailability(){
   let family = 'chords';
   try{ family = level3Family; }catch(e){ family = 'chords'; }
-  const modes = (family === 'modes') || l3NameMode;
+  const modes = (family === 'modes') || l3NameMode || l3DegreeMode;
   const row = document.getElementById('level3InversionsRow');
   if(row) row.classList.toggle('disabled', modes);
 }
@@ -11690,6 +12087,11 @@ function l3RememberQuestion(kind, cell){
 }
 
 function pickNewChordL3(){
+  // Режим "Ступени тональности" — свой вопрос (см. pickNewDegreeQuestionL3)
+  if(l3DegreeMode){
+    pickNewDegreeQuestionL3();
+    return;
+  }
   // Если выбран лад — подбираем ноту лада вместо аккорда (см.
   // pickNewModeL3/setLevel3ModeType выше pickNewChordL3 в файле).
   if(level3Family === 'modes'){
@@ -11876,6 +12278,33 @@ function updateL3CenterModeLabel(){
   // должна быть пустой, даже если currentL3 всё ещё хранит последний
   // выбранный лад — иначе после перехода в "Ноты" старое название
   // оставалось висеть поверх круга.
+  // "Модуляция": переход стоит под аккордом (на месте подписи тональности)
+  const modLabel = practiceLevel === 3 && l3DegreeMode && l3DegreeKind === 'mod';
+  centerModeLabelText.setAttribute('font-size', CENTER_MODE_LABEL_CONFIG.fontSize);
+  // "Ступени тональности": под вопросом — тональность ("C мажор"),
+  // в "Модуляции" — переход ("C мажор → A минор"); всё — на тех же местах
+  // и тех же размеров, что нота и подпись при "Показывать клавиатуру"
+  if(practiceLevel === 3 && l3DegreeMode){
+    if(l3DegQ) setNoteText(centerModeLabelText, l3DegQ.kind === 'mod' ? l3ModLabel(l3DegQ) : l3DegKeyLabel(l3DegQ));
+    else centerModeLabelText.textContent = (l3DegreeKind === 'mod') ? t('modNoCommonChords') : '';
+    // длинный переход не влезает в ширину экрана (телефон): длинные
+    // названия ладов сокращаются ("гармон. минор"); если и так не
+    // влезает — шрифт чуть уменьшается
+    if(modLabel && l3DegQ){
+      try{
+        const maxW = window.innerWidth - 24;
+        let w = centerModeLabelText.getBoundingClientRect().width;
+        if(w > maxW){
+          setNoteText(centerModeLabelText, l3ModLabel(l3DegQ, true));
+          w = centerModeLabelText.getBoundingClientRect().width;
+        }
+        if(w > maxW && w > 0){
+          centerModeLabelText.setAttribute('font-size', CENTER_MODE_LABEL_CONFIG.fontSize * maxW / w);
+        }
+      }catch(e){}
+    }
+    return;
+  }
   if(practiceLevel !== 3 || !currentL3 || l3NameMode){
     centerModeLabelText.textContent = '';
     return;
@@ -11954,9 +12383,10 @@ function getModeRaiseAliasesL3(ring, tonicIndex, modeId){
 }
 
 function updateLevel3ModeButtonsActive(){
+  const modSel = l3ModSelectionActive();   // "Модуляция" — свой набор ладов
   Object.entries(LEVEL3_MODE_BTN_IDS).forEach(([id, btnId])=>{
     const btn = document.getElementById(btnId);
-    if(btn) btn.classList.toggle('active', level3Family === 'modes' && level3ModeTypes.has(id));
+    if(btn) btn.classList.toggle('active', modSel ? l3ModModes.has(id) : (level3Family === 'modes' && level3ModeTypes.has(id)));
   });
 }
 
@@ -12039,6 +12469,21 @@ function pickNewModeL3(){
 }
 
 function setLevel3ModeType(modeId){
+  // "Модуляция": кнопки ладов выбирают лады переходов (свой набор,
+  // обычный выбор ладов не меняется); хотя бы один лад остаётся
+  if(l3ModSelectionActive()){
+    if(l3ModModes.has(modeId)){
+      if(l3ModModes.size === 1) return;
+      l3ModModes.delete(modeId);
+    } else {
+      l3ModModes.add(modeId);
+    }
+    try{ localStorage.setItem(L3_MOD_MODES_KEY, JSON.stringify(Array.from(l3ModModes))); }catch(e){}
+    updateLevel3ModeButtonsActive();
+    l3DegHistory = [];
+    if(practiceLevel === 3) pickNewChordL3();
+    return;
+  }
   if(level3Family !== 'modes'){
     // переключаемся с семейства аккордов на лады — кнопки аккордов
     // визуально отжимаются (см. updateLevel3ChordButtonsActive), их
@@ -12222,6 +12667,7 @@ function ensureL3KeyModeState(){
 
 function setL3KeyMode(on){
   if(on === l3KeyMode) return;
+  if(on && l3DegreeMode) l3DegreeModeOffQuiet();
   saveSelectedNotesL3(); // выбор нот прежнего режима сохраняется под своим ключом
   l3KeyMode = on;
   saveL3KeySettings();
@@ -12407,6 +12853,11 @@ function l3CircleCellForLetter(letter){
 // Что писать в центре круга: в режиме "Назови аккорд/лад" — только
 // тоника (без "m" и без типа аккорда/названия лада).
 function l3CenterDisplayName(){
+  // "Ступени тональности": "Аккорд" — в центре ступень, "Ступень" — аккорд
+  if(l3DegreeMode && l3DegQ){
+    if(l3DegQ.kind === 'mod') return l3DegQ.chordName;
+    return l3DegQ.kind === 'chord' ? l3DegQ.deg : l3DegQ.chordNames[l3DegQ.deg];
+  }
   if(!currentL3) return '';
   if(l3NameMode) return String(currentL3.spellRoot || currentL3.tonicNoteRaw || currentL3.name).replace(/m$/, '');
   return currentL3.name;
@@ -12555,14 +13006,6 @@ function l3NameAnswerList(){
   return list;
 }
 
-// Номер ответа на клавиатуре ПК: 1..9, 0 (10-й), 11..20 (пробел + цифра)
-function l3NameHotkeyLabel(i){
-  if(i < 9) return String(i + 1);
-  if(i === 9) return '0';
-  if(i < 20) return String(i + 1);
-  return '';
-}
-
 function renderL3NameAnswers(show){
   const box = document.getElementById('l3NameAnswers');
   if(!box) return;
@@ -12587,13 +13030,6 @@ function renderL3NameAnswers(show){
     btn.className = 'ringBtn l3NameAnswerBtn';
     btn.setAttribute('data-answer', a.id);
     btn.textContent = a.label;
-    const num = l3NameHotkeyLabel(i);
-    if(num){
-      const span = document.createElement('span');
-      span.className = 'l3NameAnswerNum';
-      span.textContent = num;
-      btn.appendChild(span);
-    }
     btn.addEventListener('click', ()=> l3NameAnswer(btn));
     box.appendChild(btn);
   });
@@ -12855,6 +13291,7 @@ if(level3NameModeCheckbox){
   level3NameModeCheckbox.addEventListener('change', ()=>{
     l3NameMode = level3NameModeCheckbox.checked;
     try{ localStorage.setItem(L3_NAME_MODE_KEY, l3NameMode ? '1' : '0'); }catch(e){}
+    if(l3NameMode && l3DegreeMode) l3DegreeModeOffQuiet();
     l3NameBusy = false;
     renderL3InversionButtons();
     renderLevel3Hint();
@@ -12863,6 +13300,673 @@ if(level3NameModeCheckbox){
     updateL3Piano();
   });
 }
+
+/* =========================================================
+   РЕЖИМ "СТУПЕНИ ТОНАЛЬНОСТИ" (вкладка "Аккорды/Лады").
+   Тональность — каждая нота, выбранная в "Выберите ноты":
+   ячейка мажорного кольца — мажор (C -> C мажор), минорного —
+   натуральный минор (Am -> A минор). Вопросы — аккорды тональности
+   без уменьшённого (vii° в мажоре, ii° в миноре) и без самой тоники
+   (I/i не спрашивается); аккорд выпадает, даже если его ячейка в
+   "Выберите ноты" не выбрана (в C мажор — F как IV).
+   Подпункт "Аккорд": в центре ступень (V), под ней тональность
+     (C мажор), ниже 5 аккордов тональности (без тоники) — выбрать
+     нужный. Кнопки стоят как на круге: верхний ряд — мажорные
+     аккорды, нижний — минорные, слева направо по кругу
+     (C мажор: F G / Dm Am Em).
+   Подпункт "Ступень": в центре аккорд (Em), под ним тональность,
+     ниже 5 ступеней (ii iii IV / V vi) — выбрать нужную.
+   Подпункт "Модуляция": в центре общий аккорд обеих тональностей, под
+     ним переход ("C мажор → A дорийский"), ниже 5 пар ступеней ("I → III")
+     — выбрать нужную. Тоники — ноты ячеек "Выберите ноты" (свой набор,
+     по умолчанию C и Am; кольцо не важно), лады — кнопки "Выберите лады"
+     (свой набор, по умолчанию Мажор и Минор). Подпункты (нажат один) —
+     какие переходы выпадают: "Тоника та же", "Ноты те же", "Из
+     тональности" (первая тональность — из списков "Лад" и "Тоника", по
+     умолчанию C мажор, переход только из неё во вторую), "Любые".
+     См. pickNewModulationQuestionL3().
+   Ответ: клик, цифры 1–5 на ПК, белые клавиши C–G на MIDI (1–5).
+   При ответе надпись на нажатой кнопке тоже мигает зелёным/красным.
+   "Показывать клавиатуру", "Выбрать тональность" и "Назови аккорд/лад"
+   с этим режимом не включаются одновременно.
+   Верно — вопрос и тональность мигают зелёным и выпадает новый
+   вопрос; неверно — мигают красным, вопрос остаётся.
+   Круг и клавиатура-подсказка в этом режиме скрыты.
+   ========================================================= */
+
+// Ступени тональности (без уменьшённой).
+//   roman — подпись ступени (регистр: большая — мажорный аккорд,
+//           маленькая — минорный);
+//   sc    — номер ноты в гамме (0 — тоника) для написания аккорда;
+//   q     — 'maj' / 'min' (мажорный / минорный аккорд);
+//   ring/off — где этот аккорд на круге относительно тоники
+//           (запасной вариант названия).
+const L3_DEG_SETS = {
+  major: [
+    { roman:'I',   sc:0, q:'maj', ring:'major', off:0 },
+    { roman:'ii',  sc:1, q:'min', ring:'minor', off:-1 },
+    { roman:'iii', sc:2, q:'min', ring:'minor', off:1 },
+    { roman:'IV',  sc:3, q:'maj', ring:'major', off:-1 },
+    { roman:'V',   sc:4, q:'maj', ring:'major', off:1 },
+    { roman:'vi',  sc:5, q:'min', ring:'minor', off:0 }
+  ],
+  minor: [
+    { roman:'i',   sc:0, q:'min', ring:'minor', off:0 },
+    { roman:'III', sc:2, q:'maj', ring:'major', off:0 },
+    { roman:'iv',  sc:3, q:'min', ring:'minor', off:-1 },
+    { roman:'v',   sc:4, q:'min', ring:'minor', off:1 },
+    { roman:'VI',  sc:5, q:'maj', ring:'major', off:-1 },
+    { roman:'VII', sc:6, q:'maj', ring:'major', off:1 }
+  ]
+};
+// Ряды кнопок ответа (тоники нет — она не спрашивается).
+// Подпункт "Аккорд" — как на круге: верхний ряд мажорные аккорды
+// (слева направо по кругу), нижний — минорные.
+const L3_DEG_CHORD_ROWS = {
+  major: [['IV','V'], ['ii','vi','iii']],
+  minor: [['VI','III','VII'], ['iv','v']]
+};
+// Подпункт "Ступень" — по порядку ступеней, 3 + 2.
+const L3_DEG_STEP_ROWS = {
+  major: [['ii','iii','IV'], ['V','vi']],
+  minor: [['III','iv','v'], ['VI','VII']]
+};
+// Верх кнопок ответов — в координатах круга (480x480, центр 240):
+// чуть ниже названия тональности. Больше — кнопки ниже.
+const L3_DEG_ANSWERS_TOP = 306;
+// Дополнительно кнопки опущены на эту долю высоты экрана (0.1 = 10%).
+const L3_DEG_ANSWERS_SHIFT_SCREEN = 0.1;
+
+const level3DegreeCheckbox = document.getElementById('level3DegreeCheckbox');
+const level3DegreeKindRow = document.getElementById('level3DegreeKindRow');
+const level3DegreeChordCheckbox = document.getElementById('level3DegreeChordCheckbox');
+const level3DegreeStepCheckbox = document.getElementById('level3DegreeStepCheckbox');
+const level3DegreeModCheckbox = document.getElementById('level3DegreeModCheckbox');
+const level3ModPairRow = document.getElementById('level3ModPairRow');
+const L3_MOD_PAIR_CHECKBOXES = {
+  tonic: document.getElementById('level3ModPairSameTonic'),
+  notes: document.getElementById('level3ModPairSameNotes'),
+  from:  document.getElementById('level3ModFromCheckbox'),
+  any:   document.getElementById('level3ModPairAny')
+};
+
+function applyL3DegreeUI(){
+  if(level3DegreeCheckbox) level3DegreeCheckbox.checked = l3DegreeMode;
+  if(level3DegreeChordCheckbox){
+    level3DegreeChordCheckbox.checked = l3DegreeKind === 'chord';
+    level3DegreeChordCheckbox.disabled = !l3DegreeMode;
+  }
+  if(level3DegreeStepCheckbox){
+    level3DegreeStepCheckbox.checked = l3DegreeKind === 'degree';
+    level3DegreeStepCheckbox.disabled = !l3DegreeMode;
+  }
+  if(level3DegreeModCheckbox){
+    level3DegreeModCheckbox.checked = l3DegreeKind === 'mod';
+    level3DegreeModCheckbox.disabled = !l3DegreeMode;
+  }
+  // подпункты "Модуляции" доступны только при включённой "Модуляции"
+  const modOn = l3DegreeMode && l3DegreeKind === 'mod';
+  Object.entries(L3_MOD_PAIR_CHECKBOXES).forEach(([k, cb])=>{
+    if(!cb) return;
+    cb.checked = l3ModPair === k;
+    cb.disabled = !modOn;
+  });
+  if(level3ModPairRow) level3ModPairRow.classList.toggle('disabled', !modOn);
+  const anyRow = document.getElementById('level3ModPairAnyRow');
+  if(anyRow) anyRow.classList.toggle('disabled', !modOn);
+  // "Из тональности": списки "Лад"/"Тоника" — только когда выбран этот подпункт
+  const fromRow = document.getElementById('level3ModFromRow');
+  if(fromRow) fromRow.classList.toggle('disabled', !modOn);
+  const listsOn = modOn && l3ModPair === 'from';
+  ['level3ModFromModeRow', 'level3ModFromTonicRow'].forEach(id=>{
+    const row = document.getElementById(id);
+    if(row) row.classList.toggle('disabled', !listsOn);
+  });
+  const modeSel = document.getElementById('level3ModFromModeSelect');
+  if(modeSel){ modeSel.value = l3ModFromMode; modeSel.disabled = !listsOn; }
+  const tonicSel = document.getElementById('level3ModFromTonicSelect');
+  if(tonicSel){
+    if(!tonicSel.options.length) fillL3ModFromTonicOptions();
+    tonicSel.value = String(l3ModFromTonicPc);
+    tonicSel.disabled = !listsOn;
+  }
+  if(level3DegreeKindRow) level3DegreeKindRow.classList.toggle('disabled', !l3DegreeMode);
+}
+
+// "C мажор" / "A минор" (тоника — как в тональности, напр. "D♭ мажор")
+function l3DegKeyLabel(q){
+  return q.tonicName + ' ' + t(q.keyRing === 'minor' ? 'keyWordMinor' : 'keyWordMajor');
+}
+
+function pickNewDegreeQuestionL3(){
+  currentL3 = null;
+  if(l3DegreeKind === 'mod'){
+    pickNewModulationQuestionL3();
+    return;
+  }
+  const pool = activeChordsL3();
+  const cands = [];
+  pool.forEach(c=>{
+    L3_DEG_SETS[c.ring === 'minor' ? 'minor' : 'major'].forEach((d, i)=>{
+      if(i > 0) cands.push({ cell:c, roman:d.roman });   // тонику не спрашиваем
+    });
+  });
+  if(!cands.length){
+    l3DegQ = null;
+    l3DegRender();
+    return;
+  }
+  // без повторов недавних вопросов (тот же принцип, что и в обычном режиме)
+  const keyOf = x => x.cell.ring + '|' + x.cell.index + '|' + x.roman;
+  let pick = null;
+  for(let gap = Math.max(1, l3RepeatGap(cands.length)); gap >= 0 && !pick; gap--){
+    const recent = new Set(gap > 0 ? l3DegHistory.slice(-gap) : []);
+    const avail = cands.filter(x => !recent.has(keyOf(x)));
+    if(avail.length) pick = avail[Math.floor(Math.random() * avail.length)];
+  }
+  l3DegHistory.push(keyOf(pick));
+  if(l3DegHistory.length > 3) l3DegHistory.shift();
+
+  const keyRing = pick.cell.ring === 'minor' ? 'minor' : 'major';
+  const keyIndex = pick.cell.index;
+  const tonicRaw = (keyRing === 'minor' ? minors : majors)[keyIndex];
+  // ноты гаммы — с правильными знаками тональности (в D♭ мажор — G♭, а не F♯)
+  let letters = null;
+  try{ letters = trainModeLettersMinSigns(tonicRaw, keyRing); }catch(e){ letters = null; }
+  const chordNames = {};
+  L3_DEG_SETS[keyRing].forEach(d=>{
+    let name;
+    if(letters && letters[d.sc]){
+      name = letters[d.sc] + (d.q === 'min' ? 'm' : '');
+    } else {
+      name = (d.ring === 'minor' ? minors : majors)[((keyIndex + d.off) % 12 + 12) % 12];
+    }
+    chordNames[d.roman] = name;
+  });
+  l3DegQ = {
+    keyRing, keyIndex,
+    cells: [keyRing + '-' + keyIndex],   // ячейки "Выберите ноты", от которых строится вопрос
+    kind: l3DegreeKind,
+    deg: pick.roman,
+    tonicName: (letters && letters[0]) || tonicRaw.replace(/m$/, ''),
+    chordNames
+  };
+  l3DegRender();
+}
+
+/* ----- "Модуляция" -----
+   Тональность = тоника (нота ячейки "Выберите ноты", свой набор, по
+   умолчанию C и Am) + лад (кнопки "Выберите лады", свой набор, по
+   умолчанию Мажор и Минор). Выпадает переход между двумя тональностями
+   (в любую сторону) и аккорд, общий для обеих (уменьшённый не берётся).
+   В центре — аккорд, под ним — переход ("C мажор → A минор").
+   5 кнопок — пары ступеней ("I → III"), верная одна. Если подходящих
+   переходов нет — под центром "Нет подходящих переходов". */
+
+// Слова ладов для подписи перехода ("C лидийский → A минор")
+const L3_MOD_MODE_WORDS = {
+  lydian:     { ru:'лидийский',           en:'Lydian',         zh:'利底亚' },
+  major:      { ru:'мажор',               en:'major',          zh:'大调' },
+  mixolydian: { ru:'миксолидийский',      en:'Mixolydian',     zh:'混合利底亚' },
+  dorian:     { ru:'дорийский',           en:'Dorian',         zh:'多利亚' },
+  minor:      { ru:'минор',               en:'minor',          zh:'小调' },
+  phrygian:   { ru:'фригийский',          en:'Phrygian',       zh:'弗里几亚' },
+  locrian:    { ru:'локрийский',          en:'Locrian',        zh:'洛克利亚' },
+  harmMinor:  { ru:'гармонический минор', en:'harmonic minor', zh:'和声小调' },
+  melMinor:   { ru:'мелодический минор',  en:'melodic minor',  zh:'旋律小调' }
+};
+const L3_MOD_ROMANS = ['I','II','III','IV','V','VI','VII'];
+
+// Тональность = тоника + лад. Аккорды — трезвучия на 7 ступенях лада,
+// кроме уменьшённых; увеличенный (III+ в гармоническом и мелодическом
+// миноре) берётся. Ступени — без знаков: номер ступени в самом ладу,
+// большая буква — мажорный/увеличенный, маленькая — минорный, "+" — увеличенный.
+function l3ModKeyInfo(tonicRaw, modeId, srcCell){
+  const steps = L3_KEY_MODES[modeId];
+  const tonicPc = ((l3NamePc(tonicRaw) % 12) + 12) % 12;
+  let letters = null;
+  try{ letters = trainModeLettersMinSigns(tonicRaw, modeId); }catch(e){ letters = null; }
+  const pcs = steps.map(st => (tonicPc + st) % 12);
+  const chords = [];
+  for(let d = 0; d < 7; d++){
+    const root = pcs[d];
+    const third = (pcs[(d + 2) % 7] - root + 12) % 12;
+    const fifth = (pcs[(d + 4) % 7] - root + 12) % 12;
+    let q = null;
+    if(third === 4 && fifth === 7) q = 'maj';
+    else if(third === 3 && fifth === 7) q = 'min';
+    else if(third === 4 && fifth === 8) q = 'aug';
+    if(!q) continue;   // уменьшённый (и прочее) не берётся
+    const letter = (letters && letters[d]) || noteNames[root];
+    chords.push({
+      id: root + q,
+      roman: q === 'min' ? L3_MOD_ROMANS[d].toLowerCase() : L3_MOD_ROMANS[d] + (q === 'aug' ? '+' : ''),
+      name: letter + (q === 'min' ? 'm' : (q === 'aug' ? 'aug' : ''))
+    });
+  }
+  return {
+    id: modeId + '|' + tonicPc,
+    mode: modeId,
+    tonicPc,
+    notesId: pcs.slice().sort((a, b) => a - b).join(','),
+    tonicName: (letters && letters[0]) || String(tonicRaw).replace(/m$/, ''),
+    cell: srcCell,
+    chords
+  };
+}
+
+// подходит ли пара тональностей под подпункт "Тоника та же"/"Ноты те же"
+// ("Из тональности" и "Любые" — любая пара с общими аккордами)
+function l3ModPairAllowed(k1, k2){
+  if(k1.id === k2.id) return false;
+  if(l3ModPair === 'tonic') return k1.tonicPc === k2.tonicPc;
+  if(l3ModPair === 'notes') return k1.notesId === k2.notesId;
+  return true;
+}
+
+function pickNewModulationQuestionL3(){
+  // тоники — ноты выбранных ячеек (кольцо не важно: C и Cm — тоника C),
+  // лады — выбранные кнопки "Выберите лады"
+  const keys = [];
+  const seen = new Set();
+  activeChordsL3()
+    .filter(c => c.ring === 'major' || c.ring === 'minor')
+    .forEach(c=>{
+      const raw = String((c.ring === 'minor' ? minors : majors)[c.index]).replace(/m$/, '');
+      Object.keys(LEVEL3_MODE_BTN_IDS).forEach(modeId=>{
+        if(!l3ModModes.has(modeId) || !L3_KEY_MODES[modeId]) return;
+        const k = l3ModKeyInfo(raw, modeId, c.ring + '-' + c.index);
+        if(seen.has(k.id)) return;
+        seen.add(k.id);
+        keys.push(k);
+      });
+    });
+  // "Из тональности": первая тональность одна — из списков "Лад"/"Тоника",
+  // переход только из неё (во вторую — из выбранных ячеек и ладов)
+  const fromKeys = l3ModPair === 'from' ? [l3ModFromKeyInfo()] : keys;
+  const cands = [];
+  fromKeys.forEach(k1=>{
+    keys.forEach(k2=>{
+      if(!l3ModPairAllowed(k1, k2)) return;
+      k1.chords.forEach(c1=>{
+        const c2 = k2.chords.find(x => x.id === c1.id);
+        if(c2) cands.push({ k1, k2, c1, c2 });
+      });
+    });
+  });
+  if(!cands.length){
+    l3DegQ = null;
+    l3DegRender();
+    return;
+  }
+  const keyOf = x => x.k1.id + '>' + x.k2.id + '|' + x.c1.id;
+  let pick = null;
+  for(let gap = Math.max(1, l3RepeatGap(cands.length)); gap >= 0 && !pick; gap--){
+    const recent = new Set(gap > 0 ? l3DegHistory.slice(-gap) : []);
+    const avail = cands.filter(x => !recent.has(keyOf(x)));
+    if(avail.length) pick = avail[Math.floor(Math.random() * avail.length)];
+  }
+  l3DegHistory.push(keyOf(pick));
+  if(l3DegHistory.length > 3) l3DegHistory.shift();
+
+  const pairOf = (a, b) => a.roman + ' → ' + b.roman;
+  const right = pairOf(pick.c1, pick.c2);
+  // варианты: верный, пары других общих аккордов, потом случайные пары
+  const opts = new Set([right]);
+  const shuffled = arr => {
+    const a = arr.slice();
+    for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  };
+  shuffled(cands.filter(x => x.k1 === pick.k1 && x.k2 === pick.k2)).forEach(x=>{
+    if(opts.size < 5) opts.add(pairOf(x.c1, x.c2));
+  });
+  let guard = 0;
+  while(opts.size < 5 && guard++ < 300){
+    const a = pick.k1.chords[Math.floor(Math.random() * pick.k1.chords.length)];
+    const b = pick.k2.chords[Math.floor(Math.random() * pick.k2.chords.length)];
+    opts.add(pairOf(a, b));
+  }
+  l3DegQ = {
+    kind: 'mod',
+    cells: [pick.k1.cell, pick.k2.cell].filter(Boolean),
+    k1: pick.k1, k2: pick.k2,
+    chordName: pick.c1.name,   // название — по знакам первой тональности
+    deg: right,
+    options: shuffled(Array.from(opts))
+  };
+  l3DegRender();
+}
+
+// Сокращения длинных названий ладов — только когда переход не влезает
+// в ширину экрана (телефон), см. updateL3CenterModeLabel()
+const L3_MOD_MODE_WORDS_SHORT = {
+  mixolydian: { ru:'миксолид.',     en:'Mixolyd.',    zh:'混合利底亚' },
+  harmMinor:  { ru:'гармон. минор', en:'harm. minor', zh:'和声小调' },
+  melMinor:   { ru:'мелод. минор',  en:'mel. minor',  zh:'旋律小调' }
+};
+// первая тональность "Из тональности" (тоника — с правильным написанием лада)
+function l3ModFromKeyInfo(){
+  const mode = L3_KEY_MODES[l3ModFromMode] ? l3ModFromMode : 'major';
+  return l3ModKeyInfo(noteNames[l3ModFromTonicPc], mode, null);
+}
+
+// список тоник для "Из тональности": 12 нот от C, написание — как в ладу
+// (D♭ мажор, но C♯ минор)
+function fillL3ModFromTonicOptions(){
+  const sel = document.getElementById('level3ModFromTonicSelect');
+  if(!sel) return;
+  const mode = L3_KEY_MODES[l3ModFromMode] ? l3ModFromMode : 'major';
+  while(sel.firstChild) sel.removeChild(sel.firstChild);
+  for(let pc = 0; pc < 12; pc++){
+    const opt = document.createElement('option');
+    opt.value = String(pc);
+    let text = noteNames[pc];
+    try{ text = l3ModKeyInfo(noteNames[pc], mode, null).tonicName; }catch(e){}
+    opt.textContent = String(text).replace(/#/g, '♯').replace(/b/g, '♭');
+    sel.appendChild(opt);
+  }
+  sel.value = String(l3ModFromTonicPc);
+}
+
+// "C мажор → A дорийский"; short = true — с сокращениями
+function l3ModKeyLabel(k, short){
+  const w = (short && L3_MOD_MODE_WORDS_SHORT[k.mode]) || L3_MOD_MODE_WORDS[k.mode];
+  return noteDisplay(k.tonicName) + ' ' + (w ? (w[appLang] || w.ru) : k.mode);
+}
+function l3ModLabel(q, short){
+  return l3ModKeyLabel(q.k1, short) + ' → ' + l3ModKeyLabel(q.k2, short);
+}
+
+// смена набора выбранных нот при входе в "Модуляцию" и выходе из неё:
+// change() меняет режим, до него сохраняется старый набор, после —
+// загружается набор нового режима
+function l3SwitchSelection(change){
+  saveSelectedNotesL3();
+  change();
+  const loaded = loadSelectedNotesL3();
+  Object.keys(loaded).forEach(k=>{ selectedNotesL3[k] = loaded[k]; });
+  try{ updateAllSelectVisuals3(); }catch(e){}
+  try{ updateLevel3ModeButtonsActive(); }catch(e){}
+}
+
+function l3DegRender(){
+  if(appMode === 'practice' && practiceLevel === 3){
+    setNoteText(centerText, l3DegQ ? l3CenterDisplayName() : '');
+  }
+  updateL3CenterModeLabel();
+  renderLevel3Hint();
+  updateL3Piano();
+}
+
+function renderL3DegreeAnswers(show){
+  const box = document.getElementById('l3DegreeAnswers');
+  if(!box) return;
+  if(!show || !l3DegQ){
+    box.style.display = 'none';
+    while(box.firstChild) box.removeChild(box.firstChild);
+    return;
+  }
+  const q = l3DegQ;
+  const rows = q.kind === 'mod'
+    ? [q.options.slice(0, 3), q.options.slice(3)]
+    : (q.kind === 'chord' ? L3_DEG_CHORD_ROWS : L3_DEG_STEP_ROWS)[q.keyRing];
+  while(box.firstChild) box.removeChild(box.firstChild);
+  rows.forEach(row=>{
+    const rowEl = document.createElement('div');
+    rowEl.className = 'l3DegAnswerRow';
+    row.forEach(roman=>{
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'ringBtn l3DegAnswerBtn';
+      btn.setAttribute('data-roman', roman);
+      const lab = document.createElement('span');
+      if(q.kind === 'chord') setNoteText(lab, q.chordNames[roman]);
+      else lab.textContent = roman;
+      btn.appendChild(lab);
+      btn.addEventListener('click', ()=> l3DegAnswer(btn));
+      rowEl.appendChild(btn);
+    });
+    box.appendChild(rowEl);
+  });
+  box.style.display = 'flex';
+  layoutL3DegreeAnswers();
+}
+
+// Кнопки стоят по центру круга под тональностью и масштабируются вместе
+// с кругом (+/- и вписывание круга в экран телефона).
+function layoutL3DegreeAnswers(){
+  const box = document.getElementById('l3DegreeAnswers');
+  const inner = document.getElementById('circleInner');
+  if(!box || !inner || box.style.display === 'none') return;
+  const zoom = (typeof zoomPractice === 'number' && !isNaN(zoomPractice)) ? zoomPractice : 100;
+  let fit = 1;
+  try{ fit = circleFitScale(); }catch(e){ fit = 1; }
+  const s = fit * zoom / 100;
+  box.style.top = (inner.offsetHeight / 2 + (L3_DEG_ANSWERS_TOP - CY) * s
+    + window.innerHeight * L3_DEG_ANSWERS_SHIFT_SCREEN) + 'px';
+  box.style.transform = 'translateX(-50%) scale(' + s + ')';
+}
+window.addEventListener('resize', ()=>{
+  try{ layoutL3DegreeAnswers(); }catch(e){}
+  // длинная подпись перехода в "Модуляции" — заново подогнать под ширину экрана
+  try{ if(l3DegreeMode && practiceLevel === 3) updateL3CenterModeLabel(); }catch(e){}
+});
+window.addEventListener('load', ()=>{ try{ if(l3DegreeMode && practiceLevel === 3) updateL3CenterModeLabel(); }catch(e){} });
+
+// вспышка названия тональности (как у вопроса в центре — flashCenterText)
+var l3DegKeyFlashTimer = null;
+function flashL3DegKeyLabel(color, duration){
+  centerModeLabelText.setAttribute('fill', color);
+  if(l3DegKeyFlashTimer) clearTimeout(l3DegKeyFlashTimer);
+  l3DegKeyFlashTimer = setTimeout(()=>{
+    centerModeLabelText.setAttribute('fill', CENTER_MODE_LABEL_CONFIG.color);
+    l3DegKeyFlashTimer = null;
+  }, duration);
+}
+
+function l3DegAnswer(btn){
+  if(l3DegBusy || !l3DegQ) return;
+  const ok = btn.getAttribute('data-roman') === l3DegQ.deg;
+  const color = ok ? FLASH_GREEN : CENTER_FLASH_RED;
+  flashCenterText(color, 300);
+  flashL3DegKeyLabel(color, 300);
+  // надпись на нажатой кнопке — тем же цветом
+  btn.style.color = color;
+  setTimeout(()=>{ btn.style.color = ''; }, 300);
+  if(ok){
+    l3DegBusy = true;
+    setTimeout(()=>{
+      l3DegBusy = false;
+      if(l3DegreeMode) pickNewChordL3();
+    }, 320);
+  }
+}
+
+// ответ по номеру кнопки (0 — первая): цифры ПК и белые клавиши MIDI
+function l3DegAnswerByIndex(i){
+  const box = document.getElementById('l3DegreeAnswers');
+  if(!box || box.style.display === 'none') return false;
+  const btn = box.querySelectorAll('.l3DegAnswerBtn')[i];
+  if(!btn) return false;
+  l3DegAnswer(btn);
+  return true;
+}
+
+/* "Показывать клавиатуру", "Скрыть ячейки круга" и "Клавиатура под нотой"
+   при включении "Ступеней тональности" выключаются, а их прежнее
+   состояние запоминается (и переживает F5). При выключении "Ступеней"
+   всё, что было включено, включается обратно. */
+var L3_DEGREE_RESTORE_KEY = 'circleL3DegreeRestore';
+function l3DegSaveRestore(){
+  try{
+    localStorage.setItem(L3_DEGREE_RESTORE_KEY, JSON.stringify({
+      piano: !!l3ShowPiano, hide: !!l3HideWedges, under: !!l3PianoUnderNote
+    }));
+  }catch(e){}
+}
+function l3DegApplyRestore(){
+  let rs = null;
+  try{ rs = JSON.parse(localStorage.getItem(L3_DEGREE_RESTORE_KEY)); }catch(e){ rs = null; }
+  try{ localStorage.removeItem(L3_DEGREE_RESTORE_KEY); }catch(e){}
+  if(!rs || !rs.piano) return;
+  l3ShowPiano = true;
+  try{ localStorage.setItem(L3_SHOW_PIANO_KEY, '1'); }catch(e){}
+  if(level3ShowPianoCheckbox) level3ShowPianoCheckbox.checked = true;
+  if(rs.hide){
+    l3HideWedges = true;
+    try{ localStorage.setItem(L3_HIDE_WEDGES_KEY, '1'); }catch(e){}
+    if(level3HideWedgesCheckbox) level3HideWedgesCheckbox.checked = true;
+    if(rs.under){
+      l3PianoUnderNote = true;
+      try{ localStorage.setItem(L3_PIANO_UNDER_KEY, '1'); }catch(e){}
+      if(level3PianoUnderCheckbox) level3PianoUnderCheckbox.checked = true;
+    }
+  }
+  setL3HideWedgesAvailability(l3ShowPiano);
+  setL3PianoUnderAvailability(l3ShowPiano && l3HideWedges);
+  updateL3PianoPlacement();
+}
+
+// выключить режим без нового вопроса (вызывающий код сам его загадает)
+function l3DegreeModeOffQuiet(){
+  if(!l3DegreeMode) return;
+  l3DegApplyRestore();
+  l3SwitchSelection(()=>{ l3DegreeMode = false; });
+  l3DegQ = null;
+  l3DegBusy = false;
+  try{ localStorage.setItem(L3_DEGREE_MODE_KEY, '0'); }catch(e){}
+  applyL3DegreeUI();
+  renderL3DegreeAnswers(false);
+}
+
+function setL3DegreeMode(on){
+  if(on === l3DegreeMode){ applyL3DegreeUI(); return; }
+  if(on){
+    // запомнить клавиатуру и её подпункты — вернутся при выключении
+    l3DegSaveRestore();
+    // "Выбрать тональность", "Назови аккорд/лад" и "Показывать клавиатуру"
+    // с этим режимом не включаются одновременно
+    if(l3ShowPiano && level3ShowPianoCheckbox){
+      level3ShowPianoCheckbox.checked = false;
+      level3ShowPianoCheckbox.dispatchEvent(new Event('change'));
+    }
+    if(l3KeyMode) setL3KeyMode(false);
+    if(l3NameMode){
+      l3NameMode = false;
+      l3NameBusy = false;
+      try{ localStorage.setItem(L3_NAME_MODE_KEY, '0'); }catch(e){}
+      if(level3NameModeCheckbox) level3NameModeCheckbox.checked = false;
+    }
+  }
+  if(!on) l3DegApplyRestore();
+  l3SwitchSelection(()=>{ l3DegreeMode = on; });
+  try{ localStorage.setItem(L3_DEGREE_MODE_KEY, on ? '1' : '0'); }catch(e){}
+  l3DegQ = null;
+  l3DegBusy = false;
+  currentL3 = null;
+  applyL3DegreeUI();
+  renderL3InversionButtons();
+  if(practiceLevel === 3){
+    pickNewChordL3();
+  } else {
+    renderLevel3Hint();
+    updateL3Piano();
+  }
+}
+
+// "Аккорд" / "Ступень" / "Модуляция": нажата всегда ровно одна
+function setL3DegreeKind(kind){
+  if(!l3DegreeMode){ applyL3DegreeUI(); return; }
+  if(kind !== l3DegreeKind){
+    l3SwitchSelection(()=>{ l3DegreeKind = kind; });
+    try{ localStorage.setItem(L3_DEGREE_KIND_KEY, kind); }catch(e){}
+    l3DegHistory = [];
+    l3DegQ = null;
+    if(practiceLevel === 3) pickNewChordL3();
+  }
+  applyL3DegreeUI();
+}
+
+if(level3DegreeCheckbox){
+  level3DegreeCheckbox.addEventListener('change', ()=> setL3DegreeMode(level3DegreeCheckbox.checked));
+}
+if(level3DegreeChordCheckbox){
+  level3DegreeChordCheckbox.addEventListener('change', ()=> setL3DegreeKind('chord'));
+}
+if(level3DegreeStepCheckbox){
+  level3DegreeStepCheckbox.addEventListener('change', ()=> setL3DegreeKind('degree'));
+}
+if(level3DegreeModCheckbox){
+  level3DegreeModCheckbox.addEventListener('change', ()=> setL3DegreeKind('mod'));
+}
+// "Из тональности" и её списки
+(function(){
+  const restart = ()=>{
+    l3DegHistory = [];
+    if(practiceLevel === 3 && l3DegreeMode && l3DegreeKind === 'mod') pickNewChordL3();
+  };
+  const modeSel = document.getElementById('level3ModFromModeSelect');
+  if(modeSel) modeSel.addEventListener('change', ()=>{
+    if(!L3_KEY_MODES[modeSel.value]) return;
+    l3ModFromMode = modeSel.value;
+    try{ localStorage.setItem(L3_MOD_FROM_MODE_KEY, l3ModFromMode); }catch(e){}
+    fillL3ModFromTonicOptions();   // написание тоник зависит от лада
+    applyL3DegreeUI();
+    restart();
+  });
+  const tonicSel = document.getElementById('level3ModFromTonicSelect');
+  if(tonicSel) tonicSel.addEventListener('change', ()=>{
+    const v = parseInt(tonicSel.value, 10);
+    if(!(v >= 0 && v < 12)) return;
+    l3ModFromTonicPc = v;
+    try{ localStorage.setItem(L3_MOD_FROM_TONIC_KEY, String(v)); }catch(e){}
+    restart();
+  });
+  fillL3ModFromTonicOptions();
+})();
+
+// "Тоника та же" / "Ноты те же" / "Из тональности" / "Любые": нажат всегда один
+Object.entries(L3_MOD_PAIR_CHECKBOXES).forEach(([k, cb])=>{
+  if(!cb) return;
+  cb.addEventListener('change', ()=>{
+    if(l3DegreeMode && l3DegreeKind === 'mod' && k !== l3ModPair){
+      l3ModPair = k;
+      try{ localStorage.setItem(L3_MOD_PAIR_KEY, k); }catch(e){}
+      l3DegHistory = [];
+      if(practiceLevel === 3) pickNewChordL3();
+    }
+    applyL3DegreeUI();
+  });
+});
+// режимы не должны быть включены одновременно (на случай старых сохранений)
+if(l3DegreeMode && l3KeyMode){
+  l3DegreeMode = false;
+  try{ localStorage.setItem(L3_DEGREE_MODE_KEY, '0'); }catch(e){}
+}
+if(l3DegreeMode && l3NameMode){
+  l3NameMode = false;
+  try{ localStorage.setItem(L3_NAME_MODE_KEY, '0'); }catch(e){}
+  if(level3NameModeCheckbox) level3NameModeCheckbox.checked = false;
+}
+// при загрузке — тихо, без перерисовки (часть переменных ещё не готова)
+if(l3DegreeMode && l3ShowPiano){
+  l3ShowPiano = false;
+  try{ localStorage.setItem(L3_SHOW_PIANO_KEY, '0'); }catch(e){}
+  if(level3ShowPianoCheckbox) level3ShowPianoCheckbox.checked = false;
+  if(l3HideWedges){
+    l3HideWedges = false;
+    try{ localStorage.setItem(L3_HIDE_WEDGES_KEY, '0'); }catch(e){}
+    if(level3HideWedgesCheckbox) level3HideWedgesCheckbox.checked = false;
+  }
+  try{
+    resetL3PianoUnderIfNeeded();
+    setL3HideWedgesAvailability(false);
+    setL3PianoUnderAvailability(false);
+  }catch(e){}
+}
+applyL3DegreeUI();
+renderL3InversionButtons();
 
 function onWedgeClickLevel3(e){
   if(!currentL3 || l3NameMode) return;
@@ -14032,6 +15136,11 @@ function clearTrainTonicPress(){
 
 // ring: 'major' | 'minor', tonicIndex: 0..11
 function selectTrainTonic(ring, tonicIndex){
+  // "Модуляция": нажатие задаёт тонику тональности 1 / 2 (по очереди)
+  if(trainModOn){
+    trainModCellPressed(ring, tonicIndex);
+    return;
+  }
   const item = trainWedgeMap[ring+'-'+tonicIndex];
   if(!item) return;
   if(pressedTrainTonicRing === ring && pressedTrainTonicIndex === tonicIndex){
@@ -14093,6 +15202,367 @@ function selectTrainTonic(ring, tonicIndex){
   if(typeof updateTrainPiano === 'function') updateTrainPiano();
   if(typeof playCurrentTrainChordToDaw === 'function') playCurrentTrainChordToDaw();
 }
+
+/* =========================================================
+   МОДУЛЯЦИЯ (вкладка "Обучение", галка "Модуляция" под "Выбор
+   обращения").
+   Нажатия ячеек по очереди задают тонику тональности 1 и 2, лад каждой —
+   в панели сбоку от круга (#trainModPanel; по умолчанию тональность 1 —
+   мажор, 2 — минор; панель — по середине круга по высоте). На круге: синие — аккорды только
+   тональности 1, оранжевые — только тональности 2, зелёные — общие (на
+   них — ступень в обеих тональностях "vi / ii"). Тоника обведена цветом
+   своей тональности. В центре — переход и число общих аккордов, в
+   панели — лады и список общих аккордов.
+   При включении выключаются "Показывать ступени тональности",
+   "Показать ступени аккорда" и "Показывать клавиатуру" (и снимается
+   нажатая нота со стрелками аккорда); включение любой из них выключает
+   "Модуляцию".
+   Цвета — как в демо: --mod-k1 / --mod-k2 (заливка), --green (общие),
+   --mod-*-text / --mod-common-deg* (подписи) — см. :root в CSS.
+   Выключили "Модуляцию" — снова включаются "Показывать клавиатуру" и
+   "Показать ступени аккорда", если были включены до неё.
+   ========================================================= */
+var TRAIN_MOD_KEY = 'circleTrainModulation';
+var trainModOn = localStorage.getItem(TRAIN_MOD_KEY) === '1';
+var trainModSlots = [ { ring:'major', index:0, mode:'major' }, { ring:'minor', index:0, mode:'minor' } ];  // C мажор и A минор
+var trainModNext = 0;          // какую тональность задаёт следующее нажатие
+var trainModPainted = [];      // покрашенные ячейки (для снятия подсветки)
+var trainModCenterEls = null;  // подписи в центре круга
+(function(){
+  try{
+    const saved = JSON.parse(localStorage.getItem('circleTrainModSlots'));
+    if(Array.isArray(saved) && saved.length === 2) saved.forEach((sl, k)=>{
+      if(sl && (sl.ring === 'major' || sl.ring === 'minor') && sl.index >= 0 && sl.index < 12){
+        // лад по умолчанию: у тональности 1 — мажор, у 2 — минор
+        const okMode = sl.mode && sl.mode !== 'auto' && L3_KEY_MODES[sl.mode];
+        trainModSlots[k] = { ring:sl.ring, index:sl.index, mode: okMode ? sl.mode : (k === 0 ? 'major' : 'minor') };
+      }
+    });
+  }catch(e){}
+})();
+const TRAIN_MOD_MODES = ['lydian','major','mixolydian','dorian','minor','phrygian','locrian','harmMinor','melMinor'];
+const TRAIN_MOD_MODE_LABEL = {
+  lydian:'modeLydian', major:'btnMajor', mixolydian:'modeMixolydian', dorian:'modeDorian', minor:'btnMinor',
+  phrygian:'modePhrygian', locrian:'modeLocrian', harmMinor:'keyHarmMinor', melMinor:'keyMelMinor'
+};
+function saveTrainModSlots(){
+  try{ localStorage.setItem('circleTrainModSlots', JSON.stringify(trainModSlots)); }catch(e){}
+}
+// Ступени ("vi / ii") стоят строго ПОД названием ячейки (по вертикали
+// экрана, а не к центру круга — иначе на ячейках слева и справа круга
+// подпись налезала на название сбоку). Расстояние от центра названия до
+// центра подписи ступеней, px: больше число — ступени ниже.
+// Размер шрифта ступеней — в CSS, .trainModDeg { font-size }.
+const TRAIN_MOD_DEG_OFFSET = { major: 17, minor: 16 };
+function trainModDegPos(item, ring){
+  return { x: item.midX, y: item.midY + (TRAIN_MOD_DEG_OFFSET[ring] || 16) };
+}
+// тональность из ячейки + лада: { name, tonicCell, cells: {ячейка: ступень}, chords: [...] }
+function trainModKey(slot){
+  const item = trainWedgeMap[slot.ring + '-' + slot.index];
+  const mode = L3_KEY_MODES[slot.mode] ? slot.mode : 'major';
+  const raw = String(item ? item.name : majors[slot.index]).replace(/m$/, '');
+  const info = l3ModKeyInfo(raw, mode, slot.ring + '-' + slot.index);
+  const cells = {};
+  const names = {};
+  const augs = [];   // увеличенные аккорды: ячейки на круге нет, но они считаются в общих
+  info.chords.forEach(c=>{
+    const root = parseInt(c.id, 10);
+    const q = c.id.replace(/^\d+/, '');
+    if(q === 'aug'){ augs.push(c); return; }
+    if(q !== 'maj' && q !== 'min') return;
+    const ring = q === 'maj' ? 'major' : 'minor';
+    const idx = semitoneToTrainRingIndex[ring][root];
+    if(idx === undefined) return;
+    cells[ring + '-' + idx] = c.roman;
+    names[ring + '-' + idx] = c.name;
+  });
+  // ячейка тоники: тоническое трезвучие лада (у локрийского — уменьшённое, ячейки нет)
+  let tonicCell = null;
+  const tonicChord = info.chords.find(c => c.roman.toUpperCase() === 'I');
+  if(tonicChord){
+    const q = tonicChord.id.replace(/^\d+/, '');
+    const ring = q === 'maj' ? 'major' : (q === 'min' ? 'minor' : null);
+    if(ring){
+      const idx = semitoneToTrainRingIndex[ring][info.tonicPc];
+      if(idx !== undefined) tonicCell = ring + '-' + idx;
+    }
+  }
+  return { name: l3ModKeyLabel(info), shortName: l3ModKeyLabel(info, true), cells, names, augs, tonicCell };
+}
+
+function trainModCellPressed(ring, index){
+  const sl = trainModSlots[trainModNext];
+  sl.ring = ring;
+  sl.index = index;
+  trainModNext = 1 - trainModNext;
+  saveTrainModSlots();
+  renderTrainMod();
+}
+
+function clearTrainMod(){
+  trainModPainted.forEach(item=>{
+    setWedgeInstant(item, item.baseColor, null);
+    item.el.setAttribute('stroke', 'none');
+    item.el.removeAttribute('stroke-width');
+    if(item.modDegEl) item.modDegEl.style.display = 'none';
+  });
+  trainModPainted = [];
+  if(trainModCenterEls) trainModCenterEls.g.style.display = 'none';
+  const panel = document.getElementById('trainModPanel');
+  if(panel){ panel.style.display = 'none'; panel.innerHTML = ''; }
+}
+
+function trainModSetDeg(item, ringName, index, parts){
+  if(!item.modDegEl){
+    item.modDegEl = el('text', { class:'trainModDeg' });
+    trainSvg.appendChild(item.modDegEl);
+  }
+  const p = trainModDegPos(item, ringName);
+  item.modDegEl.setAttribute('x', p.x);
+  item.modDegEl.setAttribute('y', p.y);
+  item.modDegEl.textContent = '';
+  parts.forEach((pt, n)=>{
+    if(n > 0){ const sep = document.createElementNS('http://www.w3.org/2000/svg', 'tspan'); sep.textContent = ' / '; item.modDegEl.appendChild(sep); }
+    const sp = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+    if(pt.color) sp.setAttribute('fill', pt.color);
+    sp.textContent = pt.text;
+    item.modDegEl.appendChild(sp);
+  });
+  item.modDegEl.style.display = '';
+}
+
+function trainModCenter(k1, k2, count){
+  if(!trainModCenterEls){
+    const g = el('g', { class:'trainModCenterG' });
+    const l1 = el('text', { class:'trainModCenter', x:CX, y:CY - 24 });
+    const l2 = el('text', { class:'trainModCenter', x:CX, y:CY + 2 });
+    const l3 = el('text', { class:'trainModCenter', x:CX, y:CY + 30 });
+    g.appendChild(l1); g.appendChild(l2); g.appendChild(l3);
+    trainSvg.appendChild(g);
+    trainModCenterEls = { g, l1, l2, l3 };
+  }
+  const c = trainModCenterEls;
+  trainSvg.appendChild(c.g);   // поверх ячеек и подписей
+  c.g.style.display = '';
+  trainModCenterData = { k1, k2, count };
+  fitTrainModCenterText();
+}
+
+/* Подписи в центре круга "Модуляции" всегда должны влезать в центральный
+   круг: если полное название не помещается — длинные лады сокращаются
+   ("гармон. минор", "миксолид."), и только если и так не помещается —
+   уменьшается шрифт. Пока круг "Обучения" скрыт (открыта другая вкладка),
+   ширину текста не замерить — подгонка повторяется при переходе в
+   "Обучение" (см. applyMode). */
+var trainModCenterData = null;
+function fitTrainModCenterText(){
+  if(!trainModCenterEls || !trainModCenterData) return;
+  const c = trainModCenterEls, d = trainModCenterData;
+  const maxW = R0 * 2 - 16;
+  const fitLine = (t, size, build)=>{
+    t.setAttribute('font-size', size);
+    build(false);
+    let w = 0;
+    try{ w = t.getComputedTextLength(); }catch(e){ w = 0; }
+    if(!(w > maxW)) return;          // влезает (или круг сейчас скрыт)
+    build(true);
+    try{ w = t.getComputedTextLength(); }catch(e){ w = 0; }
+    if(w > maxW) t.setAttribute('font-size', size * maxW / w);
+  };
+  // верхняя строка — первая тональность со стрелкой, ниже — вторая
+  fitLine(c.l1, 18, short=>{
+    c.l1.textContent = '';
+    const n1 = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+    n1.setAttribute('fill', 'var(--mod-k1-text)');
+    n1.textContent = short ? d.k1.shortName : d.k1.name;
+    const ar = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+    ar.textContent = ' →';
+    c.l1.appendChild(n1); c.l1.appendChild(ar);
+  });
+  c.l2.style.fill = 'var(--mod-k2-text)';   // style, т.к. CSS .trainModCenter задаёт fill
+  fitLine(c.l2, 18, short=>{ c.l2.textContent = short ? d.k2.shortName : d.k2.name; });
+  fitLine(c.l3, 14, ()=>{ c.l3.textContent = t('trainModCount') + d.count; });
+  // "Общих аккордов: N" — зелёным (как общие ячейки), если общих нет — обычным цветом текста
+  c.l3.style.fill = d.count > 0 ? 'var(--green)' : '';
+}
+
+function renderTrainMod(){
+  clearTrainMod();
+  if(!trainModOn) return;
+  const k1 = trainModKey(trainModSlots[0]);
+  const k2 = trainModKey(trainModSlots[1]);
+  const common = [];
+  Object.entries(trainWedgeMap).forEach(([key, item])=>{
+    const d1 = k1.cells[key], d2 = k2.cells[key];
+    if(!d1 && !d2) return;
+    const ringName = key.split('-')[0];
+    const index = parseInt(key.split('-')[1], 10);
+    if(d1 && d2){
+      setWedgeInstant(item, 'var(--green)', 1);
+      trainModSetDeg(item, ringName, index, [{ text:d1, color:'var(--mod-common-deg1)' }, { text:d2, color:'var(--mod-common-deg2)' }]);
+      common.push({ name: k1.names[key], d1, d2 });
+    } else if(d1){
+      setWedgeInstant(item, 'var(--mod-k1)', 1);
+      trainModSetDeg(item, ringName, index, [{ text:d1, color:'var(--mod-deg)' }]);
+    } else {
+      setWedgeInstant(item, 'var(--mod-k2)', 1);
+      trainModSetDeg(item, ringName, index, [{ text:d2, color:'var(--mod-deg)' }]);
+    }
+    trainModPainted.push(item);
+  });
+  // увеличенные аккорды (III+): на круге их нет, в число общих и список входят
+  k1.augs.forEach(a=>{
+    const b = k2.augs.find(x => x.id === a.id);
+    if(b) common.push({ name: a.name, d1: a.roman, d2: b.roman });
+  });
+  // тоники — обводка цветом своей тональности
+  [[k1, 'var(--mod-k1-text)'], [k2, 'var(--mod-k2-text)']].forEach(([k, color])=>{
+    if(!k.tonicCell) return;
+    const item = trainWedgeMap[k.tonicCell];
+    if(!item) return;
+    item.el.setAttribute('stroke', color);
+    item.el.setAttribute('stroke-width', 3);
+    if(trainModPainted.indexOf(item) === -1) trainModPainted.push(item);
+  });
+  trainModCenter(k1, k2, common.length);
+
+  // панель: лады тональностей и общие аккорды
+  const panel = document.getElementById('trainModPanel');
+  if(!panel) return;
+  panel.innerHTML = '';
+  [0, 1].forEach(n=>{
+    const row = document.createElement('div');
+    row.className = 'trainModSelRow';
+    const sw = document.createElement('span');
+    sw.className = 'trainModSwatch';
+    sw.style.background = n === 0 ? 'var(--mod-k1)' : 'var(--mod-k2)';
+    const lab = document.createElement('span');
+    lab.textContent = t(n === 0 ? 'trainModMode1' : 'trainModMode2');
+    const sel = document.createElement('select');
+    TRAIN_MOD_MODES.map(m => [m, t(TRAIN_MOD_MODE_LABEL[m])]).forEach(([v, txt])=>{
+      const o = document.createElement('option');
+      o.value = v; o.textContent = txt;
+      sel.appendChild(o);
+    });
+    sel.value = trainModSlots[n].mode;
+    sel.addEventListener('change', ()=>{
+      trainModSlots[n].mode = sel.value;
+      saveTrainModSlots();
+      renderTrainMod();
+    });
+    row.appendChild(sw); row.appendChild(lab); row.appendChild(sel);
+    panel.appendChild(row);
+  });
+  const title = document.createElement('div');
+  title.className = 'trainModTitle';
+  title.textContent = t('trainModCommon');
+  panel.appendChild(title);
+  if(!common.length){
+    const none = document.createElement('div');
+    none.textContent = t('trainModNone');
+    panel.appendChild(none);
+  } else {
+    const table = document.createElement('table');
+    const head = document.createElement('tr');
+    [t('trainModChord'), k1.name, k2.name].forEach(txt=>{
+      const th = document.createElement('th');
+      th.textContent = txt;
+      head.appendChild(th);
+    });
+    table.appendChild(head);
+    common.forEach(c=>{
+      const tr = document.createElement('tr');
+      const tdName = document.createElement('td');
+      setNoteText(tdName, c.name);
+      tdName.style.color = 'var(--green)';   // общий аккорд — зелёным, как его ячейка на круге
+      const td1 = document.createElement('td');
+      td1.textContent = c.d1; td1.style.color = 'var(--mod-k1-text)';
+      const td2 = document.createElement('td');
+      td2.textContent = c.d2; td2.style.color = 'var(--mod-k2-text)';
+      tr.appendChild(tdName); tr.appendChild(td1); tr.appendChild(td2);
+      table.appendChild(tr);
+    });
+    panel.appendChild(table);
+  }
+  panel.style.display = 'flex';
+  layoutTrainModPanel();
+}
+
+// Панель "Модуляции": сбоку от нарисованного круга (с учётом масштаба
+// +/-), со стороны, где обычно клавиатура; на телефоне — под кругом.
+const TRAIN_MOD_PANEL_GAP = 32;
+function layoutTrainModPanel(){
+  const panel = document.getElementById('trainModPanel');
+  const inner = document.getElementById('trainCircleInner');
+  if(!panel || !inner || panel.style.display === 'none') return;
+  const ir = inner.getBoundingClientRect();
+  const sr = trainSvg.getBoundingClientRect();
+  if(!sr.width) return;
+  panel.style.right = 'auto';
+  if(document.body.classList.contains('is-mobile')){
+    panel.style.left = (sr.left + sr.width / 2 - ir.left) + 'px';
+    panel.style.top = (sr.bottom - ir.top + 8) + 'px';
+  } else {
+    // по середине круга по высоте
+    const top = (sr.top - ir.top) + (sr.height - panel.offsetHeight) / 2;
+    if(document.body.classList.contains('piano-left')){
+      panel.style.left = 'auto';
+      panel.style.right = (ir.right - sr.left + TRAIN_MOD_PANEL_GAP) + 'px';
+    } else {
+      panel.style.left = (sr.right - ir.left + TRAIN_MOD_PANEL_GAP) + 'px';
+    }
+    panel.style.top = top + 'px';
+  }
+}
+window.addEventListener('resize', ()=>{ try{ layoutTrainModPanel(); }catch(e){} });
+
+const trainModCheckbox = document.getElementById('trainModCheckbox');
+// что было включено до "Модуляции" — вернуть при её выключении
+var TRAIN_MOD_RESTORE_KEY = 'circleTrainModRestore';
+function setTrainMod(on, fromLoad){
+  const wasOn = trainModOn;
+  trainModOn = on;
+  try{ localStorage.setItem(TRAIN_MOD_KEY, on ? '1' : '0'); }catch(e){}
+  if(trainModCheckbox) trainModCheckbox.checked = on;
+  if(on && !fromLoad && !wasOn){
+    // запоминаем "Показывать клавиатуру" и "Показать ступени аккорда"
+    try{ localStorage.setItem(TRAIN_MOD_RESTORE_KEY, JSON.stringify({ piano: !!trainShowPiano, legend: !!trainShowChordLegend })); }catch(e){}
+  }
+  if(!on && wasOn){
+    let rs = null;
+    try{ rs = JSON.parse(localStorage.getItem(TRAIN_MOD_RESTORE_KEY)); }catch(e){ rs = null; }
+    try{ localStorage.removeItem(TRAIN_MOD_RESTORE_KEY); }catch(e){}
+    if(rs){
+      try{ if(rs.piano && !trainShowPiano && trainShowPianoCheckbox) trainShowPianoCheckbox.click(); }catch(e){}
+      try{ if(rs.legend && !trainShowChordLegend && trainShowChordLegendCheckbox) trainShowChordLegendCheckbox.click(); }catch(e){}
+    }
+  }
+  if(on){
+    // то, что к модуляции не относится, выключается
+    try{ if(trainShowDegrees && trainShowDegreesCheckbox) trainShowDegreesCheckbox.click(); }catch(e){}
+    try{ if(trainShowChordLegend && trainShowChordLegendCheckbox) trainShowChordLegendCheckbox.click(); }catch(e){}
+    try{ if(trainShowPiano && trainShowPianoCheckbox) trainShowPianoCheckbox.click(); }catch(e){}
+    try{ clearTrainTonicPress(); }catch(e){}
+    trainModNext = 0;
+  }
+  try{ updateMobilePianoLayout(); }catch(e){}
+  renderTrainMod();
+}
+if(trainModCheckbox){
+  trainModCheckbox.checked = trainModOn;
+  trainModCheckbox.addEventListener('change', ()=> setTrainMod(trainModCheckbox.checked));
+}
+// включили "Показывать ступени тональности" / "Показать ступени аккорда" /
+// "Показывать клавиатуру" — "Модуляция" выключается
+[typeof trainShowDegreesCheckbox !== 'undefined' ? trainShowDegreesCheckbox : null,
+ typeof trainShowChordLegendCheckbox !== 'undefined' ? trainShowChordLegendCheckbox : null,
+ typeof trainShowPianoCheckbox !== 'undefined' ? trainShowPianoCheckbox : null].forEach(cb=>{
+  if(cb) cb.addEventListener('change', ()=>{ if(cb.checked && trainModOn) setTrainMod(false); });
+});
+// при загрузке — после того как весь скрипт выполнится (обработчики
+// выключаемых галок обращаются к переменным, объявленным ниже по файлу)
+if(trainModOn) setTimeout(()=>{ trainModOn = false; setTrainMod(true, true); }, 0);
 
 // изначально все ноты в отжатом состоянии — ничего не подсвечено
 
@@ -14860,6 +16330,8 @@ function applyMode(){
   // (вкладка + галка "Показать ступени аккорда" + не выбран лад)
   renderTrainLegend();
   if(isTraining && typeof updateTrainPianoOffset === 'function') updateTrainPianoOffset();
+  // "Модуляция": подписи в центре подгоняются, когда круг стал виден
+  if(isTraining && trainModOn) fitTrainModCenterText();
   localStorage.setItem(MODE_KEY, appMode);
   // ВАЖНО: строка-чекбокс "Настройки сбоку от круга" (#sidePanelPinRow)
   // физически переносится между панелями разных вкладок (см.
@@ -14919,7 +16391,7 @@ function applyPracticeLevel(){
 
   if(practiceLevel === 1 && !current) pickNewChord();
   if(practiceLevel === 2 && !currentL2) pickNewChordL2();
-  if(practiceLevel === 3 && !currentL3) pickNewChordL3();
+  if(practiceLevel === 3 && !(l3DegreeMode ? l3DegQ : currentL3)) pickNewChordL3();
   if(typeof renderLevel3Hint === 'function') renderLevel3Hint();
   if(typeof updateL3Piano === 'function') updateL3Piano();
 
@@ -14934,7 +16406,7 @@ function applyPracticeLevel(){
   if(practiceLevel === 1){
     setNoteText(centerText, current ? current.name : '');
   } else if(practiceLevel === 3){
-    setNoteText(centerText, currentL3 ? l3CenterDisplayName() : '');
+    setNoteText(centerText, (currentL3 || (l3DegreeMode && l3DegQ)) ? l3CenterDisplayName() : '');
   } else if(practiceLevel === 2 && notesPairsMode){
     setNoteText(centerText, currentL2 ? currentL2.name : '');
   } else {
@@ -16284,6 +17756,12 @@ function handleNoteHotkey(e){
 
 document.addEventListener('keydown', (e)=>{
   const key = e.key.toLowerCase();
+  // "Ступени тональности": ответ только цифрами 1–5 — пробел (бемоль) и
+  // буквы нот (с Shift — диез) здесь ничего не делают
+  if(appMode === 'practice' && practiceLevel === 3 && l3DegreeMode){
+    if(e.code === 'Space'){ e.preventDefault(); return; }
+    if(HOTKEY_LETTER[e.code] && !e.ctrlKey && !e.metaKey && !e.altKey){ e.preventDefault(); return; }
+  }
   if(e.code === 'Space' && !e.ctrlKey && !e.metaKey && !e.altKey &&
      !(appMode === 'practice' && practiceLevel === 1)){
     setFlatModePending(true);
@@ -16611,6 +18089,12 @@ function handleMidiNote(pc){
   if(appMode === 'practice' && practiceLevel === 1) return;
   // "Аккорды/Лады": неверная нота с MIDI-клавиатуры подсвечивается
   // красным не только на круге, но и на клавиатуре-подсказке справа.
+  // "Ступени тональности": белые клавиши C..G (любая октава) = ответы 1..5
+  if(appMode === 'practice' && practiceLevel === 3 && l3DegreeMode){
+    const whiteIdxDeg = [0,2,4,5,7,9,11].indexOf(pc);
+    if(whiteIdxDeg !== -1) l3DegAnswerByIndex(whiteIdxDeg);
+    return;
+  }
   if(appMode === 'practice' && practiceLevel === 3 && l3NameMode){
     // Белые клавиши C D E F G A B (любая октава) = ответы 1..7
     const whiteIdx = [0,2,4,5,7,9,11].indexOf(pc);
@@ -17951,6 +19435,8 @@ const trainHotkeyChordLabelEl = document.getElementById('trainHotkeyChordLabel')
 let trainHotkeyChordLabelTimer = null;
 function showTrainHotkeyChordLabel(text){
   if(!trainHotkeyChordLabelEl || !text) return;
+  // "Модуляция": центр круга занят названиями тональностей
+  if(trainModOn) return;
   trainHotkeyChordLabelEl.textContent = text;
   trainHotkeyChordLabelEl.style.display = 'block';
   if(trainHotkeyChordLabelTimer) clearTimeout(trainHotkeyChordLabelTimer);
@@ -18025,7 +19511,8 @@ document.addEventListener('keydown', (e)=>{
     // сам пробел не трогаем/не preventDefault здесь — общий обработчик
     // пробела (режим бемоля для буквенных хоткеев нот) отрабатывает
     // как раньше; просто дополнительно взводим свой флаг.
-    chordHotkeySpacePending = true;
+    // В "Ступенях тональности" пробел не используется — только цифры 1–5.
+    if(!(appMode === 'practice' && practiceLevel === 3 && l3DegreeMode)) chordHotkeySpacePending = true;
     return;
   }
 
@@ -18037,6 +19524,11 @@ document.addEventListener('keydown', (e)=>{
 
   const pageOffset = chordHotkeySpacePending ? 10 : 0;
   chordHotkeySpacePending = false;
+  // "Ступени тональности": цифры 1–5 — ответы
+  if(appMode === 'practice' && practiceLevel === 3 && l3DegreeMode){
+    if(pageOffset === 0 && l3DegAnswerByIndex(digitIdx)) e.preventDefault();
+    return;
+  }
   // "Назови аккорд/лад": цифры — это ответы (1..9, 0 = 10, пробел+цифра = 11..20)
   if(appMode === 'practice' && practiceLevel === 3 && l3NameMode){
     if(l3NameAnswerByIndex(pageOffset + digitIdx)) e.preventDefault();
@@ -18455,6 +19947,7 @@ if(circleIsFirstLaunch){
     var text = icon.getAttribute('data-tip');
     if(!text) return;
     tip.classList.toggle('tipWide', icon.hasAttribute('data-tip-wide'));
+    tip.classList.toggle('tipMid', icon.hasAttribute('data-tip-mid'));
     // data-tip-plain — текст как есть, без красной подсветки частей
     // (список горячих клавиш)
     if(icon.hasAttribute('data-tip-plain')){
@@ -18483,7 +19976,9 @@ if(circleIsFirstLaunch){
     // каждый такой кусок отдельным цветом --tip-formula-red (см. :root в
     // начале файла, там же можно поменять цвет/прозрачность). Можно
     // сколько угодно таких кусков в одной подсказке.
-    if(text.indexOf('@@') !== -1){
+    // Строки вида "ячейка | ячейка | ячейка" рисуются таблицей (первая
+    // такая строка — заголовок); строка прямо перед таблицей — её название.
+    if(text.indexOf('@@') !== -1 || text.indexOf(' | ') !== -1){
       tip.textContent = '';
       // Части подсказки, разделённые пустой строкой ("\n\n"), отделяются
       // друг от друга разделительной чертой (.tipDivider).
@@ -18492,6 +19987,30 @@ if(circleIsFirstLaunch){
           var divider = document.createElement('div');
           divider.className = 'tipDivider';
           tip.appendChild(divider);
+        }
+        var bl = block.split('\n');
+        var ti = bl.findIndex(function(l){ return l.indexOf(' | ') !== -1; });
+        if(ti !== -1){
+          bl.slice(0, ti).forEach(function(l){
+            var d = document.createElement('div');
+            d.className = 'tipTableTitle';
+            d.textContent = l.replace(/@@/g, '');
+            tip.appendChild(d);
+          });
+          var table = document.createElement('table');
+          table.className = 'tipTable';
+          bl.slice(ti).forEach(function(l, ri){
+            if(l.indexOf(' | ') === -1) return;
+            var tr = document.createElement('tr');
+            l.split(' | ').forEach(function(cell){
+              var c = document.createElement(ri === 0 ? 'th' : 'td');
+              c.textContent = cell;
+              tr.appendChild(c);
+            });
+            table.appendChild(tr);
+          });
+          tip.appendChild(table);
+          return;
         }
         var parts = block.split('@@');
         parts.forEach(function(part, i){
