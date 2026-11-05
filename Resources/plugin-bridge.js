@@ -3,16 +3,16 @@
 
    Этот скрипт запускает сам плагин (WebBrowserComponent::withUserScript)
    в КАЖДОМ фрейме — и в оболочке index.html, и внутри всех трёх
-   приложений — ДО того, как выполнится любой код страницы. Поэтому сами
-   файлы приложений (circle_of_fifths.html, note-trainer.html,
-   ear-trainer.html) остались без единой правки: их можно обновлять,
-   просто заменяя файл в папке Resources.
+   приложений — ДО того, как выполнится любой код страницы. Поэтому все
+   четыре файла (index.html, circle_of_fifths.html, note-trainer.html,
+   ear-trainer.html) кладутся в папку Resources как есть, без правок.
 
    Что делает мост:
      1) подменяет localStorage — настройки уходят в проект DAW;
      2) подменяет Web MIDI — ноты идут прямо в DAW, LoopMIDI не нужен;
      3) прячет блоки выбора MIDI-портов (в плагине их выбирать не из
-        чего) и включает отправку нот в DAW при первом запуске.
+        чего) и включает отправку нот в DAW при первом запуске;
+     4) подгоняет приложения под окно плагина — во всё окно, без полей.
    ===================================================================== */
 (function () {
   'use strict';
@@ -57,7 +57,7 @@
     var saveTimer = null;
 
     function flush() {
-      saveTimer = null;
+      if (saveTimer !== null) { clearTimeout(saveTimer); saveTimer = null; }
       if (!backend) return;
       try { backend.emitEvent('mtSaveStorage', { json: JSON.stringify(store) }); } catch (e) {}
     }
@@ -69,6 +69,28 @@
       save: function () {
         if (saveTimer !== null) return;
         saveTimer = setTimeout(flush, 400);
+      },
+
+      // отправить в плагин сразу, если есть что отправлять
+      saveNow: function () {
+        if (saveTimer !== null) flush();
+      },
+
+      /* Приложения сами откладывают запись настроек (до 10 секунд после
+         последнего изменения) и дописывают всё сразу при закрытии страницы —
+         по событию beforeunload. Окно плагина DAW закрывает без этого
+         события, поэтому мост сам подаёт его приложениям: когда мышь уходит
+         из окна плагина, окно теряет фокус и раз в несколько секунд.
+         Ничего, кроме записи настроек, приложения по beforeunload не делают. */
+      flushApps: function () {
+        var frames = document.querySelectorAll('iframe');
+        for (var i = 0; i < frames.length; i++) {
+          try {
+            var w = frames[i].contentWindow;
+            if (w) w.dispatchEvent(new w.Event('beforeunload'));
+          } catch (e) {}
+        }
+        host.saveNow();
       },
 
       sendMidi: function (bytes) {
@@ -128,35 +150,84 @@
   /* ---------------------------------------------------------------
      1. localStorage -> состояние плагина (сохраняется в проекте DAW)
      --------------------------------------------------------------- */
+  /* Подменённое хранилище должно быть для приложений неотличимо от
+     настоящего localStorage. Квинтовый круг и тренажёр нот сами
+     подменяют стандартные методы хранилища (Storage.prototype), чтобы
+     откладывать запись и держать часть данных только в памяти (история
+     ошибок в тренажёре нот). Это срабатывает, только если localStorage
+     действительно хранилище, — поэтому наш объект сделан из того же
+     прототипа Storage, а стандартные методы для него перенаправлены
+     в хранилище плагина. Для любых других хранилищ всё как было. */
   function installStorage() {
     if (!HOST) return;
     var store = HOST.store;
+    var has = function (k) { return Object.prototype.hasOwnProperty.call(store, k); };
 
-    var shim = {
+    var impl = {
       getItem: function (k) {
         k = String(k);
-        return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null;
+        return has(k) ? store[k] : null;
       },
       setItem: function (k, v) {
-        store[String(k)] = String(v);
+        k = String(k); v = String(v);
+        if (has(k) && store[k] === v) return;   // то же значение — проект не трогаем
+        store[k] = v;
         HOST.save();
       },
       removeItem: function (k) {
-        delete store[String(k)];
+        k = String(k);
+        if (!has(k)) return;
+        delete store[k];
         HOST.save();
       },
       clear: function () {
-        Object.keys(store).forEach(function (k) { delete store[k]; });
+        var keys = Object.keys(store);
+        if (!keys.length) return;
+        keys.forEach(function (k) { delete store[k]; });
         HOST.save();
       },
       key: function (i) {
         var keys = Object.keys(store);
         return (i >= 0 && i < keys.length) ? keys[i] : null;
-      }
+      },
+      length: function () { return Object.keys(store).length; }
     };
-    Object.defineProperty(shim, 'length', {
-      get: function () { return Object.keys(store).length; }
-    });
+
+    var shim = null;
+
+    try {
+      if (typeof Storage === 'function' && Storage.prototype) {
+        var SP = Storage.prototype;
+        shim = Object.create(SP);
+
+        ['getItem', 'setItem', 'removeItem', 'clear', 'key'].forEach(function (name) {
+          var original = SP[name];
+          SP[name] = function () {
+            if (this === shim) return impl[name].apply(null, arguments);
+            return original.apply(this, arguments);
+          };
+        });
+
+        var lengthDesc = Object.getOwnPropertyDescriptor(SP, 'length');
+        Object.defineProperty(SP, 'length', {
+          configurable: true,
+          enumerable: lengthDesc ? lengthDesc.enumerable : true,
+          get: function () {
+            if (this === shim) return impl.length();
+            return lengthDesc && lengthDesc.get ? lengthDesc.get.call(this) : 0;
+          }
+        });
+      }
+    } catch (e) { shim = null; }
+
+    // запасной путь — простой объект с теми же методами
+    if (!shim) {
+      shim = {
+        getItem: impl.getItem, setItem: impl.setItem, removeItem: impl.removeItem,
+        clear: impl.clear, key: impl.key
+      };
+      Object.defineProperty(shim, 'length', { get: impl.length });
+    }
 
     try {
       Object.defineProperty(window, 'localStorage', {
@@ -374,11 +445,140 @@
     try { dawButton.click(); } catch (e) {}
   }
 
+  /* Выполнить fn, когда страница приложения разобрана.
+
+     Важно: iframe сначала создаётся с пустой страницей, и мост может
+     запуститься один раз — для неё, а приложение потом загружается в то
+     же самое окно. Поэтому ждём событие готовности на ОКНЕ, а не на
+     документе: событие от страницы приложения тоже доходит до окна.
+     Если сейчас открыта уже готовая страница (та самая пустая) — fn
+     выполняется сразу, ей это ничем не мешает, и ещё раз — когда будет
+     готова страница приложения. */
   function onReady(fn) {
-    if (document.readyState === 'loading')
-      document.addEventListener('DOMContentLoaded', fn);
-    else
-      fn();
+    if (document.readyState !== 'loading') {
+      try { fn(); } catch (e) {}
+    }
+    window.addEventListener('DOMContentLoaded', function () {
+      try { fn(); } catch (e) {}
+    });
+  }
+
+  /* ---------------------------------------------------------------
+     4. Окно плагина (только в оболочке index.html)
+
+     Приложения всегда занимают окно целиком, полей по краям нет. Пока
+     окно не меньше 1280x800, масштаб 1:1 и приложения видят настоящий
+     размер окна, как в браузере. Если окно меньше — картинка целиком
+     уменьшается, а приложение видит окно не меньше 1280x800, поэтому
+     ничего не обрезается.
+
+     Масштаб ставится прямо на iframe. Переносить iframe в другой блок
+     нельзя: при переносе браузер перезагружает приложение внутри.
+
+     Размер задаётся двумя способами сразу:
+       - таблицей стилей документа (adoptedStyleSheets) — она действует
+         с первой отрисовки, ещё до появления iframe в странице, так что
+         приложение с самого начала видит правильный размер окна;
+       - атрибутом style у каждого iframe — запасной путь на случай, если
+         таблицы стилей такого вида движок не поддерживает.
+     --------------------------------------------------------------- */
+  var BASE_W = 1280;
+  var BASE_H = 800;
+  var layoutSheet = null;
+
+  function computeLayout() {
+    var w = window.innerWidth || BASE_W;
+    var h = window.innerHeight || BASE_H;
+    var scale = Math.min(1, w / BASE_W, h / BASE_H);
+    return {
+      width:  Math.ceil(w / scale) + 'px',
+      height: Math.ceil(h / scale) + 'px',
+      transform: scale < 1 ? 'scale(' + scale + ')' : 'none'
+    };
+  }
+
+  function layoutFrames() {
+    // старая оболочка плагина со своей подгонкой (блок #stage) —
+    // вторую подгонку поверх не накладываем
+    if (document.getElementById('stage')) {
+      if (layoutSheet) { try { layoutSheet.replaceSync(''); } catch (e) {} }
+      return;
+    }
+
+    var L = computeLayout();
+
+    if (layoutSheet) {
+      try {
+        layoutSheet.replaceSync(
+          'iframe{position:absolute!important;top:0!important;left:0!important;' +
+          'width:' + L.width + '!important;height:' + L.height + '!important;' +
+          'transform-origin:0 0!important;transform:' + L.transform + '!important;}');
+      } catch (e) {}
+    }
+
+    var frames = document.querySelectorAll('iframe');
+    for (var i = 0; i < frames.length; i++) {
+      var st = frames[i].style;
+      st.setProperty('position', 'absolute', 'important');
+      st.setProperty('top', '0', 'important');
+      st.setProperty('left', '0', 'important');
+      st.setProperty('width', L.width, 'important');
+      st.setProperty('height', L.height, 'important');
+      st.setProperty('transform-origin', '0 0', 'important');
+      st.setProperty('transform', L.transform, 'important');
+    }
+  }
+
+  function installSaveTriggers() {
+    if (!HOST) return;
+    var request = function () { try { HOST.flushApps(); } catch (e) {} };
+
+    // в каждом фрейме: мышь ушла из окна плагина, окно потеряло фокус
+    window.addEventListener('blur', request);
+    window.addEventListener('mouseout', function (e) {
+      if (!e.relatedTarget) request();     // ушла не на другой элемент, а за пределы окна
+    });
+
+    // и на всякий случай раз в 5 секунд (если ничего не менялось — ничего не отправится)
+    if (IS_TOP) setInterval(request, 5000);
+  }
+
+  function installLayout() {
+    if (!IS_TOP) return;
+
+    try {
+      if ('adoptedStyleSheets' in document && typeof CSSStyleSheet === 'function') {
+        layoutSheet = new CSSStyleSheet();
+        document.adoptedStyleSheets = document.adoptedStyleSheets.concat([layoutSheet]);
+        layoutFrames();
+      }
+    } catch (e) { layoutSheet = null; }
+
+    // Подгоняем каждый iframe сразу, как только он появился в странице, —
+    // до того как приложение внутри успело измерить своё окно.
+    var observer = null;
+    try {
+      observer = new MutationObserver(function (mutations) {
+        for (var i = 0; i < mutations.length; i++) {
+          var added = mutations[i].addedNodes;
+          for (var j = 0; j < added.length; j++) {
+            var node = added[j];
+            if (node.nodeName === 'IFRAME' ||
+                (node.querySelector && node.querySelector('iframe'))) {
+              layoutFrames();
+              return;
+            }
+          }
+        }
+      });
+      observer.observe(document, { childList: true, subtree: true });
+    } catch (e) {}
+
+    onReady(function () {
+      layoutFrames();
+      if (observer) observer.disconnect();
+    });
+    window.addEventListener('resize', layoutFrames);
   }
 
   /* ---------------------------------------------------------------
@@ -387,6 +587,8 @@
   installStorage();
   seedDefaults();
   installMidi();
+  installLayout();
+  installSaveTriggers();
 
   onReady(function () {
     hideMidiSettings();

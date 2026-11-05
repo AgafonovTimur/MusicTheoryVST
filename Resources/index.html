@@ -14,15 +14,6 @@
     overflow:hidden;
     background:#000;
   }
-  /* Сцена занимает всё окно плагина. Размер в CSS-пикселях задаётся из
-     JS (см. layoutStage) — приложения внутри видят реальный размер окна,
-     как в браузере, поэтому ничего не обрезается и полей по краям нет. */
-  #stage{
-    position:absolute;
-    top:0; left:0;
-    width:1280px; height:800px;
-    transform-origin:0 0;
-  }
   .appFrame{
     position:absolute;
     top:0; left:0;
@@ -43,11 +34,9 @@
 </head>
 <body>
 
-<div id="stage">
-  <iframe class="appFrame" id="frameCircle" src="circle_of_fifths.html"></iframe>
-  <iframe class="appFrame" id="frameNotes"  src="note-trainer.html"></iframe>
-  <iframe class="appFrame" id="frameEar"    src="ear-trainer.html"></iframe>
-</div>
+<iframe class="appFrame" id="frameCircle" src="circle_of_fifths.html"></iframe>
+<iframe class="appFrame" id="frameNotes"  src="note-trainer.html"></iframe>
+<iframe class="appFrame" id="frameEar"    src="ear-trainer.html"></iframe>
 
 <script>
 (function(){
@@ -61,33 +50,8 @@
 
   var TITLE_I18N = { ru: 'Музыкальная теория', en: 'Music Theory', zh: '音乐理论' };
 
-  // Ниже этого размера окна интерфейс начинает уменьшаться целиком,
-  // чтобы всё оставалось на виду. Выше — масштаб 1:1, приложения просто
-  // получают всю площадь окна, как в браузере.
-  var BASE_W = 1280;
-  var BASE_H = 800;
-
   var frames = {};
   FRAME_IDS.forEach(function(id){ frames[id] = document.getElementById(id); });
-
-  var stage = document.getElementById('stage');
-
-  // Сцена всегда занимает окно целиком: полей по краям нет, пропорции
-  // окна не навязываются. Уменьшаем картинку только когда окно меньше
-  // базового размера — тогда приложение видит виртуальное окно побольше.
-  function layoutStage(){
-    var w = window.innerWidth || BASE_W;
-    var h = window.innerHeight || BASE_H;
-
-    var scale = Math.min(1, w / BASE_W, h / BASE_H);
-
-    stage.style.width  = Math.ceil(w / scale) + 'px';
-    stage.style.height = Math.ceil(h / scale) + 'px';
-    stage.style.transform = 'scale(' + scale + ')';
-  }
-
-  window.addEventListener('resize', layoutStage);
-  layoutStage();
 
   // язык запоминаем отдельно для каждого приложения (в title показываем язык активного)
   var frameLang = { frameCircle: null, frameNotes: null, frameEar: null };
@@ -133,8 +97,8 @@
     FRAME_IDS.forEach(function(fid){
       frames[fid].classList.toggle('active', fid === id);
     });
-    sendVisibility();
     try { localStorage.setItem(ACTIVE_KEY, id); } catch(e){}
+    sendVisibility();
     updateTitle();
     // фокус в открытую вкладку, чтобы сразу работали горячие клавиши
     try { frames[id].contentWindow.focus(); } catch(e){}
