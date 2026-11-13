@@ -2722,18 +2722,42 @@
     flex-direction:column;
     align-items:stretch;
   }
+  /* Ширина окна постоянная (не зависит от нажатой ноты и выбранной строки):
+     по клавиатуре (--rel-kb-w ставит renderTrainRelModes) или по строке нот
+     (7 ячеек шириной --rel-cell) — что шире. */
+  #trainRelModesPopup{
+    --rel-cell:calc(34px * var(--rel-scale) * var(--rel-font));
+    box-sizing:content-box;
+    width:max(var(--rel-kb-w, 0px), calc(7 * var(--rel-cell)));
+  }
   #trainRelModesPopup.show{ display:flex; }
   #trainRelModesPopup svg{ display:block; }
   #trainRelModesPopup .relNotes{ display:flex; flex-direction:column; align-items:center; gap:calc(10px * var(--rel-scale)); }
-  #trainRelModesPopup .relLine{ font-size:calc(18px * var(--rel-scale) * var(--rel-font)); white-space:nowrap; }
-  #trainRelModesPopup .relLine span{ margin:0 calc(4px * var(--rel-scale)); }
+  /* ноты выбранной строки — в ячейках одинаковой ширины: буквы стоят на
+     своих местах и не сдвигаются, когда у соседних нот появляются знаки */
+  #trainRelModesPopup .relLine{ font-size:calc(18px * var(--rel-scale) * var(--rel-font)); white-space:nowrap; display:flex; justify-content:center;
+    /* высота строки постоянная: со знаком ♭ строка иначе на 1px выше */
+    line-height:1.2; height:1.2em; overflow:visible; }
+  #trainRelModesPopup .relLine > span{ margin:0; width:var(--rel-cell); flex:0 0 var(--rel-cell); text-align:center; height:1.2em; line-height:1.2; }
   #trainRelModesPopup .relLine .relTonic{ color:var(--green); font-weight:bold; }
-  #trainRelModesPopup .relTable{ display:flex; flex-direction:column; gap:calc(2px * var(--rel-scale)); }
+  /* Размер окна один для всех нот и всех ладов:
+     - у строки таблицы высота задана числом (--rel-row-h), а не по тексту;
+     - под таблицу всегда отведено место на TRAIN_REL_MODES_MAX_ROWS строк
+       (--rel-rows ставит renderTrainRelModes) — у пентатоники (5 строк)
+       просто больше расстояние до нот и клавиатуры;
+     - знаки ♯ ♭ (.relAcc) на высоту строки не влияют: в части шрифтов они
+       берутся из другого шрифта и без этого раздвигали строки. */
+  #trainRelModesPopup{ --rel-row-h:calc(31px * var(--rel-scale)); --rel-row-gap:calc(2px * var(--rel-scale)); }
+  #trainRelModesPopup .relTable{ display:flex; flex-direction:column; gap:var(--rel-row-gap);
+    min-height:calc(var(--rel-rows, 9) * var(--rel-row-h) + (var(--rel-rows, 9) - 1) * var(--rel-row-gap)); }
   #trainRelModesPopup .relRow{
-    display:flex; gap:calc(8px * var(--rel-scale)); font-size:calc(16px * var(--rel-scale) * var(--rel-font));
-    padding:calc(5px * var(--rel-scale)) calc(12px * var(--rel-scale)) calc(5px * var(--rel-scale)) calc(8px * var(--rel-scale));
+    display:flex; align-items:center; gap:calc(8px * var(--rel-scale)); font-size:calc(16px * var(--rel-scale) * var(--rel-font));
+    box-sizing:border-box; height:var(--rel-row-h); flex:0 0 var(--rel-row-h); line-height:1.2;
+    padding:0 calc(12px * var(--rel-scale)) 0 calc(8px * var(--rel-scale));
     border-radius:calc(6px * var(--rel-scale)); cursor:pointer; white-space:nowrap;
   }
+  #trainRelModesPopup .relRow > span{ height:1.2em; line-height:1.2; flex:0 0 auto; }
+  #trainRelModesPopup .relAcc{ line-height:0; }
   #trainRelModesPopup .relRow:hover{ background:var(--btn-bg-hover); }
   #trainRelModesPopup .relRow.active{ background:var(--green); color:#fff; }
   #trainRelModesPopup .relRowNote{ width:calc(34px * var(--rel-scale) * var(--rel-font)); text-align:right; font-weight:bold; }
@@ -3122,12 +3146,28 @@
     box-shadow:0 4px 12px rgba(0,0,0,0.45);
     z-index:10000;
   }
-  #trainModeSchemeIcon, #trainIvSchemeIcon{ cursor:pointer; }
+  #trainModeSchemeIcon, #trainIvSchemeIcon, #trainPianoNotesIcon{ cursor:pointer; }
   /* номера ладов в окне "?" грифа — цветом текста окна (фон окна тёмный
      во всех темах; цвет текста приложения в светлой теме там не виден) */
   #modesSchemePopup .gtrFretNum{ fill:var(--tooltip-text, #fff); }
   /* схема интервалов — своя ширина */
   #modesSchemePopup svg.ivSchemeSvg{ width:1150px; }
+  /* одна октава с названиями нот ("?" у "Показывать клавиатуру") — своего размера */
+  #modesSchemePopup svg.pianoNotesSvg{ width:auto; }
+  /* подложка этой клавиатуры: окно закрывает собой весь круг (размер и место
+     окна ставит openScheme по кругу "Обучения"), клавиатура — по центру */
+  /* само окно в этом случае — цветом фона приложения и без тени: круг
+     просто пропадает, отдельной плашки не видно */
+  #modesSchemePopup.pianoNotesPopup{
+    background:var(--bg);
+    box-shadow:none;
+  }
+  #modesSchemePopup .pianoNotesBack{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    box-sizing:border-box;
+  }
   /* значки (i) "где используется" у кружков схемы */
   #modesSchemePopup .modesSchemeInfo{
     position:absolute;
@@ -3820,6 +3860,24 @@
   #trainAltNoteSettings .trainAltNoteGroupTitle{
     text-align:center;
   }
+  /* ===== "НАЧАЛО" (вкладка "Ноты"): выбор нот кнопками в виде клавиатуры —
+     сверху диезы и бемоли (над стыками белых), снизу C D E F G A B ===== */
+  .begSelKeys{
+    display:grid;
+    grid-template-columns:repeat(14, 1fr);
+    gap:8px 4px;
+    width:100%;
+  }
+  .begSelKeys .ringBtn{
+    padding:9px 0;
+    font-size:13px;
+    white-space:nowrap;
+    min-width:0;
+  }
+  .begSelKeys .begSelWhite{ grid-row:2; }
+  .begSelKeys .begSelBlack{ grid-row:1; font-size:12px; padding:7px 0; }
+  body.is-mobile #sidePanel .begSelKeys{ gap:6px 2px; }
+  body.is-mobile #sidePanel .begSelKeys .begSelBlack{ font-size:10px; }
   /* ===== ИНТЕРВАЛЫ ("Ноты" и "Обучение") ===== */
   .ivHeader{
     font-size:16px;
@@ -4003,8 +4061,22 @@
            "Выберите ноты" и "Пары"), "2. Интервалы" — вопросы по
            интервалам (см. блок "ИНТЕРВАЛЫ" в <script>). -->
       <div class="setSectionTitle" data-i18n="catStudyTitle">Что изучаем (включена одна категория)</div>
+      <!-- "1. Ноты на инструменте" (в коде — "Начало", beg): для тех, кто ещё не знает нот. Круга нет: в центре
+           название ноты, под ним клавиатура из 1 октавы (см. блок "НАЧАЛО"
+           в <script>). Свой выбор нот — кнопки в виде клавиатуры. -->
+      <div class="setCat" id="notesCatBeg">
+        <div class="setCatHead"><input type="checkbox" id="notesCatBegCb"><span class="setCatNum">1.</span><span class="setCatName" data-i18n="catBegin">Ноты на инструменте</span><span class="setCatArrow"></span></div>
+        <div class="setCatBody"><div class="setCatInner"><div class="setCatContent">
+          <div class="l3TonicBlock">
+            <div class="l3TonicHead" data-i18n="selectHeader">Выберите ноты</div>
+            <div class="cofBox cofBoxCol">
+              <div id="begSelKeys" class="begSelKeys"></div>
+            </div>
+          </div>
+        </div></div></div>
+      </div>
       <div class="setCat" id="notesCatNotes">
-        <div class="setCatHead"><input type="checkbox" id="notesCatNotesCb"><span class="setCatNum">1.</span><span class="setCatName" data-i18n="tabNotes">Ноты</span><span class="setCatArrow"></span></div>
+        <div class="setCatHead"><input type="checkbox" id="notesCatNotesCb"><span class="setCatNum">2.</span><span class="setCatName" data-i18n="tabNotes">Ноты</span><span class="setCatArrow"></span></div>
         <div class="setCatBody"><div class="setCatInner"><div class="setCatContent">
       <div id="level1Panel">
         <div id="selectHeader" class="headerWithTip"><span data-i18n="selectHeader">Выберите ноты</span><span class="infoIcon" data-tip-plain data-i18n-tip="tipSelectNotesRing" data-tip="Лучше отвечать на внешнем(мажорном) кольце - этот вариант проще, чем на внутреннем(минорном).&#10;&#10;При ответе на клавиатуре ПК\MIDI нажатая нота показывается на том кольце, на котором стоит вопрос. При ответе мышью нота проверяется там, где нажали.">i</span></div>
@@ -4053,7 +4125,7 @@
            включена одна), "Назови интервал" и свой круг выбора тоники
            (только мажорное кольцо). См. блок "ИНТЕРВАЛЫ" в <script>. -->
       <div class="setCat" id="notesCatIv">
-        <div class="setCatHead"><input type="checkbox" id="notesCatIvCb"><span class="setCatNum">2.</span><span class="setCatName" data-i18n="catIntervals">Интервалы</span><span class="setCatArrow"></span></div>
+        <div class="setCatHead"><input type="checkbox" id="notesCatIvCb"><span class="setCatNum">3.</span><span class="setCatName" data-i18n="catIntervals">Интервалы</span><span class="setCatArrow"></span></div>
         <div class="setCatBody"><div class="setCatInner"><div class="setCatContent">
           <div class="headerWithTip ivHeader"><span data-i18n="ivPickMany">Выберите интервал или несколько</span><span class="infoIcon" data-tip-plain data-i18n-tip="tipIvPickMany" data-tip="Сначала нажмите тонику, потом вторую ноту интервала.&#10;&#10;Мышью засчитывается только ячейка выбранной схемы («Рядом» или «На круге»). На клавиатуре ПК\MIDI и на клавиатуре сбоку от круга важны только названия нот.">i</span></div>
           <div id="notesIvButtons" class="chordGridCard cols3 ivGrid"></div>
@@ -5139,7 +5211,8 @@
             <div id="trainExtraSettings" class="cofBox">
             <!-- скрытая галка: показан ли инструмент (клавиатура или гриф) -->
             <input type="checkbox" id="trainShowPianoCheckbox" style="display:none">
-            <label><input type="checkbox" id="trainPianoVisCb"><span data-i18n="showKeyboard">Показывать клавиатуру</span></label>
+            <!-- (?) — окно: одна октава со всеми названиями нот (buildPianoNotesView) -->
+            <div class="invStyleItem"><label><input type="checkbox" id="trainPianoVisCb"><span data-i18n="showKeyboard">Показывать клавиатуру</span></label><span class="infoIcon" id="trainPianoNotesIcon" data-tip-scheme="piano">?</span></div>
             <div id="trainPianoBelowRow" class="pianoPosRow" style="margin-left:24px;" data-tab="training"><input type="checkbox" id="trainPianoBelowCheckbox" style="display:none"><label class="invStyleOption"><input type="checkbox" class="pianoPosCb" data-pos="left"><span data-i18n="kbPosLeft">Слева</span></label><label class="invStyleOption"><input type="checkbox" class="pianoPosCb" data-pos="below"><span data-i18n="kbPosBelow">Снизу</span></label><label class="invStyleOption"><input type="checkbox" class="pianoPosCb" data-pos="right"><span data-i18n="kbPosRight">Справа</span></label></div>
             <div id="trainPianoGapRow" class="l3CenterFontBox gtrGapBox gtrSubRow" style="margin-left:24px;"><div class="themeSelectRow"><span data-i18n="belowGap">Расстояние до круга</span><input type="number" id="trainPianoGapInput" class="fontSizeInput" step="1"></div></div>
             <label id="trainCompactPianoRow" style="margin-left:24px;"><input type="checkbox" id="trainCompactPianoCheckbox"><span data-i18n="compactView">Компактный вид</span></label>
@@ -5549,6 +5622,16 @@ if(isNaN(zoomChords)) zoomChords = isNaN(zoomPracticeOld) ? zoomDefault(ZOOM_DEF
 // ('notes' / 'chords'), переключается в syncPracticeZoomSlot().
 let zoomPracticeSlot = localStorage.getItem('circlePracticeLevel') === '3' ? 'chords' : 'notes';
 let zoomPractice = zoomPracticeSlot === 'chords' ? zoomChords : zoomNotes;
+/* Вкладка "Ноты", круг скрыт ("Скрыть круг" у "Нот" и "Интервалов",
+   "Ноты на инструменте" — там круга нет всегда), только компьютер:
+   сам круг (а с ним окно настроек сбоку, клавиатура, окно ошибок) стоит
+   как при самом маленьком размере (ZOOM_MIN) и никуда не двигается, а
+   + / - меняют только размер текста в центре — zoomNotesHiddenText (%).
+   zoomPracticeSlot в это время — 'notesHidden'. */
+var ZOOM_NOTES_HIDDEN_TEXT_KEY = 'circleOfFifthsZoomNotesHiddenText';
+var ZOOM_NOTES_HIDDEN_TEXT_MIN = 30;
+var zoomNotesHiddenText = parseInt(localStorage.getItem(ZOOM_NOTES_HIDDEN_TEXT_KEY), 10);
+if(isNaN(zoomNotesHiddenText)) zoomNotesHiddenText = ZOOM_DEFAULT_NOTES;
 let zoomTraining = parseInt(localStorage.getItem(ZOOM_TRAINING_STORAGE_KEY), 10);
 if(isNaN(zoomTraining)) zoomTraining = zoomDefault();
 
@@ -5671,6 +5754,13 @@ const noteNames = ['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B
    ========================================================= */
 const NOTE_NAMING_SYSTEM_KEY = 'circleNoteNamingSystem';
 const NOTE_TO_SOLFEGE = { C:'До', D:'Ре', E:'Ми', F:'Фа', G:'Соль', A:'Ля', B:'Си' };
+// English / 中文: слоговые названия латиницей (в русском интерфейсе — кириллицей)
+const NOTE_TO_SOLFEGE_LATIN = { C:'Do', D:'Re', E:'Mi', F:'Fa', G:'Sol', A:'La', B:'Ti' };
+function solfegeNoteMap(){
+  let lang = 'ru';
+  try{ lang = appLang; }catch(e){}   // appLang объявлен ниже по файлу
+  return (lang === 'en' || lang === 'zh') ? NOTE_TO_SOLFEGE_LATIN : NOTE_TO_SOLFEGE;
+}
 let noteNamingSystem = localStorage.getItem(NOTE_NAMING_SYSTEM_KEY) === 'solfege' ? 'solfege' : 'abc';
 
 // Заменяет ведущую букву ноты (A-G, с # или b) в начале строки на
@@ -5680,7 +5770,7 @@ function noteDisplay(str){
   if(typeof str !== 'string') return str;
   let out = str;
   if(noteNamingSystem === 'solfege'){
-    out = out.replace(/^([A-G])(#|b|♯|♭)?/, (m, letter, acc) => (NOTE_TO_SOLFEGE[letter] || letter) + (acc || ''));
+    out = out.replace(/^([A-G])(#|b|♯|♭)?/, (m, letter, acc) => (solfegeNoteMap()[letter] || letter) + (acc || ''));
   }
   // Единый стиль знаков альтерации во всём интерфейсе: ASCII '#'/'b',
   // которыми оперирует внутренняя логика (spellTrainInterval и т.п.),
@@ -5790,6 +5880,7 @@ function setNoteNamingSystem(system){
   localStorage.setItem(NOTE_NAMING_SYSTEM_KEY, noteNamingSystem);
   syncNoteNamingButtons();
   refreshAllNoteNameDisplays();
+  try{ if(typeof begReady !== 'undefined' && begReady){ begRenderSelUi(); begRender(); } }catch(e){}
 }
 
 // Переключатель есть в 3 местах ("Обучение", "Ноты", "Аккорды/Лады") —
@@ -5863,9 +5954,9 @@ const I18N = {
     zh:'最好在外圈（大调）作答 - 这比在内圈（小调）更简单。\n\n用电脑键盘\\MIDI作答时，按下的音符显示在题目所在的圈上。用鼠标作答时，在点击的位置进行检查。'
   },
   tipSelectChordsRing: {
-    ru:'Лучше отвечать на внешнем(мажорном) кольце - этот вариант проще, чем на внутреннем(минорном).\n\nПри ответе на клавиатуре ПК\\MIDI аккорд показывается по схеме от того кольца, на котором нота вопроса выбрана в «Выберите тонику аккорда/лада» (мажорного или минорного). При ответе мышью нота проверяется там, где нажали.',
-    en:'It is better to answer on the outer (major) ring - this is easier than on the inner (minor) one.\n\nWhen answering with the PC keyboard\\MIDI, the chord is shown using the layout built from the ring where the question note is selected in «Choose the chord/mode tonic» (major or minor). When answering with the mouse, the note is checked where you clicked.',
-    zh:'最好在外圈（大调）作答 - 这比在内圈（小调）更简单。\n\n用电脑键盘\\MIDI作答时，和弦按「选择和弦/调式的主音」中题目音符所在圈（大调或小调）的图式显示。用鼠标作答时，在点击的位置进行检查。'
+    ru:'Лучше отвечать на внешнем(мажорном) кольце - этот вариант проще, чем на внутреннем(минорном).\n\nПри ответе на клавиатуре ПК\\MIDI и на клавиатуре рядом с кругом аккорд показывается по схеме от того кольца, на котором нота вопроса выбрана в «Выберите тонику аккорда/лада» (мажорного или минорного). С галкой «Выбрать тональность» это правило не действует. При ответе мышью на круге нота проверяется там, где нажали.',
+    en:'It is better to answer on the outer (major) ring - this is easier than on the inner (minor) one.\n\nWhen answering with the PC keyboard\\MIDI or on the keyboard next to the circle, the chord is shown using the layout built from the ring where the question note is selected in «Choose the chord/mode tonic» (major or minor). With «Choose key» checked this rule does not apply. When answering with the mouse on the circle, the note is checked where you clicked.',
+    zh:'最好在外圈（大调）作答 - 这比在内圈（小调）更简单。\n\n用电脑键盘\\MIDI或圆旁边的键盘作答时，和弦按「选择和弦/调式的主音」中题目音符所在圈（大调或小调）的图式显示。勾选「选择调性」时此规则不适用。用鼠标在圆上作答时，在点击的位置进行检查。'
   },
   modeTypeHeader:      { ru:'Выберите лады', en:'Choose modes', zh:'选择调式' },
   trainModeHeader:     { ru:'Выберите лад', en:'Choose a mode', zh:'选择调式' },
@@ -5880,6 +5971,7 @@ const I18N = {
   belowGap:            { ru:'Расстояние до круга', en:'Distance to circle', zh:'与圆圈的距离' },
   guitarNotesTitle:    { ru:'Ноты на грифе', en:'Notes on the fretboard', zh:'指板上的音' },
   gtrNotesModeLabel:   { ru:'Лад', en:'Mode', zh:'调式' },
+  gtrNotesOctLabel:    { ru:'Номер октавы', en:'Octave number', zh:'八度编号' },
   showViolin:          { ru:'Показать гриф скрипки', en:'Show violin fingerboard', zh:'显示小提琴指板' },
   showViola:           { ru:'Показать гриф альта', en:'Show viola fingerboard', zh:'显示中提琴指板' },
   showCello:           { ru:'Показать гриф виолончели', en:'Show cello fingerboard', zh:'显示大提琴指板' },
@@ -5964,6 +6056,7 @@ const I18N = {
   },
   // ===== Интервалы ("Ноты" и "Обучение") =====
   catIntervals:   { ru:'Интервалы', en:'Intervals', zh:'音程' },
+  catBegin:       { ru:'Ноты на инструменте', en:'Notes on the instrument', zh:'乐器上的音符' },
   ivPickMany:     { ru:'Выберите интервал или несколько', en:'Choose one or more intervals', zh:'选择一个或多个音程' },
   ivPickOne:      { ru:'Выберите интервал', en:'Choose an interval', zh:'选择音程' },
   ivDirHeader:    { ru:'Выбор направления', en:'Direction', zh:'选择方向' },
@@ -5985,14 +6078,14 @@ const I18N = {
   iv_m7: { ru:'Малая септима',  en:'Minor seventh',  zh:'小七度' },
   iv_M7: { ru:'Большая септима', en:'Major seventh', zh:'大七度' },
   tipIvPickMany: {
-    ru:'Сначала нажмите тонику, потом вторую ноту интервала (при «Вниз» — наоборот: сначала вторую ноту, потом тонику).\n\nМышью засчитывается только ячейка выбранной схемы («Рядом» или «На круге»). На клавиатуре ПК\\MIDI и на клавиатуре сбоку от круга важны только названия нот (при «Вниз» на MIDI тоника должна быть ниже второй ноты).',
-    en:'First press the tonic, then the second note of the interval (with «Down» — the other way round: first the second note, then the tonic).\n\nWith the mouse only the cell of the chosen layout («Nearby» or «On the circle») counts. On the computer keyboard\\MIDI and on the keyboard next to the circle only the note names matter (with «Down» on MIDI the tonic must be lower than the second note).',
-    zh:'先按主音，再按音程的第二个音（选择「向下」时相反：先按第二个音，再按主音）。\n\n用鼠标作答时，只有所选方式（「相邻」或「在五度圈上」）的格子才算对。用电脑键盘\\MIDI和圆旁边的键盘作答时，只看音名（选择「向下」时，在MIDI上主音必须低于第二个音）。'
+    ru:'Сначала нажмите тонику, потом вторую ноту интервала: при «Вверх» она выше тоники, при «Вниз» — ниже.\n\nМышью на круге засчитывается только ячейка выбранной схемы («Рядом» или «На круге»). На MIDI, на клавиатуре (2 октавы) и на грифе сбоку от круга вторая нота должна быть выше тоники при «Вверх» и ниже при «Вниз»; если тоника нажата не в той октаве — нажмите её ещё раз в другой. На клавиатуре ПК важны только названия нот.',
+    en:'First press the tonic, then the second note of the interval: with «Up» it is above the tonic, with «Down» — below it.\n\nWith the mouse on the circle only the cell of the chosen layout («Nearby» or «On the circle») counts. On MIDI, on the keyboard (2 octaves) and on the fretboard next to the circle the second note must be above the tonic with «Up» and below it with «Down»; if you pressed the tonic in the wrong octave, press it again in another one. On the computer keyboard only the note names matter.',
+    zh:'先按主音，再按音程的第二个音：选择「向上」时它在主音上方，选择「向下」时在主音下方。\n\n在圆上用鼠标作答时，只有所选方式（「相邻」或「在五度圈上」）的格子才算对。在MIDI、圆旁边的键盘（2个八度）和指板上，选择「向上」时第二个音必须高于主音，选择「向下」时必须低于主音；如果主音按在了不合适的八度，可在另一个八度再按一次。用电脑键盘作答时只看音名。',
   },
   tipIvDir: {
-    ru:'Вверх — ноты нажимаются снизу вверх: сначала тоника (она в центре круга), потом нота интервала над ней. Например, C, Чистая кварта ↑: сначала C, потом F.\n\nВниз — интервал тот же, но ноты нажимаются сверху вниз: сначала верхняя нота интервала, потом тоника под ней. Например, C, Чистая кварта ↓: сначала F, потом C.\n\nНа MIDI-клавиатуре при «Вниз» тоника должна быть ниже первой нажатой ноты (F, потом C выше — неверно). На клавиатуре ПК, мышью и на клавиатуре сбоку от круга проверяется только порядок нот.',
-    en:'Up — the notes are played from bottom to top: first the tonic (shown in the center of the circle), then the interval note above it. For example, C, Perfect fourth ↑: first C, then F.\n\nDown — the same interval, but the notes are played from top to bottom: first the upper note of the interval, then the tonic below it. For example, C, Perfect fourth ↓: first F, then C.\n\nOn a MIDI keyboard with «Down» the tonic must be lower than the first note played (F, then C above it — wrong). On the computer keyboard, with the mouse and on the keyboard next to the circle only the order of the notes is checked.',
-    zh:'向上——从低到高按音：先按主音（在圆的中心），再按它上方的音程音。例如 C，纯四度 ↑：先按 C，再按 F。\n\n向下——音程相同，但从高到低按音：先按音程的上方音，再按它下方的主音。例如 C，纯四度 ↓：先按 F，再按 C。\n\n在MIDI键盘上选择「向下」时，主音必须低于先按的音（先 F，再按更高的 C——错误）。用电脑键盘、鼠标和圆旁边的键盘作答时，只检查按音的顺序。'
+    ru:'Вверх — вторая нота выше тоники: сначала тоника (она в центре круга), потом нота интервала над ней. Например, C, Чистая квинта ↑: сначала C, потом G.\n\nВниз — вторая нота ниже тоники: сначала тоника, потом нота интервала под ней. Например, C, Чистая квинта ↓: сначала C, потом F.\n\nНа MIDI-клавиатуре, на клавиатуре и на грифе сбоку от круга вторая нота должна быть выше тоники при «Вверх» и ниже при «Вниз» (C, Чистая квинта ↓: C, потом F правее — неверно). Если тоника нажата не в той октаве, нажмите её ещё раз в другой. На клавиатуре ПК и мышью на круге проверяются только названия нот и их порядок.',
+    en:'Up — the second note is above the tonic: first the tonic (shown in the center of the circle), then the interval note above it. For example, C, Perfect fifth ↑: first C, then G.\n\nDown — the second note is below the tonic: first the tonic, then the interval note below it. For example, C, Perfect fifth ↓: first C, then F.\n\nOn a MIDI keyboard, on the keyboard and on the fretboard next to the circle the second note must be above the tonic with «Up» and below it with «Down» (C, Perfect fifth ↓: C, then F to the right — wrong). If you pressed the tonic in the wrong octave, press it again in another one. On the computer keyboard and with the mouse on the circle only the note names and their order are checked.',
+    zh:'向上——第二个音在主音上方：先按主音（在圆的中心），再按它上方的音程音。例如 C，纯五度 ↑：先按 C，再按 G。\n\n向下——第二个音在主音下方：先按主音，再按它下方的音程音。例如 C，纯五度 ↓：先按 C，再按 F。\n\n在MIDI键盘、圆旁边的键盘和指板上，选择「向上」时第二个音必须高于主音，选择「向下」时必须低于主音（C，纯五度 ↓：先 C，再按右边的 F——错误）。如果主音按在了不合适的八度，可在另一个八度再按一次。用电脑键盘和在圆上用鼠标作答时，只检查音名和按音的顺序。',
   },
   tipIvSchemeNear: {
     ru:'Вторая нота стоит в ячейке рядом с тоникой. Если рядом нет ячейки с этой нотой, берётся соседняя ячейка с той же буквой, а на ней красным ставится ♭ или ♯.',
@@ -6185,6 +6278,9 @@ const I18N = {
   modeMelMinor:        { ru:'Мелод. минор', en:'Mel. minor', zh:'旋律小调' },
   modeMajorPent:       { ru:'Мажорная пентатоника', en:'Major pentatonic', zh:'大调五声音阶' },
   modeMinorPent:       { ru:'Минорная пентатоника', en:'Minor pentatonic', zh:'小调五声音阶' },
+  // короткие названия — только на кнопках ответа "Назови лад" (полное не помещается)
+  modeMajorPentAnswer: { ru:'Мажор. пентатоника', en:'Major pentatonic', zh:'大调五声音阶' },
+  modeMinorPentAnswer: { ru:'Минор. пентатоника', en:'Minor pentatonic', zh:'小调五声音阶' },
   tipModeMajorPent: {
     ru:'Мажорная пентатоника\n\n@@0-4@@. 0 нот слева от выбранной ноты, 4 справа\n\n@@Тон тон полтора тона тон полтора тона@@\n\nВ полутонах : @@2 2 3 2 3@@',
     en:'Major pentatonic\n\n@@0-4@@. 0 notes to the left of the selected note, 4 to the right\n\n@@Tone tone tone and a half tone tone and a half@@\n\nIn semitones : @@2 2 3 2 3@@',
@@ -6233,24 +6329,24 @@ const I18N = {
     zh:'@@6-0@@。所选音符左边 6 个音，右边 0 个\n\n@@半音 全音 全音 半音 全音 全音 全音@@\n\n半音数 : @@122 122 2@@'
   },
   tipModeHarmMinorL3: {
-    ru:'Формула @@4-2@@ (4 слева от тоники-2 справа), но на схеме @@вторая нота от тоники заменена на ноту на пол тона выше@@ для удобства запоминания и она выделена цветом, чтобы не забыть при изучении - для C maj : @@C D Eb F G Ab B@@. Засчитываются оба варианта на мажорном кольце : Bb и B(второй вариант под формулу 4-2).\n\n@@Тон полутон тон тон полутон полтора тона полутон@@\n\nВ полутонах : @@212 213 1@@',
-    en:'Formula @@4-2@@ (4 to the left of the tonic, 2 to the right), but on the diagram @@the second note to the left of the tonic is replaced with the note a semitone higher@@ for easier memorising and it is highlighted so you do not forget while studying - for C maj: @@C D Eb F G Ab B@@. Both variants count on the major ring: Bb and B (the second one matches the 4-2 formula).\n\n@@Tone semitone tone tone semitone tone and a half semitone@@\n\nIn semitones : @@212 213 1@@',
-    zh:'公式 @@4-2@@（主音左边4个，右边2个），但在图上为方便记忆，@@主音左边第二个音被替换为高半音的音@@，并用颜色标出以便学习时不要忘记 - 对于 C maj：@@C D Eb F G Ab B@@。在大调音环上两种写法都算正确：Bb 和 B（第二种对应4-2公式）。\n\n@@全音 半音 全音 全音 半音 增二度 半音@@\n\n半音数 : @@212 213 1@@'
+    ru:'Формула @@4-2@@ (4 слева от тоники-2 справа), но на схеме @@вторая нота от тоники заменена на ноту на пол тона выше@@ для удобства запоминания и она выделена цветом, чтобы не забыть при изучении - для C минор : @@C D Eb F G Ab B@@. Засчитываются оба варианта на мажорном кольце : Bb и B(второй вариант под формулу 4-2).\n\n@@Тон полутон тон тон полутон полтора тона полутон@@\n\nВ полутонах : @@212 213 1@@',
+    en:'Formula @@4-2@@ (4 to the left of the tonic, 2 to the right), but on the diagram @@the second note to the left of the tonic is replaced with the note a semitone higher@@ for easier memorising and it is highlighted so you do not forget while studying - for C minor: @@C D Eb F G Ab B@@. Both variants count on the major ring: Bb and B (the second one matches the 4-2 formula).\n\n@@Tone semitone tone tone semitone tone and a half semitone@@\n\nIn semitones : @@212 213 1@@',
+    zh:'公式 @@4-2@@（主音左边4个，右边2个），但在图上为方便记忆，@@主音左边第二个音被替换为高半音的音@@，并用颜色标出以便学习时不要忘记 - 对于 C 小调：@@C D Eb F G Ab B@@。在大调音环上两种写法都算正确：Bb 和 B（第二种对应4-2公式）。\n\n@@全音 半音 全音 全音 半音 增二度 半音@@\n\n半音数 : @@212 213 1@@'
   },
   tipModeMelMinorL3: {
-    ru:'Формула @@4-2@@ (4 слева от тоники-2 справа) , но на схеме @@вторая и четвертая слева ноты от тоники заменены на ноту на пол тона выше@@ для удобства запоминания и они выделена цветом, чтобы не забыть при изучении - для C maj : @@C D Eb F G A B@@. Засчитываются оба варианта на мажорном кольце : Bb и B(второй вариант под формулу 4-2).\n\n@@Тон полутон тон тон тон тон полутон@@\n\nВ полутонах : @@212 222 1@@',
-    en:'Formula @@4-2@@ (4 to the left of the tonic, 2 to the right), but on the diagram @@the second and fourth notes to the left of the tonic are replaced with the notes a semitone higher@@ for easier memorising and they are highlighted so you do not forget while studying - for C maj: @@C D Eb F G A B@@. Both variants count on the major ring: Bb and B (the second one matches the 4-2 formula).\n\n@@Tone semitone tone tone tone tone semitone@@\n\nIn semitones : @@212 222 1@@',
-    zh:'公式 @@4-2@@（主音左边4个，右边2个），但在图上为方便记忆，@@主音左边第二个和第四个音被替换为高半音的音@@，并用颜色标出以便学习时不要忘记 - 对于 C maj：@@C D Eb F G A B@@。在大调音环上两种写法都算正确：Bb 和 B（第二种对应4-2公式）。\n\n@@全音 半音 全音 全音 全音 全音 半音@@\n\n半音数 : @@212 222 1@@'
+    ru:'Формула @@4-2@@ (4 слева от тоники-2 справа) , но на схеме @@вторая и четвертая слева ноты от тоники заменены на ноту на пол тона выше@@ для удобства запоминания и они выделена цветом, чтобы не забыть при изучении - для C минор : @@C D Eb F G A B@@. Засчитываются оба варианта на мажорном кольце : Bb и B(второй вариант под формулу 4-2).\n\n@@Тон полутон тон тон тон тон полутон@@\n\nВ полутонах : @@212 222 1@@',
+    en:'Formula @@4-2@@ (4 to the left of the tonic, 2 to the right), but on the diagram @@the second and fourth notes to the left of the tonic are replaced with the notes a semitone higher@@ for easier memorising and they are highlighted so you do not forget while studying - for C minor: @@C D Eb F G A B@@. Both variants count on the major ring: Bb and B (the second one matches the 4-2 formula).\n\n@@Tone semitone tone tone tone tone semitone@@\n\nIn semitones : @@212 222 1@@',
+    zh:'公式 @@4-2@@（主音左边4个，右边2个），但在图上为方便记忆，@@主音左边第二个和第四个音被替换为高半音的音@@，并用颜色标出以便学习时不要忘记 - 对于 C 小调：@@C D Eb F G A B@@。在大调音环上两种写法都算正确：Bb 和 B（第二种对应4-2公式）。\n\n@@全音 半音 全音 全音 全音 全音 半音@@\n\n半音数 : @@212 222 1@@'
   },
   tipModeHarmMinorTrain: {
-    ru:'Формула @@4-2@@ (4 слева от тоники-2 справа), но на схеме @@вторая нота от тоники заменена на ноту на пол тона выше@@ для удобства запоминания и она выделена цветом, чтобы не забыть при изучении - для C maj : @@C D Eb F G Ab B@@. Засчитываются оба варианта на мажорном кольце : Bb и B(второй вариант под формулу 4-2).\n\n@@Тон полутон тон тон полутон полтора тона полутон@@\n\nВ полутонах : @@212 213 1@@',
-    en:'Formula @@4-2@@ (4 to the left of the tonic, 2 to the right), but on the diagram @@the second note to the left of the tonic is replaced with the note a semitone higher@@ for easier memorising and it is highlighted so you do not forget while studying - for C maj: @@C D Eb F G Ab B@@. Both variants count on the major ring: Bb and B (the second one matches the 4-2 formula).\n\n@@Tone semitone tone tone semitone tone and a half semitone@@\n\nIn semitones : @@212 213 1@@',
-    zh:'公式 @@4-2@@（主音左边4个，右边2个），但在图上为方便记忆，@@主音左边第二个音被替换为高半音的音@@，并用颜色标出以便学习时不要忘记 - 对于 C maj：@@C D Eb F G Ab B@@。在大调音环上两种写法都算正确：Bb 和 B（第二种对应4-2公式）。\n\n@@全音 半音 全音 全音 半音 增二度 半音@@\n\n半音数 : @@212 213 1@@'
+    ru:'Формула @@4-2@@ (4 слева от тоники-2 справа), но на схеме @@вторая нота от тоники заменена на ноту на пол тона выше@@ для удобства запоминания и она выделена цветом, чтобы не забыть при изучении - для C минор : @@C D Eb F G Ab B@@. Засчитываются оба варианта на мажорном кольце : Bb и B(второй вариант под формулу 4-2).\n\n@@Тон полутон тон тон полутон полтора тона полутон@@\n\nВ полутонах : @@212 213 1@@',
+    en:'Formula @@4-2@@ (4 to the left of the tonic, 2 to the right), but on the diagram @@the second note to the left of the tonic is replaced with the note a semitone higher@@ for easier memorising and it is highlighted so you do not forget while studying - for C minor: @@C D Eb F G Ab B@@. Both variants count on the major ring: Bb and B (the second one matches the 4-2 formula).\n\n@@Tone semitone tone tone semitone tone and a half semitone@@\n\nIn semitones : @@212 213 1@@',
+    zh:'公式 @@4-2@@（主音左边4个，右边2个），但在图上为方便记忆，@@主音左边第二个音被替换为高半音的音@@，并用颜色标出以便学习时不要忘记 - 对于 C 小调：@@C D Eb F G Ab B@@。在大调音环上两种写法都算正确：Bb 和 B（第二种对应4-2公式）。\n\n@@全音 半音 全音 全音 半音 增二度 半音@@\n\n半音数 : @@212 213 1@@'
   },
   tipModeMelMinorTrain: {
-    ru:'Формула @@4-2@@ (4 слева от тоники-2 справа) , но на схеме @@вторая и четвертая слева ноты от тоники заменены на ноту на пол тона выше@@ для удобства запоминания и они выделена цветом, чтобы не забыть при изучении - для C maj : @@C D Eb F G A B@@. Засчитываются оба варианта на мажорном кольце : Bb и B(второй вариант под формулу 4-2).\n\n@@Тон полутон тон тон тон тон полутон@@\n\nВ полутонах : @@212 222 1@@',
-    en:'Formula @@4-2@@ (4 to the left of the tonic, 2 to the right), but on the diagram @@the second and fourth notes to the left of the tonic are replaced with the notes a semitone higher@@ for easier memorising and they are highlighted so you do not forget while studying - for C maj: @@C D Eb F G A B@@. Both variants count on the major ring: Bb and B (the second one matches the 4-2 formula).\n\n@@Tone semitone tone tone tone tone semitone@@\n\nIn semitones : @@212 222 1@@',
-    zh:'公式 @@4-2@@（主音左边4个，右边2个），但在图上为方便记忆，@@主音左边第二个和第四个音被替换为高半音的音@@，并用颜色标出以便学习时不要忘记 - 对于 C maj：@@C D Eb F G A B@@。在大调音环上两种写法都算正确：Bb 和 B（第二种对应4-2公式）。\n\n@@全音 半音 全音 全音 全音 全音 半音@@\n\n半音数 : @@212 222 1@@'
+    ru:'Формула @@4-2@@ (4 слева от тоники-2 справа) , но на схеме @@вторая и четвертая слева ноты от тоники заменены на ноту на пол тона выше@@ для удобства запоминания и они выделена цветом, чтобы не забыть при изучении - для C минор : @@C D Eb F G A B@@. Засчитываются оба варианта на мажорном кольце : Bb и B(второй вариант под формулу 4-2).\n\n@@Тон полутон тон тон тон тон полутон@@\n\nВ полутонах : @@212 222 1@@',
+    en:'Formula @@4-2@@ (4 to the left of the tonic, 2 to the right), but on the diagram @@the second and fourth notes to the left of the tonic are replaced with the notes a semitone higher@@ for easier memorising and they are highlighted so you do not forget while studying - for C minor: @@C D Eb F G A B@@. Both variants count on the major ring: Bb and B (the second one matches the 4-2 formula).\n\n@@Tone semitone tone tone tone tone semitone@@\n\nIn semitones : @@212 222 1@@',
+    zh:'公式 @@4-2@@（主音左边4个，右边2个），但在图上为方便记忆，@@主音左边第二个和第四个音被替换为高半音的音@@，并用颜色标出以便学习时不要忘记 - 对于 C 小调：@@C D Eb F G A B@@。在大调音环上两种写法都算正确：Bb 和 B（第二种对应4-2公式）。\n\n@@全音 半音 全音 全音 全音 全音 半音@@\n\n半音数 : @@212 222 1@@'
   },
   noInputsOption:      { ru:'Нет входов', en:'No inputs', zh:'无输入设备' },
   noOutputsOption:     { ru:'Нет выходов', en:'No outputs', zh:'无输出设备' },
@@ -6407,6 +6503,18 @@ function applyLanguage(lang){
   }catch(e){}
   try{
     if(typeof populateSoundInstrumentSelects === 'function') populateSoundInstrumentSelects();
+  }catch(e){}
+  // "До ре ми": названия нот зависят от языка (кириллица / латиница)
+  try{
+    if(noteNamingSystem === 'solfege' && typeof refreshAllNoteNameDisplays === 'function') refreshAllNoteNameDisplays();
+  }catch(e){}
+  try{
+    if(noteNamingSystem === 'solfege' && typeof begReady !== 'undefined' && begReady){ begRenderSelUi(); begRender(); }
+  }catch(e){}
+  // "Назови аккорд" / "Назови лад": кнопки ответов подписаны на языке —
+  // при смене языка просто запускается новый вопрос
+  try{
+    if(appMode === 'practice' && practiceLevel === 3 && l3NameMode && typeof pickNewChordL3 === 'function') pickNewChordL3();
   }catch(e){}
 }
 
@@ -7032,6 +7140,8 @@ let notesIvHideCircle = (function(){
 })();
 // "Скрыть круг" той категории вкладки "Ноты", что сейчас включена
 function notesHideCircleNow(){
+  // "Начало": круга нет всегда
+  try{ if(begGuard()) return true; }catch(e){}
   let iv = false;
   try{ iv = ivNotesGuard(); }catch(e){ iv = false; }
   return iv ? !!notesIvHideCircle : !!notesPairsHideCircle;
@@ -7228,7 +7338,9 @@ function l3FamilyNow(){
     };
     ['circleSelectedNotesL3Modes', 'circleSelectedNotesL3Deg', 'circleSelectedNotesL3VlFree']
       .forEach(k=> copy('circleSelectedNotesL3', k));
-    ['circleL3HideWedges', 'circleL3CenterFontTop', 'circleL3CenterFontBottom']
+    // размеры шрифта "Ладов" из "Аккордов" не копируются: поля не связаны,
+    // пока в "Ладах" своё значение не задано — там размер по умолчанию
+    ['circleL3HideWedges']
       .forEach(k=> copy(k, k + 'Modes'));
     copy('circleOfFifthsPianoZoomPractice', 'circleOfFifthsPianoZoomNotes');
     copy('circleOfFifthsGuitarZoomPractice', 'circleOfFifthsGuitarZoomNotes');
@@ -7350,6 +7462,13 @@ function keyboardAnswerRing(set){
    МАЖОРНОМ кольце (Dm — D, A и F♯m со знаком ♭), как и при ответе мышью.
    Минорное кольцо — только если его выбрали колесом Pitch Bend. */
 function l3KeyboardSchemeRing(){
+  // Нота вопроса выбрана в "Выберите тонику аккорда" на минорном кольце —
+  // схема от минорного кольца, на мажорном — от мажорного (клавиатура ПК,
+  // MIDI и клавиатура рядом с кругом). С галкой "Выбрать тональность" —
+  // как раньше: всегда от мажорного кольца.
+  try{
+    if(!l3KeyMode && currentL3 && currentL3.chordType && !currentL3.modeType && currentL3.srcRing === 'minor') return 'minor';
+  }catch(e){}
   return 'major';
 }
 
@@ -7410,8 +7529,8 @@ function errStatsEmpty(){ return { q:0, clean:0, wrong:0, miss:{} }; }
 // vl — "Голосоведение" в "Аккорды/Лады": свой счёт, показывается по галке "Показывать ошибки" этой вкладки
 // "Аккорды/Лады": свой счёт у каждого раздела — l3c "Аккорды", l3m "Лады",
 // l3d "Ступени тональности", vl "Голосоведение" (галка показа — одна на вкладку)
-var errStats = { notes: errStatsEmpty(), notesIv: errStatsEmpty(), l3c: errStatsEmpty(), l3m: errStatsEmpty(), l3d: errStatsEmpty(), vl: errStatsEmpty() };
-var errCur = { notes:{ wrong:false, done:false }, notesIv:{ wrong:false, done:false }, l3c:{ wrong:false, done:false }, l3m:{ wrong:false, done:false }, l3d:{ wrong:false, done:false }, vl:{ wrong:false, done:false } };
+var errStats = { notes: errStatsEmpty(), notesIv: errStatsEmpty(), notesBeg: errStatsEmpty(), l3c: errStatsEmpty(), l3m: errStatsEmpty(), l3d: errStatsEmpty(), vl: errStatsEmpty() };
+var errCur = { notes:{ wrong:false, done:false }, notesIv:{ wrong:false, done:false }, notesBeg:{ wrong:false, done:false }, l3c:{ wrong:false, done:false }, l3m:{ wrong:false, done:false }, l3d:{ wrong:false, done:false }, vl:{ wrong:false, done:false } };
 // 'l3' (так вопросы "Аккорды/Лады" сообщают о себе) -> счётчик открытого раздела
 function errL3Sub(){
   try{
@@ -7421,11 +7540,12 @@ function errL3Sub(){
 }
 // "Ноты": у категории "Интервалы" свой счёт (notesIv)
 function errTabKey(tab){
+  if(tab === 'notes' && notesBegOnFlag) return 'notesBeg';   // "Начало" — свой счёт
   if(tab === 'notes' && notesIvOnFlag) return 'notesIv';
   return tab === 'l3' ? errL3Sub() : tab;
 }
 // какая галка "Показать окно с ошибками" отвечает за счётчик
-function errShowKeyOf(tab){ return (tab === 'notes' || tab === 'notesIv') ? 'notes' : 'l3'; }
+function errShowKeyOf(tab){ return (tab === 'notes' || tab === 'notesIv' || tab === 'notesBeg') ? 'notes' : 'l3'; }
 var ERR_SHOW_KEYS = { notes:'circleNotesShowErrors', l3:'circleL3ShowErrors' };
 var errShow = (function(){
   const o = {};
@@ -7577,6 +7697,7 @@ window.addEventListener('resize', ()=>{ try{ errStatsLayout(); }catch(e){} });
 });
 
 function pickNewChord(){
+  if(begGuard()){ begPickNew(); return; }
   if(ivNotesGuard()){ ivPickNew(); return; }
   let pool = activeChords();
   if(pool.length === 0){
@@ -7633,6 +7754,8 @@ function flashCenterText(color, duration){
 }
 
 function onWedgeClick(e){
+  // "Ноты" -> "Начало": круга нет, ответ только на своей клавиатуре
+  if(practiceLevel !== 3 && begGuard()) return;
   // "Ноты" -> "Интервалы": свой ответ (см. блок "ИНТЕРВАЛЫ")
   if(practiceLevel !== 3 && ivNotesGuard()){
     if(practiceLevel === 2 && e.isTrusted) return;
@@ -8779,9 +8902,19 @@ const CHORD_KEYS_LETTER_STEP_OVERRIDE = {
 };
 function trainChordKeyLettersFor(noteRaw, ring, chordType){
   const o = CHORD_KEYS_LETTER_STEP_OVERRIDE[chordType];
-  if(!o) return trainChordLettersFor(noteRaw, ring, chordType);
-  return trainChordFormula(chordType, ring).map(iv => spellTrainInterval(noteRaw, iv,
-    o[iv] !== undefined ? o[iv] : chordLetterStepFor(chordType, iv)));
+  const out = !o ? trainChordLettersFor(noteRaw, ring, chordType)
+    : trainChordFormula(chordType, ring).map(iv => spellTrainInterval(noteRaw, iv,
+        o[iv] !== undefined ? o[iv] : chordLetterStepFor(chordType, iv)));
+  // Изменённая квинта с двумя знаками (A♭7b5: E♭♭, B7#5: F♯♯) — на клавише
+  // то же написание, что и на ячейке круга (см. altFifthCell)
+  try{
+    const ti = (ring === 'minor' ? minors : majors).indexOf(noteRaw);
+    const c = ti >= 0 ? altFifthCell(chordType, ring, ti) : null;
+    if(c && c.letter.length > 1){
+      out[ALT_FIFTH_NOTE_INDEX] = c.letter.replace(/♭/g, 'b').replace(/♯/g, '#') + (c.alter < 0 ? 'b' : '#');
+    }
+  }catch(e){}
+  return out;
 }
 
 /* =========================================================
@@ -9127,6 +9260,9 @@ var GTR_NOTES_DIM = 0.20;
 var GTR_HELP_FRETS = 17;
 // подсказка: галка "Лад" и выбранный лад (запоминаются)
 var gtrNotesModeOn = gtrLsGet('circleGtrNotesModeOn') === '1';
+// окно "?" грифа: галка "Номер октавы" (по умолчанию выключена) — у нот пишется
+// номер октавы (C4 — нота 60 по MIDI)
+var gtrNotesOctOn = gtrLsGet('circleGtrNotesOctOn') === '1';
 var gtrNotesModeId = gtrLsGet('circleGtrNotesModeId') || 'major';
 function gtrLsGet(key){ try{ return localStorage.getItem(key); }catch(e){ return null; } }
 // "Клавиатура снизу" / "Гриф снизу" — свои у каждой вкладки и инструмента
@@ -9598,7 +9734,23 @@ function buildInstrNotesView(instKey){
   const ai = document.createElement('span');
   ai.className = 'gtrNotesAi';
   ai.textContent = t('tipGrifAi');
+  // галка "Номер октавы" — левее галки "Лад"
+  const octLab = document.createElement('label');
+  octLab.className = 'gtrNotesModeLabel gtrNotesOctLabel';
+  const octCb = document.createElement('input');
+  octCb.type = 'checkbox';
+  octCb.checked = gtrNotesOctOn;
+  const octSp = document.createElement('span');
+  octSp.textContent = t('gtrNotesOctLabel');
+  octLab.appendChild(octCb);
+  octLab.appendChild(octSp);
+  octCb.addEventListener('change', ()=>{
+    gtrNotesOctOn = octCb.checked;
+    try{ localStorage.setItem('circleGtrNotesOctOn', gtrNotesOctOn ? '1' : '0'); }catch(e){}
+    applyOct();
+  });
   ctl.appendChild(ai);
+  ctl.appendChild(octLab);
   ctl.appendChild(lab);
   ctl.appendChild(sel);
   wrap.appendChild(ctl);
@@ -9640,6 +9792,17 @@ function buildInstrNotesView(instKey){
       'stroke-width':String(0.9 + (n - 1 - s) * 0.35) }));
   }
   const groups = [];
+  // подписи нот: с номером октавы (галка "Номер октавы") шрифт чуть меньше,
+  // чтобы подпись помещалась в кружок (GTR_NOTES_OCT_FONT)
+  const GTR_NOTES_OCT_FONT = 11;
+  const octLabels = [];
+  const applyOct = ()=>{
+    octLabels.forEach(o=>{
+      o.tx.textContent = noteDisplay(GTR_NOTE_NAMES[o.m % 12]) + (gtrNotesOctOn ? String(Math.floor(o.m / 12) - 1) : '');
+      if(gtrNotesOctOn) o.tx.setAttribute('font-size', String(GTR_NOTES_OCT_FONT));
+      else o.tx.removeAttribute('font-size');
+    });
+  };
   // ноты лада от (s0, f0) — одна октава: каждая следующая нота лада —
   // ближайшее к нажатой ноте место (на той же или более тонкой струне)
   const modeKeys = (s0, f0, formula)=>{
@@ -9670,12 +9833,44 @@ function buildInstrNotesView(instKey){
     return keys;
   };
   const highlight = (s0, f0)=>{
+    // подписи — как были (после "Реальных нот лада" прошлого наведения)
+    applyOct();
     if(s0 === null){ groups.forEach(gr=>{ gr.style.opacity = ''; }); return; }
     const pc0 = (tun[s0] + f0) % 12;
     const cfg = gtrNotesModeOn && gtrNotesModeId ? trainModeCfg(gtrNotesModeId) : null;
     if(cfg && cfg.formula){
       const keys = modeKeys(s0, f0, cfg.formula);
       groups.forEach(gr=>{ gr.style.opacity = keys.has(gr.getAttribute('data-key')) ? '' : String(GTR_NOTES_DIM); });
+      /* В "Обучении" стоит галка "Реальные ноты лада" или "По музыкальным
+         правилам": пока мышь на ноте,
+         ноты этого лада подписаны настоящими названиями (A мажор — G♯, а
+         не A♭). Тоника называется как на круге: у ладов с малой терцией —
+         как на минорном кольце (G♯), у остальных — как на мажорном (A♭).
+         Убрали мышь — подписи возвращаются (applyOct выше). */
+      try{
+        if(trainRealModeNotesOn || trainMusicRulesOn){
+          const minorLike = cfg.formula.includes(3) && !cfg.formula.includes(4);
+          const rootName = minorLike ? String(minors[minorsSemitone.indexOf(pc0)]).replace(/m$/, '') : majors[majorsSemitone.indexOf(pc0)];
+          // "По музыкальным правилам" — строго по правилам, с дубль-знаками (как на круге)
+          const letters = trainModeLettersFor(rootName, cfg.id, !!trainMusicRulesOn);
+          const m0 = tun[s0] + f0;
+          if(letters) octLabels.forEach(o=>{
+            if(!keys.has(o.key)) return;
+            const deg = cfg.formula.indexOf(((o.m - m0) % 12 + 12) % 12);
+            if(deg < 0 || !letters[deg]) return;
+            // номер октавы идёт за буквой ноты: B♯ — ещё прежняя октава (B♯3 = C4),
+            // C♭ — уже следующая (C♭4 = B3), поэтому знаки из высоты вычитаются
+            const raw = String(letters[deg]);
+            const alter = (raw.slice(1).match(/[#♯]/g) || []).length - (raw.slice(1).match(/[b♭]/g) || []).length;
+            const txt = noteDisplay(raw) + (gtrNotesOctOn ? String(Math.floor((o.m - alter) / 12) - 1) : '');
+            o.tx.textContent = txt;
+            // длинная подпись (дубль-знак, номер октавы) — шрифт меньше, чтобы
+            // помещалась в кружок; applyOct потом возвращает обычный размер
+            if(txt.length >= 4) o.tx.setAttribute('font-size', '9');
+            else if(txt.length === 3) o.tx.setAttribute('font-size', String(GTR_NOTES_OCT_FONT));
+          });
+        }
+      }catch(e){}
     } else {
       // без лада — эта нота везде, где она есть
       groups.forEach(gr=>{ gr.style.opacity = (+gr.getAttribute('data-pc') === pc0) ? '' : String(GTR_NOTES_DIM); });
@@ -9688,6 +9883,7 @@ function buildInstrNotesView(instKey){
       gr.appendChild(el('circle', { cx:xOf(f), cy:yOf(s), r:R, fill:GTR_NOTE_COLORS[pc] }));
       const tx = el('text', { x:xOf(f), y:yOf(s), class:'gtrNotesLabel', fill:GTR_NOTE_LABEL_COLORS[pc] });
       tx.textContent = noteDisplay(GTR_NOTE_NAMES[pc]);
+      octLabels.push({ tx:tx, m:tun[s] + f, key:s + '-' + f });
       gr.appendChild(tx);
       gr.addEventListener('mouseenter', ()=> highlight(s, f));
       gr.addEventListener('mouseleave', ()=> highlight(null, null));
@@ -9695,6 +9891,7 @@ function buildInstrNotesView(instKey){
       svg.appendChild(gr);
     }
   }
+  applyOct();
   wrap.appendChild(svg);
   return wrap;
 }
@@ -9726,6 +9923,37 @@ function gtrFlash(svg, s, f, color){
    offset, degree, color, rank}); visiblePcs — какие ноты показывать
    (null — все); bassPc — нижняя нота (обращение) или null; posRef —
    { get(), set(i) } выбранной позиции; onCell — нажатие по грифу. */
+// ноты лада от места (s0, f0) на грифе гитары: { номер ноты: {s, f} }.
+// allowed(f) — можно ли ставить ноту на этот лад (виден ли он)
+function gtrModeCellsFrom(s0, f0, rootPc, pcs, allowed){
+  const tun = GTR_TUNING, n = tun.length;
+  const m0 = tun[s0] + f0;
+  const out = {};
+  out[rootPc] = { s:s0, f:f0 };
+  const ivs = Array.from(new Set(pcs.map(pc => (pc - rootPc + 12) % 12))).filter(iv => iv > 0).sort((a, b)=> a - b);
+  let prevS = s0;
+  ivs.forEach(iv=>{
+    const m = m0 + iv;
+    let best = null;
+    for(let s = 0; s < n; s++){
+      const f = m - tun[s];
+      if(f < 0 || !allowed(f)) continue;
+      const cost = Math.abs(f - f0) + (s < prevS ? 50 : (s - prevS) * 0.6);
+      if(!best || cost < best.cost) best = { s, f, cost };
+    }
+    // нота выше видимой части грифа — берём её октавой ниже, рядом с нажатой
+    if(!best){
+      for(let s = 0; s < n; s++){
+        const f = m - 12 - tun[s];
+        if(f < 0 || !allowed(f)) continue;
+        const cost = Math.abs(f - f0);
+        if(!best || cost < best.cost) best = { s, f, cost };
+      }
+    }
+    if(best){ out[(rootPc + iv) % 12] = { s:best.s, f:best.f }; prevS = best.s; }
+  });
+  return out;
+}
 function renderGuitarNotes(svg, notes, opt){
   const visible = opt.visiblePcs;
   const isVis = pc => !visible || visible.has(pc);
@@ -9734,10 +9962,24 @@ function renderGuitarNotes(svg, notes, opt){
   if(opt.isMode){
     const dots = [];
     const seen = new Set();
+    /* Нажали место на грифе (opt.modeAnchor = {s, f}, "Обучение"): лад
+       строится от этого места — одна октава вверх, каждая следующая нота —
+       ближайшее к нажатому место на той же или более тонкой струне (как в
+       окне "?" грифа). Пока тоника — та же нота. Иначе — прежнее место. */
+    let anchorCells = null;
+    try{
+      const a = opt.modeAnchor;
+      const rootN = notes.find(n => n.degree === 'root') || notes[0];
+      if(a && rootN && (GTR_TUNING[a.s] + a.f) % 12 === rootN.pc){
+        const first = opt.fullFrets ? 1 : GTR_MODE_START;
+        const last = first + (opt.fullFrets || GTR_WINDOW_FRETS) - 1;
+        anchorCells = gtrModeCellsFrom(a.s, a.f, rootN.pc, notes.map(n => n.pc), f => f === 0 || (f >= first && f <= last));
+      }
+    }catch(e){ anchorCells = null; }
     notes.forEach(n=>{
       if(seen.has(n.pc) || !isVis(n.pc)) return;
       seen.add(n.pc);
-      const c = gtrModeCell(n.pc);
+      const c = (anchorCells && anchorCells[n.pc]) || gtrModeCell(n.pc);
       dots.push({ s:c.s, f:c.f, color:n.color, label: opt.noLabels ? '' : gtrNoteLabel(n) });
     });
     if(opt.fullFrets) renderGuitarSvg(svg, { start:1, count:opt.fullFrets, fretW:GTR_FULL_FRET_W, dots, onCell:opt.onCell });
@@ -9754,6 +9996,26 @@ function renderGuitarNotes(svg, notes, opt){
   if(!list.length){
     renderGuitarSvg(svg, Object.assign({ start:1, onCell:opt.onCell, nav:{ idx:0, total:0, onStep:()=>{} } }, win));
     return;
+  }
+  /* Нажали место на грифе (opt.preferCell = {s, f}): берётся та позиция
+     аккорда, в которой есть эта нота именно на этой струне и этом ладу —
+     лучше всего та, где она в басу (самая нижняя звучащая струна). Если
+     такой позиции нет — ближайшая к нажатому ладу. */
+  if(opt.preferCell){
+    const c = opt.preferCell;
+    let best = -1, bestScore = Infinity;
+    list.forEach((vv, i)=>{
+      let score;
+      if(vv[c.s] === c.f){
+        score = vv.findIndex(f => f >= 0) === c.s ? 0 : 1;
+      } else {
+        const fr = vv.filter(f => f > 0);
+        const mid = fr.length ? (Math.min.apply(null, fr) + Math.max.apply(null, fr)) / 2 : 0;
+        score = 10 + Math.abs(mid - c.f);
+      }
+      if(score < bestScore){ bestScore = score; best = i; }
+    });
+    if(best >= 0) opt.posRef.set(best);
   }
   let idx = opt.posRef.get();
   if(!(idx >= 0 && idx < list.length)) idx = 0;
@@ -9900,7 +10162,7 @@ function updatePracticeBelowLayout(){
         if(on && l3NearNoteOn()) on = false;
       } else {
         tab = 'notes'; inst = notesInstrument;
-        on = !!notesInstrShown && !!practiceBelow.notes[inst];
+        on = !!notesInstrShown && !!practiceBelow.notes[inst] && !begOwnPiano();
         // "Ноты" со скрытым кругом — так же, как в "Аккорды/Лады"
         if(on && l3NearNoteOn()) on = false;
       }
@@ -10036,6 +10298,39 @@ function buildTrainPianoMarkerDefs(svgEl){
 const trainPianoWrapEl = document.getElementById('trainPianoWrap');
 const trainPianoSvgEl = document.getElementById('trainPianoSvg');
 
+/* "Обучение": клик по клавише клавиатуры-подсказки (или по месту на грифе) выбирает эту ноту
+   тоникой — так же, как клик по её ячейке на круге (на том кольце, где
+   тоника стоит сейчас; если тоники нет — на мажорном). Октава не важна.
+   Клик по клавише уже выбранной тоники ничего не меняет (выбор не снимается). */
+function onTrainPianoKeyClick(pc){
+  if(appMode !== 'training') return;
+  const ring = pressedTrainTonicRing === 'minor' ? 'minor' : 'major';
+  const idx = (ring === 'major' ? majorsSemitone : minorsSemitone).indexOf(pc);
+  if(idx === -1) return;
+  if(pressedTrainTonicRing === ring && pressedTrainTonicIndex === idx) return;
+  clickWedgeByRing(ring, idx);
+}
+
+/* "Обучение", гриф гитары: нажатая нота становится тоникой, и аккорд
+   показывается в той позиции, где нажали (см. preferCell в renderGuitarNotes).
+   Нажатие другого места той же тоники просто переносит аккорд туда. */
+var trainGtrClickCell = null;
+// последнее нажатое место — от него строится лад (см. modeAnchor в renderGuitarNotes)
+var trainGtrModeAnchor = null;
+function onTrainGuitarCellClick(s, f){
+  if(appMode !== 'training') return;
+  trainGtrClickCell = { s:s, f:f };
+  trainGtrModeAnchor = { s:s, f:f };
+  try{
+    onTrainPianoKeyClick((GTR_TUNING[s] + f) % 12);
+    // на всякий случай — гриф ещё раз с этой позицией (в том числе когда
+    // тоника та же и круг ничего не перерисовывал)
+    updateTrainPiano();
+  } finally {
+    trainGtrClickCell = null;
+  }
+}
+
 function renderTrainPiano(notes, minBlocks){
   const svg = trainPianoSvgEl;
   while(svg.firstChild) svg.removeChild(svg.firstChild);
@@ -10064,21 +10359,27 @@ function renderTrainPiano(notes, minBlocks){
 
   buildTrainPianoMarkerDefs(svg);
 
+  // клавиши нажимаются мышью: нажатая нота становится тоникой (см.
+  // onTrainPianoKeyClick); цветные слои поверх клавиш клики пропускают
   layout.whiteKeys.forEach(k=>{
-    svg.appendChild(el('rect', { x:k.x, y:keysTopY, width:k.w, height:TRAIN_PIANO_WHITE_H, class:'trainPianoWhiteKey' }));
+    const r = el('rect', { x:k.x, y:keysTopY, width:k.w, height:TRAIN_PIANO_WHITE_H, class:'trainPianoWhiteKey l3PianoAnswerKey' });
+    r.addEventListener('click', ()=> onTrainPianoKeyClick(k.pc));
+    svg.appendChild(r);
   });
   notes.forEach(n=>{
     const key = layout.pcKeyMap[n.rank+'_'+n.pc];
     if(!key || key.isBlack) return;
-    svg.appendChild(el('rect', { x:key.x, y:keysTopY, width:key.w, height:TRAIN_PIANO_WHITE_H, fill:n.color }));
+    svg.appendChild(el('rect', { x:key.x, y:keysTopY, width:key.w, height:TRAIN_PIANO_WHITE_H, fill:n.color, 'pointer-events':'none' }));
   });
   layout.blackKeys.forEach(k=>{
-    svg.appendChild(el('rect', { x:k.x, y:keysTopY, width:k.w, height:TRAIN_PIANO_BLACK_H, class:'trainPianoBlackKey' }));
+    const r = el('rect', { x:k.x, y:keysTopY, width:k.w, height:TRAIN_PIANO_BLACK_H, class:'trainPianoBlackKey l3PianoAnswerKey' });
+    r.addEventListener('click', ()=> onTrainPianoKeyClick(k.pc));
+    svg.appendChild(r);
   });
   notes.forEach(n=>{
     const key = layout.pcKeyMap[n.rank+'_'+n.pc];
     if(!key || !key.isBlack) return;
-    svg.appendChild(el('rect', { x:key.x, y:keysTopY, width:key.w, height:TRAIN_PIANO_BLACK_H, fill:n.color, opacity:'0.85' }));
+    svg.appendChild(el('rect', { x:key.x, y:keysTopY, width:key.w, height:TRAIN_PIANO_BLACK_H, fill:n.color, opacity:'0.85', 'pointer-events':'none' }));
   });
   notes.forEach(n=>{
     const key = layout.pcKeyMap[n.rank+'_'+n.pc];
@@ -10547,7 +10848,7 @@ function updateMobilePianoLayout(){
       else if(appMode === 'practice' && practiceLevel === 3)
         on = !!l3DegreeMode || !!l3ShowPiano || (!!l3NameMode && window.innerHeight >= window.innerWidth);
       // "Ноты": клавиатура или гриф под кругом
-      else if(appMode === 'practice') on = !!notesInstrShown;
+      else if(appMode === 'practice') on = !!notesInstrShown && !begOwnPiano();
     }
   }catch(e){ on = false; }
   // Размер круга зависит ещё и от вкладки (в "Обучении" в горизонтальном
@@ -10643,7 +10944,9 @@ function renderBowedTrain(){
     });
   }
   renderGuitarSvg(trainPianoSvgEl, { start:1, count, fretW:GTR_BOW_FRET_W, tuning:inst.tuning,
-    fretStyle:bowFretStyle, dots, dotR:12, labelSize:9 });
+    fretStyle:bowFretStyle, dots, dotR:12, labelSize:9,
+    // клик по грифу выбирает эту ноту тоникой (как клавиша клавиатуры)
+    onCell:(s, f)=> onTrainPianoKeyClick((inst.tuning[s] + f) % 12) });
 }
 // включён смычковый инструмент — "Обучение" только с нотами
 function trainNotesOnly(){
@@ -10759,7 +11062,11 @@ function updateTrainPianoRaw(){
       fullFrets: gtrFullFrets('train', 'guitar'),
       posRef: { get:()=>trainGtrPos, set:i=>{ trainGtrPos = i; } },
       rerender: ()=> updateTrainPiano(),
-      onCell: null
+      preferCell: trainGtrClickCell,
+      modeAnchor: trainGtrModeAnchor,
+      // клик по грифу выбирает эту ноту тоникой (как клавиша клавиатуры),
+      // а аккорд строится в том месте грифа, где нажали
+      onCell: (s, f)=> onTrainGuitarCellClick(s, f)
     });
     layoutMobilePiano(trainPianoWrapEl, trainPianoSvgEl);
     updateTrainPianoOffset();
@@ -11270,7 +11577,15 @@ function onL3GuitarCell(s, f){
   const color = l3AnswerFlashColor(letter);
   gtrFlash(l3PianoSvgEl, s, f, color);
   if(correct){
-    const cell = l3CircleCellForLetter(letter);
+    let cell = null;
+    // как на клавиатуре рядом с кругом (см. onL3PianoKeyClick)
+    try{
+      if(!l3KeyMode && currentL3.chordType && !currentL3.modeType){
+        const sc = (l3KeyboardSchemeCells(l3KeyboardSchemeRing()) || []).find(c => c.pc === pc);
+        if(sc) cell = { ring: sc.ring, index: sc.index };
+      }
+    }catch(e){ cell = null; }
+    if(!cell) cell = l3CircleCellForLetter(letter);
     if(cell) flashWedge(cell.ring, cell.index, color, 300);
   }
   l3RegisterAnswer(letter);
@@ -11288,15 +11603,27 @@ function renderNotesInstrument(){
     notesPianoLayout = null;
     const bowed = GTR_BOWED.has(notesInstrument);
     const tun = (INSTRUMENTS[notesInstrument] || INSTRUMENTS.guitar).tuning;
-    renderGuitarSvg(svg, { start:1, count:gtrFullFrets('notes', notesInstrument) || GTR_NECK_FRETS,
+    // "Ноты на инструменте": гриф целиком; при "На MIDI/ПК клавиатуре" место
+    // ноты вопроса отмечено, мышью не отвечают
+    let beg = false;
+    try{ beg = begGuard(); }catch(e){ beg = false; }
+    const begKb = beg && practiceLevel === 2;
+    const begCell = begKb ? begGrifCell() : null;
+    renderGuitarSvg(svg, { start:1,
+      count:(beg ? (INSTRUMENTS[notesInstrument] || INSTRUMENTS.guitar).full : 0) || gtrFullFrets('notes', notesInstrument) || GTR_NECK_FRETS,
       fretW:bowed ? GTR_BOW_FRET_W : GTR_NECK_FRET_W,
       tuning:tun, fretStyle:bowed ? bowFretStyle : 'frets',
-      onCell:(s, f)=> notesInstrumentAnswer((tun[s] + f) % 12, { s, f }) });
+      dots: begCell ? [{ s:begCell.s, f:begCell.f, color:YELLOW_HIGHLIGHT_L2 }] : null,
+      onCell: begKb ? null : (s, f)=> notesInstrumentAnswer((tun[s] + f) % 12, { s, f, gtrPitch:tun[s] + f }) });
     return;
   }
   while(svg.firstChild) svg.removeChild(svg.firstChild);
   svg.__gtr = null;
-  const layout = buildTrainPianoLayout(1);
+  // "Интервалы" (не "Назови интервал"): 2 октавы — интервал вниз от тоники
+  // помещается, вторая нота проверяется по положению клавиши (как на MIDI)
+  let ivTwo = false;
+  try{ ivTwo = ivNotesShown() && !notesIvName; }catch(e){ ivTwo = false; }
+  const layout = buildTrainPianoLayout(ivTwo ? 2 : 1);
   const width = TRAIN_PIANO_MARGIN_X * 2 + layout.totalWhite * TRAIN_PIANO_WHITE_W;
   const keysTopY = TRAIN_PIANO_ARROW_ZONE_H;
   const height = keysTopY + TRAIN_PIANO_WHITE_H;
@@ -11305,22 +11632,32 @@ function renderNotesInstrument(){
   svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
   // "Назови интервал": обе ноты интервала подсвечены (см. ivPianoHighlight)
   const ivHl = (typeof ivPianoHighlight === 'function') ? ivPianoHighlight() : null;
+  // тоника нажата на этой клавиатуре — зелёная только та клавиша, которую нажали
+  const ivTonicPitch = (ivTwo && typeof ivTonicKeyPitch === 'function') ? ivTonicKeyPitch() : null;
+  const keyFill = (k)=>{
+    if(ivTonicPitch !== null) return (k.pc + 12 * k.block === ivTonicPitch) ? 'var(--green)' : null;
+    return (ivHl && ivHl[k.pc]) || null;
+  };
   layout.whiteKeys.forEach(k=>{
     const r = el('rect', { x:k.x, y:keysTopY, width:k.w, height:TRAIN_PIANO_WHITE_H, class:'trainPianoWhiteKey l3PianoAnswerKey' });
-    if(ivHl && ivHl[k.pc]) r.style.fill = ivHl[k.pc];
-    r.addEventListener('click', ()=> notesInstrumentAnswer(k.pc, { key:k }));
+    const fill = keyFill(k);
+    if(fill) r.style.fill = fill;
+    r.addEventListener('click', ()=> notesInstrumentAnswer(k.pc, { key:k, pitch:k.pc + 12 * k.block }));
     svg.appendChild(r);
   });
   layout.blackKeys.forEach(k=>{
     const r = el('rect', { x:k.x, y:keysTopY, width:k.w, height:TRAIN_PIANO_BLACK_H, class:'trainPianoBlackKey l3PianoAnswerKey' });
-    if(ivHl && ivHl[k.pc]) r.style.fill = ivHl[k.pc];
-    r.addEventListener('click', ()=> notesInstrumentAnswer(k.pc, { key:k }));
+    const fill = keyFill(k);
+    if(fill) r.style.fill = fill;
+    r.addEventListener('click', ()=> notesInstrumentAnswer(k.pc, { key:k, pitch:k.pc + 12 * k.block }));
     svg.appendChild(r);
   });
   notesPianoLayout = { layout, keysTopY };
 }
 function notesInstrumentAnswer(pc, src){
   if(appMode !== 'practice' || (practiceLevel !== 1 && practiceLevel !== 2)) return;
+  // "Ноты на инструменте": гриф — ответ мышью (только "Клик мыши")
+  if(begGuard()){ if(practiceLevel === 1) begAnswerPc(pc, src); return; }
   if(ivNotesGuard()){ ivAnswerPc(pc, src); return; }
   const cur = practiceLevel === 2 ? currentL2 : current;
   if(!cur) return;
@@ -11338,9 +11675,12 @@ function notesInstrFlash(pc, ok){
   if(!(appMode === 'practice' && (practiceLevel === 1 || practiceLevel === 2) && notesInstrShown)) return;
   const color = ok ? FLASH_GREEN : FLASH_RED;
   const svg = l3PianoSvgEl;
+  let ivOnly = false;
+  try{ ivOnly = ivNotesShown(); }catch(e){ ivOnly = false; }
   if(notesInstrument !== 'piano'){
     const cells = gtrCellsForPc(svg, pc);
-    if(ok) cells.forEach(c => gtrFlash(svg, c.s, c.f, color));
+    if(ok && ivOnly && src && src.s !== undefined) gtrFlash(svg, src.s, src.f, color);
+    else if(ok) cells.forEach(c => gtrFlash(svg, c.s, c.f, color));
     else if(src && src.s !== undefined) gtrFlash(svg, src.s, src.f, color);
     else if(cells.length) gtrFlash(svg, cells[0].s, cells[0].f, color);
     return;
@@ -11348,7 +11688,8 @@ function notesInstrFlash(pc, ok){
   if(!notesPianoLayout) return;
   const L = notesPianoLayout.layout;
   const keys = L.whiteKeys.concat(L.blackKeys).filter(k => k.pc === pc);
-  if(ok) keys.forEach(k => flashL3PianoKey(k, notesPianoLayout.keysTopY, color));
+  if(ok && ivOnly && src && src.key) flashL3PianoKey(src.key, notesPianoLayout.keysTopY, color);
+  else if(ok) keys.forEach(k => flashL3PianoKey(k, notesPianoLayout.keysTopY, color));
   else{
     const k = (src && src.key) || keys[0];
     if(k) flashL3PianoKey(k, notesPianoLayout.keysTopY, color);
@@ -11534,7 +11875,17 @@ function onL3PianoKeyClick(key, keysTopY){
   // (B♭) в лад не входит — красная вспышка на этой же ячейке выглядела
   // бы противоречиво.
   if(correct){
-    const cell = l3CircleCellForLetter(letter);
+    let cell = null;
+    // аккорды (без "Выбрать тональность"): ячейка — по схеме от кольца, на
+    // котором нота вопроса выбрана в настройках, как при ответе с клавиатуры
+    // ПК / MIDI (см. l3KeyboardSchemeRing)
+    try{
+      if(!l3KeyMode && currentL3.chordType && !currentL3.modeType){
+        const sc = (l3KeyboardSchemeCells(l3KeyboardSchemeRing()) || []).find(c => c.pc === key.pc);
+        if(sc) cell = { ring: sc.ring, index: sc.index };
+      }
+    }catch(e){ cell = null; }
+    if(!cell) cell = l3CircleCellForLetter(letter);
     if(cell) flashWedge(cell.ring, cell.index, color, 300);
   }
   l3RegisterAnswer(letter);
@@ -11628,6 +11979,8 @@ function updateL3WedgeVisibility(){
   }
   l3WedgesCurrentlyHidden = shouldHide;
   applyCrosshairVisibility();
+  // "Ноты": круг скрыли/показали — другой способ увеличения (см. zoomNotesHiddenText)
+  try{ syncPracticeZoomSlot(); }catch(e){}
 }
 
 function updateL3Piano(){
@@ -11649,7 +12002,8 @@ function updateL3PianoRaw(){
   applyL3NameCircleHighlight();
   const notes = shouldShow ? computeL3PianoNotes() : null;
   // вкладка "Ноты": своя клавиатура/гриф на этом же месте
-  const inNotes = appMode === 'practice' && (practiceLevel === 1 || practiceLevel === 2) && notesInstrShown;
+  // ("Начало" рисует свою клавиатуру в центре — см. begRender)
+  const inNotes = appMode === 'practice' && (practiceLevel === 1 || practiceLevel === 2) && notesInstrShown && !begOwnPiano();
   if(inNotes){
     l3PianoWrapEl.style.display = 'flex';
     renderNotesInstrument();
@@ -11675,6 +12029,8 @@ function updateL3PianoRaw(){
   // "Ноты" -> "Интервалы": подсветка вопроса на круге (ячейки выше могли
   // перекраситься в обычный цвет)
   if(ivNotesGuard() && appMode === 'practice' && practiceLevel !== 3) ivRender();
+  // "Ноты" -> "Начало": нота в центре и клавиатура из 1 октавы под ней
+  if(typeof begReady !== 'undefined' && begReady) begRender();
 }
 
 /* Включает/выключает режим "Клавиатура под нотой": вешает или снимает
@@ -11711,7 +12067,7 @@ function l3NearNoteOn(){
     // "Аккорды/Лады": "Скрыть круг" своего раздела ("Аккорды" или "Лады")
     if(practiceLevel === 3) return !!l3HideWedges && !!l3ShowPiano && !l3DegreeMode;
     // "Ноты": "Скрыть круг" включённой категории ("Ноты" или "Интервалы")
-    return (practiceLevel === 1 || practiceLevel === 2) && notesHideCircleNow() && !!notesInstrShown;
+    return (practiceLevel === 1 || practiceLevel === 2) && notesHideCircleNow() && !!notesInstrShown && !begOwnPiano();
   }catch(e){ return false; }
 }
 function layoutL3NearNote(){
@@ -11722,7 +12078,9 @@ function layoutL3NearNote(){
   const z = (zr > 0) ? zr : 1;
   // масштаб круга (+/-): текст в центре растёт вместе с кругом
   const zp = (typeof zoomPractice === 'number' && zoomPractice > 0) ? zoomPractice : 100;
-  const s = zp / 100;
+  // "Ноты", круг скрыт: круг не растёт, растёт только текст в центре
+  let s = zp / 100;
+  try{ if(notesHiddenZoomOn()) s = notesHiddenTextScale(); }catch(e){}
   const fs = centerFontSizes();
   const textBottom = CY + (fs.top / 2 + CENTER_MODE_LABEL_CONFIG.gapBelowNote + fs.bottom) * s;
   // верх клавиш внутри клавиатуры (над клавишами — место под стрелки)
@@ -13966,10 +14324,21 @@ function altFifthCell(chordType, ring, tonicIndex){
   const letters = trainChordLettersFor(tonicName, ring, chordType);
   const spelled = letters[ALT_FIFTH_NOTE_INDEX];
   const cellPc = (ring === 'minor' ? minorsSemitone : majorsSemitone)[idx];
+  let letter = spelled[0];
+  let sign = accSignFor(spelled, alter);
+  // Пониженная квинта (7b5, dim, dim7, m7b5) на ячейке с бемолем (A♭7b5 —
+  // ячейка E♭) и повышенная (7#5, aug) на ячейке с диезом (B7#5 — ячейка
+  // F♯): название ячейки остаётся как есть, а рядом красным
+  // ставится ещё один такой же знак (E♭ + красный ♭, F♯ + красный ♯).
+  // Только здесь разрешены 2 знака у одной ноты — иначе на круге стоял ♮
+  // и 7b5 было не отличить от 7#5.
+  const cellName = String((ring === 'minor' ? minors : majors)[idx]).replace(/m$/, '');
+  if(alter < 0 && cellName.indexOf('♭') !== -1){ letter = cellName; sign = ACC_SIGN.flat; }
+  else if(alter > 0 && cellName.indexOf('♯') !== -1){ letter = cellName; sign = ACC_SIGN.sharp; }
   return {
     ring, idx, degree: 'fifth', alter,
-    letter: spelled[0],
-    sign: accSignFor(spelled, alter),
+    letter,
+    sign,
     pc: ((cellPc + alter) % 12 + 12) % 12
   };
 }
@@ -14535,12 +14904,21 @@ function accChordCells(chordType, ring, tonicIndex, noForced){
   return pattern.map((p, j)=>{
     const idx = ((tonicIndex + p.off) % 12 + 12) % 12;
     const cellPc = (p.ring === 'minor' ? minorsSemitone : majorsSemitone)[idx];
+    let letter = letters[j][0];
+    let sign = p.alter ? accSignFor(letters[j], p.alter) : '';
+    // 7b5 / 7#5: квинта на ячейке с таким же знаком — название ячейки и
+    // ещё один красный знак (A♭7b5: E♭ + красный ♭), см. altFifthCell
+    if(j === ALT_FIFTH_NOTE_INDEX && p.alter && ALT_FIFTH_TYPES[chordType]){
+      const cellName = String((p.ring === 'minor' ? minors : majors)[idx]).replace(/m$/, '');
+      if(p.alter < 0 && cellName.indexOf('♭') !== -1){ letter = cellName; sign = ACC_SIGN.flat; }
+      else if(p.alter > 0 && cellName.indexOf('♯') !== -1){ letter = cellName; sign = ACC_SIGN.sharp; }
+    }
     return {
       ring: p.ring, idx,
       degree: chordDegreeKeyOfInterval(formula[j], chordType),
       alter: p.alter,
-      letter: letters[j][0],
-      sign: p.alter ? accSignFor(letters[j], p.alter) : '',
+      letter,
+      sign,
       pc: ((cellPc + p.alter) % 12 + 12) % 12
     };
   });
@@ -15705,6 +16083,8 @@ function saveLevel3Selection(){
 // только аккорд, как и раньше.
 function updateL3CenterModeLabel(){
   // "Ноты" -> "Интервалы": под тоникой — интервал и направление
+  // "Ноты" -> "Начало": под нотой подписи нет
+  if(begGuard() && appMode === 'practice' && practiceLevel !== 3){ centerModeLabelText.textContent = ''; return; }
   if(ivNotesGuard() && appMode === 'practice' && practiceLevel !== 3){ ivSetCenterLabel(); return; }
   // Название лада в центре круга относится только к вкладке "Аккорды/Лады"
   // (practiceLevel === 3). На других вкладках (напр. "Ноты") надпись
@@ -16441,7 +16821,8 @@ function l3NameAnswerList(){
     document.querySelectorAll('#level3ModeButtons .ringBtn[data-mode]').forEach(btn=>{
       const id = btn.getAttribute('data-mode');
       if(!level3ModeTypes.has(id)) return;
-      list.push({ id, label: btn.textContent.trim() });
+      const shortKey = id === 'majorPent' ? 'modeMajorPentAnswer' : id === 'minorPent' ? 'modeMinorPentAnswer' : null;
+      list.push({ id, label: shortKey ? t(shortKey) : btn.textContent.trim() });
     });
     return list;
   }
@@ -17738,6 +18119,7 @@ function clearWedgeHighlightL2(ring, index){
 let rootHistoryL2 = [];
 
 function pickNewChordL2(){
+  if(begGuard()){ begPickNew(); return; }
   if(ivNotesGuard()){ ivPickNew(); return; }
   if(currentL2) clearWedgeHighlightL2(currentL2.ring, currentL2.index);
   let pool = activeChordsL2();
@@ -20101,10 +20483,29 @@ function buildTrainRelModesKeys(keys){
   return svg;
 }
 
+// сколько строк бывает в таблице самое большее (7 ладов + гарм. и мелод. минор)
+var TRAIN_REL_MODES_MAX_ROWS = 9;
+// название ноты в окне: знаки ♯ ♭ — в отдельной обёртке (.relAcc), чтобы они
+// не меняли высоту строки
+function trainRelSetNote(elm, name){
+  elm.textContent = '';
+  String(noteDisplay(name)).split(/([♯♭♮]+)/).forEach(function(part){
+    if(!part) return;
+    if(/^[♯♭♮]+$/.test(part)){
+      var a = document.createElement('span');
+      a.className = 'relAcc';
+      a.textContent = part;
+      elm.appendChild(a);
+    } else elm.appendChild(document.createTextNode(part));
+  });
+}
 function renderTrainRelModes(){
   var p = trainRelModesPopup, d = trainRelModesData;
   if(!p || !d) return;
   p.textContent = '';
+  // ширина клавиатуры (2 октавы) — для постоянной ширины окна (см. CSS)
+  p.style.setProperty('--rel-kb-w', (TRAIN_PIANO_WHITE_W * 14 * TRAIN_REL_MODES_SCALE) + 'px');
+  p.style.setProperty('--rel-rows', String(Math.max(TRAIN_REL_MODES_MAX_ROWS, d.rows.length)));
   // сверху — таблица: лад от каждой ноты
   var table = document.createElement('div');
   table.className = 'relTable';
@@ -20113,7 +20514,7 @@ function renderTrainRelModes(){
     row.className = 'relRow' + (j === trainRelModesSel ? ' active' : '');
     var n = document.createElement('span');
     n.className = 'relRowNote';
-    n.textContent = noteDisplay(r.note);
+    trainRelSetNote(n, r.note);
     var m = document.createElement('span');
     m.textContent = trainRelModeName(r.mode);
     row.appendChild(n); row.appendChild(m);
@@ -20141,7 +20542,7 @@ function renderTrainRelModes(){
   keys.forEach(function(k){
     var s = document.createElement('span');
     if(k.tonic) s.className = 'relTonic';
-    s.textContent = noteDisplay(k.name);
+    trainRelSetNote(s, k.name);
     line.appendChild(s);
   });
   right.appendChild(line);
@@ -20359,8 +20760,8 @@ function applyPracticeLevel(){
   notesPanel.style.display = practiceLevel === 3 ? 'none' : 'flex';
   localStorage.setItem(LEVEL_KEY, String(practiceLevel));
 
-  if(practiceLevel === 1 && !current && !ivNotesGuard()) pickNewChord();
-  if(practiceLevel === 2 && !currentL2 && !ivNotesGuard()) pickNewChordL2();
+  if(practiceLevel === 1 && !current && !ivNotesGuard() && !begGuard()) pickNewChord();
+  if(practiceLevel === 2 && !currentL2 && !ivNotesGuard() && !begGuard()) pickNewChordL2();
   if(practiceLevel === 3 && !(l3DegreeMode ? l3DegQ : currentL3)) pickNewChordL3();
   if(typeof renderLevel3Hint === 'function') renderLevel3Hint();
   if(typeof updateL3Piano === 'function') updateL3Piano();
@@ -20388,6 +20789,9 @@ function applyPracticeLevel(){
   // с круга, если ушли на "Аккорды/Лады")
   if(ivNotesGuard() && practiceLevel !== 3) ivEnterView();
   else if(typeof ivReady !== 'undefined' && ivReady) ivClearPaint();
+  // "Ноты" -> "Начало": свой вопрос (или убрать клавиатуру, если ушли на "Аккорды/Лады")
+  if(begGuard() && practiceLevel !== 3) begEnterView();
+  else if(typeof begReady !== 'undefined' && begReady) begRender();
 }
 
 /* =========================================================
@@ -21349,7 +21753,8 @@ function renderL3ModModeButtons(){
     },
     // "Интервалы" (см. блок "ИНТЕРВАЛЫ")
     trainCatIvCb:      ()=> trainIvSetOn(true),
-    notesCatNotesCb:   ()=> notesIvSetOn(false),
+    notesCatBegCb:     ()=> notesBegSetOn(true),
+    notesCatNotesCb:   ()=>{ if(notesBegOnFlag) notesBegSetOn(false); else notesIvSetOn(false); },
     notesCatIvCb:      ()=> notesIvSetOn(true),
     level3CatChordsCb: ()=> setLevel3Family('chords'),
     level3CatModesCb:  ()=> setLevel3Family('modes'),
@@ -21447,11 +21852,11 @@ sidePanelBackdrop.addEventListener('click', () => {
   setSidePanelOpen(false);
 });
 
-/* ===== ДЕСКТОП: правая кнопка мыши открывает и закрывает настройки —
-   одно нажатие открывает, следующее закрывает (меню браузера вместо этого
-   не появляется). Внутри панели настроек правая кнопка работает как
-   обычно. Не действует в мобильной раскладке и при долгом нажатии
-   пальцем на сенсорном экране. ===== */
+/* ===== ДЕСКТОП: правая кнопка мыши и кнопка на пере графического
+   планшета открывают и закрывают настройки — одно нажатие открывает,
+   следующее закрывает (меню браузера вместо этого не появляется).
+   Работает везде, в том числе внутри самой панели настроек. Не действует
+   в мобильной раскладке и при долгом нажатии пальцем на сенсорном экране. ===== */
 let rmbDownAt = 0;   // время последнего нажатия именно правой кнопки мыши
 /* Shift + F10 — тоже открыть/закрыть настройки (как Y / Н). Меню
    браузера, которое появилось бы на эту клавишу, не показывается. */
@@ -21467,16 +21872,115 @@ document.addEventListener('keydown', (e) => {
 document.addEventListener('mousedown', (e) => {
   if (e.button === 2) rmbDownAt = Date.now();
 }, true);
+// перо планшета: кнопка на пере приходит как правая кнопка (button 2 / buttons 2)
+document.addEventListener('pointerdown', (e) => {
+  if (e.pointerType === 'touch') return;
+  if (e.button === 2 || (e.pointerType === 'pen' && (e.buttons & 2))) rmbDownAt = Date.now();
+}, true);
+let rmbToggleAt = 0;   // когда настройки последний раз переключились правой кнопкой
 document.addEventListener('contextmenu', (e) => {
   if (Date.now() - shiftF10At < 1000) { e.preventDefault(); return; }   // меню от Shift + F10 — без меню браузера
   if (isMobile) return;
   if (e.defaultPrevented) return;            // меню уже обработано (Ctrl + клик на Mac и т.п.)
   if (e.ctrlKey || e.metaKey) return;
-  if (Date.now() - rmbDownAt > 2000) return; // не мышь (долгий тап, клавиша меню) — не трогаем
-  if (sidePanel.contains(e.target)) return;  // клик внутри панели — не трогаем
+  // мышь или перо (браузер сам сообщает, чем вызвано меню), либо только что
+  // была нажата правая кнопка; долгий тап пальцем и клавишу меню не трогаем
+  const fromMouseOrPen = e.pointerType === 'mouse' || e.pointerType === 'pen'
+    || e.mozInputSource === 1 || e.mozInputSource === 2
+    || (Date.now() - rmbDownAt <= 2000);
+  if (!fromMouseOrPen) return;
   e.preventDefault();                        // без меню браузера
+  // перо иногда присылает меню дважды подряд — второе не считаем
+  if (Date.now() - rmbToggleAt < 300) return;
+  rmbToggleAt = Date.now();
   toggleSidePanel();
 });
+
+/* =========================================================
+   Перо графического планшета (Windows Ink): окно настроек прокручивается
+   протягиванием пера, но браузер после отрыва пера сразу останавливает
+   прокрутку (у колеса мыши и пальца она ещё немного докатывается). Здесь
+   докат добавлен и для пера: пока перо тянет окно, меряется скорость
+   прокрутки; перо оторвали — окно катится дальше и плавно тормозит.
+   PEN_FLING_TIME — как долго докатывается (мс, больше — дольше);
+   PEN_FLING_MIN_SPEED — скорость (px/мс), ниже которой доката нет.
+   ========================================================= */
+const PEN_FLING_TIME = 325;
+const PEN_FLING_MIN_SPEED = 0.15;
+(function initPenFling(){
+  if(!sidePanel) return;
+  let panning = false;      // перо тянет окно
+  let samples = [];         // последние замеры { t, y }
+  let idleTimer = null;
+  let raf = 0;
+  const now = ()=> performance.now();
+  function stopFling(){ if(raf){ cancelAnimationFrame(raf); raf = 0; } }
+  function endPan(){
+    if(!panning) return;
+    panning = false;
+    clearTimeout(idleTimer);
+    // скорость — по последним 100 мс протягивания
+    const t1 = now();
+    const recent = samples.filter(s => t1 - s.t <= 130);
+    samples = [];
+    if(recent.length < 2) return;
+    const a = recent[0], b = recent[recent.length - 1];
+    const dt = b.t - a.t;
+    if(dt <= 0 || t1 - b.t > 90) return;   // перед отрывом перо стояло на месте — доката нет
+    let v = (b.y - a.y) / dt;
+    if(Math.abs(v) < PEN_FLING_MIN_SPEED) return;
+    let last = now(), pos = sidePanel.scrollTop;
+    stopFling();
+    const step = ()=>{
+      const t = now(), d = Math.min(40, t - last);
+      last = t;
+      pos += v * d;
+      v *= Math.exp(-d / PEN_FLING_TIME);
+      const max = sidePanel.scrollHeight - sidePanel.clientHeight;
+      if(pos <= 0 || pos >= max){ sidePanel.scrollTop = Math.max(0, Math.min(max, pos)); raf = 0; return; }
+      flingWrite = true;
+      sidePanel.scrollTop = pos;
+      if(Math.abs(v) < 0.02){ raf = 0; return; }
+      raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+  }
+  let flingWrite = false;   // прокрутку сдвинул сам докат (не перо)
+  sidePanel.addEventListener('pointerdown', e=>{
+    stopFling();
+    panning = false;
+    samples = [];
+    if(e.pointerType !== 'pen' || e.button !== 0) return;
+    panning = true;
+    samples.push({ t: now(), y: sidePanel.scrollTop });
+  }, true);
+  // перо отпустили без протягивания (обычный клик) — ничего не делаем
+  sidePanel.addEventListener('pointerup', e=>{ if(e.pointerType === 'pen') endPan(); }, true);
+  // после начала протягивания браузер забирает перо себе (pointercancel) и
+  // больше о нём не сообщает; конец протягивания видно по тому, что перо
+  // снова движется над окном без нажатия
+  // (по одной только остановке прокрутки докат не начинается: перо могло
+  // просто остановиться, оставаясь прижатым)
+  ['pointermove', 'pointerover', 'pointerout'].forEach(type=>{
+    document.addEventListener(type, e=>{
+      if(panning && e.pointerType === 'pen' && e.buttons === 0 && samples.length > 1) endPan();
+    }, true);
+  });
+  sidePanel.addEventListener('scroll', ()=>{
+    if(flingWrite){ flingWrite = false; return; }
+    // окно сдвинул кто-то другой — докат прекращается
+    if(raf){ stopFling(); return; }
+    if(!panning) return;
+    samples.push({ t: now(), y: sidePanel.scrollTop });
+    if(samples.length > 40) samples.shift();
+    // перо давно не двигает окно и сигнала об отрыве не было — замеры сбрасываются
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(()=>{ if(panning) samples = samples.slice(-1); }, 400);
+  }, { passive:true });
+  // колесо мыши, клавиши, новое нажатие — докат прекращается
+  sidePanel.addEventListener('wheel', stopFling, { passive:true });
+  document.addEventListener('keydown', stopFling, true);
+})();
 
 /* =========================================================
    Мультитач-тапы: 3 пальца — увеличить круг, 4 пальца — уменьшить
@@ -21714,7 +22218,10 @@ function applyZoom(){
   try{ instrFitAll(); }catch(e){}
 
   // размер открытой вкладки ("Ноты" или "Аккорды/Лады") — в её ячейку
-  if(zoomPracticeSlot === 'chords') zoomChords = zoomPractice; else zoomNotes = zoomPractice;
+  if(zoomPracticeSlot === 'chords') zoomChords = zoomPractice;
+  else if(zoomPracticeSlot === 'notes') zoomNotes = zoomPractice;
+  // "Ноты", круг скрыт: размер текста в центре
+  applyNotesHiddenTextZoom();
   localStorage.setItem(ZOOM_NOTES_STORAGE_KEY, zoomNotes);
   localStorage.setItem(ZOOM_CHORDS_STORAGE_KEY, zoomChords);
   localStorage.setItem(ZOOM_TRAINING_STORAGE_KEY, zoomTraining);
@@ -21731,19 +22238,24 @@ function applyZoom(){
 function zoomIn(){
   // "Голосоведение" — свой масштаб
   try{ if(window.vlZoomKey && window.vlZoomKey('map', 1)) return; }catch(e){}
-  if(appMode === 'training'){ zoomTraining += ZOOM_STEP; } else { zoomPractice += ZOOM_STEP; }
+  if(appMode === 'training'){ zoomTraining += ZOOM_STEP; }
+  else if(notesHiddenZoomOn()){ zoomNotesHiddenText += ZOOM_STEP; }
+  else { zoomPractice += ZOOM_STEP; }
   applyZoom();
 }
 function zoomOut(){
   // "Голосоведение" — свой масштаб
   try{ if(window.vlZoomKey && window.vlZoomKey('map', -1)) return; }catch(e){}
-  if(appMode === 'training'){ zoomTraining -= ZOOM_STEP; } else { zoomPractice -= ZOOM_STEP; }
+  if(appMode === 'training'){ zoomTraining -= ZOOM_STEP; }
+  else if(notesHiddenZoomOn()){ zoomNotesHiddenText -= ZOOM_STEP; }
+  else { zoomPractice -= ZOOM_STEP; }
   applyZoom();
 }
 function zoomReset(){
   // "Голосоведение" — свой масштаб
   try{ if(window.vlZoomKey && window.vlZoomKey('map', 0)) return; }catch(e){}
   if(appMode === 'training'){ zoomTraining = zoomDefault(ZOOM_DEFAULT); }
+  else if(notesHiddenZoomOn()){ zoomNotesHiddenText = ZOOM_DEFAULT_NOTES; }
   else { zoomPractice = zoomDefault(zoomPracticeSlot === 'chords' ? ZOOM_DEFAULT_CHORDS : ZOOM_DEFAULT_NOTES); }
   applyZoom();
 }
@@ -21752,11 +22264,33 @@ function zoomReset(){
    открытой вкладки (у каждой свой). */
 function syncPracticeZoomSlot(){
   try{ syncPianoZoomSlot(); }catch(e){}
-  const want = practiceLevel === 3 ? 'chords' : 'notes';
+  // "Ноты", круг скрыт (только компьютер): круг — самого маленького
+  // размера, + / - меняют текст в центре (см. zoomNotesHiddenText)
+  let hid = false;
+  try{ hid = !isMobile && practiceLevel !== 3 && notesHideCircleNow(); }catch(e){ hid = false; }
+  const want = practiceLevel === 3 ? 'chords' : (hid ? 'notesHidden' : 'notes');
   if(want === zoomPracticeSlot) return;
   zoomPracticeSlot = want;
-  zoomPractice = want === 'chords' ? zoomChords : zoomNotes;
+  zoomPractice = want === 'chords' ? zoomChords : (want === 'notesHidden' ? ZOOM_MIN : zoomNotes);
   applyZoom();
+}
+function notesHiddenZoomOn(){ return zoomPracticeSlot === 'notesHidden'; }
+// во сколько раз увеличен текст в центре ("Ноты", круг скрыт); иначе 1
+function notesHiddenTextScale(){
+  return notesHiddenZoomOn() ? zoomNotesHiddenText / 100 : 1;
+}
+function applyNotesHiddenTextZoom(){
+  zoomNotesHiddenText = Math.max(ZOOM_NOTES_HIDDEN_TEXT_MIN, Math.min(ZOOM_MAX, zoomNotesHiddenText));
+  try{ localStorage.setItem(ZOOM_NOTES_HIDDEN_TEXT_KEY, zoomNotesHiddenText); }catch(e){}
+  const k = notesHiddenTextScale();
+  [centerText, centerModeLabelText].forEach(elm=>{
+    if(!elm) return;
+    if(notesHiddenZoomOn()) elm.setAttribute('transform', 'translate(' + CX + ' ' + CY + ') scale(' + k + ') translate(' + (-CX) + ' ' + (-CY) + ')');
+    else elm.removeAttribute('transform');
+  });
+  // клавиатура под названием сдвигается за текстом
+  try{ if(typeof l3PianoWrapEl !== 'undefined' && l3PianoWrapEl && l3NearNoteOn()) layoutL3NearNote(); }catch(e){}
+  try{ if(typeof begReady !== 'undefined' && begReady) begApplyZoom(); }catch(e){}
 }
 
 /* =========================================================
@@ -21960,6 +22494,8 @@ function pianoZoomActiveTarget(){
   return null;
 }
 function pianoZoomIn(){
+  // "Ноты на инструменте" — свой размер клавиатуры
+  try{ if(begZoomKey(1)) return; }catch(e){}
   // "Голосоведение" — свой масштаб
   try{ if(window.vlZoomKey && window.vlZoomKey('kb', 1)) return; }catch(e){}
   const t = pianoZoomActiveTarget();
@@ -21970,6 +22506,8 @@ function pianoZoomIn(){
   applyPianoZoom();
 }
 function pianoZoomOut(){
+  // "Ноты на инструменте" — свой размер клавиатуры
+  try{ if(begZoomKey(-1)) return; }catch(e){}
   // "Голосоведение" — свой масштаб
   try{ if(window.vlZoomKey && window.vlZoomKey('kb', -1)) return; }catch(e){}
   const t = pianoZoomActiveTarget();
@@ -21980,6 +22518,8 @@ function pianoZoomOut(){
   applyPianoZoom();
 }
 function pianoZoomReset(){
+  // "Ноты на инструменте" — свой размер клавиатуры
+  try{ if(begZoomKey(0)) return; }catch(e){}
   // "Голосоведение" — свой масштаб
   try{ if(window.vlZoomKey && window.vlZoomKey('kb', 0)) return; }catch(e){}
   const t = pianoZoomActiveTarget();
@@ -22075,6 +22615,7 @@ let hotkeyCycleStage = 0; // 0 = ничего ещё не нажато, 1 = ма
    элементу currentL2.ring, дальше всё как обычно решает
    onWedgeClickLevel2New — зелёная/красная вспышка). */
 function handleNoteHotkeyLevel2(e){
+  if(begGuard()) return begHandleLetterHotkey(e);
   if(ivNotesGuard()) return ivHandleLetterHotkey(e);
   if(!currentL2) return false;
   // В режиме "Пары" правильный ответ лежит на ДРУГОМ кольце — ищем
@@ -22579,6 +23120,12 @@ const PITCHBEND_DEADZONE = 1024;
 let midiPitchbendZone = 'center';
 
 function handleMidiNote(pc){
+  // "Ноты" -> "Начало" (см. блок "НАЧАЛО"): MIDI — только при ответе
+  // "На MIDI/ПК клавиатуре"
+  if(appMode === 'practice' && (practiceLevel === 1 || practiceLevel === 2) && begGuard()){
+    if(practiceLevel === 2) begAnswerPc(pc);
+    return;
+  }
   // "Ноты" -> "Интервалы" (см. блок "ИНТЕРВАЛЫ")
   if(appMode === 'practice' && (practiceLevel === 1 || practiceLevel === 2) && ivNotesGuard()){
     ivMidiNote(pc);
@@ -24324,7 +24871,7 @@ function ivPianoNotes(q){
   const second = { letter:q.letter, offset:q.offset, pc:q.secondPc, degree:deg, color:ivStyleOf(deg).color, rank:0 };
   if(q.dir === 'down' && !q.rev) tonic.rank = q.tonicPc > q.secondPc ? 0 : 1;
   else second.rank = q.secondPc > q.tonicPc ? 0 : 1;
-  // "Ноты", "Вниз": ноты те же, что у "Вверх", но звучат сверху вниз
+  // q.rev (обратный порядок) больше нигде не ставится — сначала всегда тоника
   if(q.rev) return [second, tonic];
   return [tonic, second];
 }
@@ -24596,16 +25143,27 @@ function saveNotesIvSettings(){
 
 let ivQ = null;          // текущий вопрос
 let ivStage = 0;         // 0 — ждём первую ноту, 1 — первая нажата, ждём вторую
-let ivFirstMidi = null;  // номер MIDI-ноты, нажатой первой ("Вниз": вторая должна быть ниже)
+// где нажата тоника: { kind:'midi'|'piano'|'gtr', v:высота } — вторая нота
+// должна быть выше ("Вверх") или ниже ("Вниз") на том же устройстве
+let ivFirstPos = null;
+function ivSrcPos(src){
+  if(!src) return null;
+  if(typeof src.midi === 'number') return { kind:'midi', v:src.midi };
+  if(typeof src.pitch === 'number') return { kind:'piano', v:src.pitch };
+  if(typeof src.gtrPitch === 'number') return { kind:'gtr', v:src.gtrPitch };
+  return null;
+}
+// высота клавиши тоники на клавиатуре сбоку (если тоника нажата на ней)
+function ivTonicKeyPitch(){
+  if(!ivQ || ivStage < 1 || !ivFirstPos || ivFirstPos.kind !== 'piano') return null;
+  return ivFirstPos.v;
+}
 
-/* "Ноты" -> "Интервалы", направление "Вниз": интервал тот же, что и
-   "Вверх" (C, кварта — ноты C и F), но нажимать сверху вниз — сначала
-   верхнюю ноту (F), потом тонику (C) под ней. q.rev = true — такой порядок.
-   (В "Обучении" направления нет — там ivCompute как раньше.) */
+/* "Ноты" -> "Интервалы": по правилам сольфеджио, как в "Обучении" —
+   сначала тоника, потом вторая нота: "Вверх" — выше тоники (C, квинта ↑ —
+   C, потом G), "Вниз" — ниже тоники (C, квинта ↓ — C, потом F). */
 function ivComputeNotes(ti, ivId, dir, scheme){
-  const q = ivCompute(ti, ivId, 'up', scheme);
-  if(dir === 'down'){ q.dir = 'down'; q.rev = true; }
-  return q;
+  return ivCompute(ti, ivId, dir, scheme);
 }
 // какая нота нажимается первой / второй: {pc, ring, idx}
 function ivTonicNote(){ return { pc:ivQ.tonicPc, ring:'major', idx:ivQ.tonicIdx }; }
@@ -24689,7 +25247,7 @@ function ivHintRender(){
     build(t);
     ivHintLayer.appendChild(t);
   };
-  // подписаны ноты, которые ещё нужно нажать ("Вниз": сначала нота интервала, потом тоника)
+  // подписаны ноты, которые ещё нужно нажать (сначала тоника, потом нота интервала)
   if(ivStage === 0 || ivQ.rev) put('major', ivQ.tonicIdx, t => setNoteText(t, ivQ.tonicName));
   if(ivStage >= 1 && ivQ.rev) return;
   const c = ivQ.cell;
@@ -24776,7 +25334,7 @@ function ivPickNew(){
   rememberRepeat(ivHistory, pick.k);
   ivQ = ivComputeNotes(pick.ti, pick.iv, pick.dir, notesIvScheme);
   ivStage = 0;
-  ivFirstMidi = null;
+  ivFirstPos = null;
   ivBusy = false;
   if(!(appMode === 'practice' && (practiceLevel === 1 || practiceLevel === 2))) return;
   errStatsNewQ('notes');
@@ -24828,7 +25386,7 @@ function ivWrong(ring, idx){
 function ivOnWedge(ring, index){
   if(!ivQ || ivBusy || notesIvName) return;
   const cellPc = (ring === 'major' ? majorsSemitone : minorsSemitone)[index];
-  // первая/вторая нота: "Вверх" — тоника, потом нота интервала; "Вниз" — наоборот
+  // первая нота — тоника, вторая — нота интервала (и при "Вверх", и при "Вниз")
   const f = ivFirstNote(), l = ivLastNote();
   const isFirst = ring === f.ring && index === f.idx;
   if(ivStage === 0){
@@ -24852,20 +25410,27 @@ function ivAnswerPc(pc, src){
   if(!ivQ || ivBusy || notesIvName) return;
   notesInstrLastSrc = src ? { pc, src } : null;
   const f = ivFirstNote(), l = ivLastNote();
-  // номер MIDI-ноты (только при нажатии на MIDI-клавиатуре)
-  const midiNum = (src && typeof src.midi === 'number') ? src.midi : null;
+  // высота нажатой ноты (MIDI, клавиатура или гриф сбоку); клавиатура ПК — только название
+  const pos = ivSrcPos(src);
   if(ivStage === 0){
-    if(pc === f.pc){ ivFirstMidi = midiNum; ivTonicFound(); notesInstrFlash(pc, true); return; }
+    if(pc === f.pc){ ivFirstPos = pos; ivTonicFound(); notesInstrFlash(pc, true); return; }
     ivWrong('major', majorsSemitone.indexOf(pc));
     notesInstrFlash(pc, false);
     return;
   }
-  if(pc === f.pc){ notesInstrFlash(pc, true); return; }   // первая нота уже нажата — просто мигает
+  // тоника нажата ещё раз (напр. в другой октаве) — тоника переезжает туда, без ошибки
+  if(pc === f.pc){
+    if(pos){
+      ivFirstPos = pos;
+      try{ if(notesInstrShown && notesInstrument === 'piano') renderNotesInstrument(); }catch(e){}
+    }
+    notesInstrFlash(pc, true);
+    return;
+  }
   if(pc === l.pc){
-    // MIDI: "Вниз" — тоника должна быть ниже первой нажатой ноты,
-    // "Вверх" — вторая нота выше тоники
-    if(midiNum !== null && ivFirstMidi !== null
-       && (ivQ.rev ? midiNum >= ivFirstMidi : midiNum <= ivFirstMidi)){
+    // MIDI / клавиатура / гриф сбоку: "Вверх" — вторая нота выше тоники, "Вниз" — ниже тоники
+    if(pos && ivFirstPos && pos.kind === ivFirstPos.kind
+       && (ivQ.dir === 'down' ? pos.v >= ivFirstPos.v : pos.v <= ivFirstPos.v)){
       ivWrong('major', majorsSemitone.indexOf(pc));
       notesInstrFlash(pc, false);
       return;
@@ -25112,20 +25677,450 @@ function ivToggleTonic(i){
   if(ivQ && !notesIvTonics[ivQ.tonicIdx] && ivNotesShown()) ivPickNew();
 }
 
-/* ----- категории вкладки "Ноты": 1. Ноты / 2. Интервалы ----- */
+/* =========================================================
+   НАЧАЛО — вкладка "Ноты", категория "1. Ноты на инструменте".
+   Для тех, кто ещё не знает нот. Круга нет: в центре — название
+   ноты, под ним клавиатура из 1 октавы (нарисована прямо в svg круга,
+   поэтому растёт и уменьшается вместе с ним).
+   "Клик мыши": в центре название ноты — нужно нажать её клавишу мышью.
+   "На MIDI/ПК клавиатуре": названия нет, клавиша ноты подсвечена —
+   нужно нажать эту ноту на клавиатуре ПК (буквы A–G, Shift — диез,
+   Пробел перед буквой — бемоль) или на MIDI-клавиатуре.
+   Вопросы — только из нот, выбранных в "Выберите ноты" этой категории
+   (кнопки в виде клавиатуры; у чёрной клавиши одна кнопка "C♯ / D♭",
+   в центре пишутся оба названия).
+   Если во вкладке "Ноты" стоит "Показать гриф" — вместо клавиатуры гриф
+   целиком (все лады): "Клик мыши" — любое место этой ноты на грифе;
+   "На MIDI/ПК клавиатуре" — отмечено одно место ноты.
+   Размер: + / - меняют только ноту в центре, х / ъ ([ / ]) — только
+   клавиатуру (свой размер, с клавиатурами других категорий не связан;
+   Shift + х — сброс). На телефоне клавиатура растёт вместе с нотой.
+
+   Клавиатура — та же, что у категорий "Ноты" и "Интервалы" со "Скрыть
+   круг": те же размеры клавиш (TRAIN_PIANO_*), то же место под названием
+   (L3_NEAR_NOTE_GAP) и тот же размер по умолчанию (PIANO_ZOOM_DEFAULT).
+   ========================================================= */
+var BEG_WHITE_W = TRAIN_PIANO_WHITE_W, BEG_WHITE_H = TRAIN_PIANO_WHITE_H;
+var BEG_BLACK_W = TRAIN_PIANO_BLACK_W, BEG_BLACK_H = TRAIN_PIANO_BLACK_H;
+var BEG_PIANO_Y = CY + 100;   // служебное: верх клавиш внутри слоя (на экране место задаёт begApplyZoom)
+
+var NOTES_BEG_ON_KEY = 'circleNotesBegOn';
+var NOTES_BEG_SEL_KEY = 'circleNotesBegSel3';
+var notesBegOnFlag = ivLsGet(NOTES_BEG_ON_KEY) === '1';
+// ноты: [номер ноты, диез (или сама нота), бемоль]; col — столбец кнопки из 14
+var BEG_WHITE_NOTES = [[0,'C'],[2,'D'],[4,'E'],[5,'F'],[7,'G'],[9,'A'],[11,'B']];
+var BEG_BLACK_NOTES = [[1,'C♯','D♭',2],[3,'D♯','E♭',4],[6,'F♯','G♭',8],[8,'G♯','A♭',10],[10,'A♯','B♭',12]];
+// название ноты: белая — буква, чёрная — диез и бемоль вместе ("C♯ / D♭")
+function begNoteName(pc){
+  const w = BEG_WHITE_NOTES.find(n => n[0] === pc);
+  if(w) return noteDisplay(w[1]);
+  const b = BEG_BLACK_NOTES.find(n => n[0] === pc);
+  return b ? (noteDisplay(b[1]) + ' / ' + noteDisplay(b[2])) : '';
+}
+/* Название ноты в центре. У чёрной клавиши — оба названия, косая черта
+   между ними наклонена под 45 градусов: знак "/" шрифта стоит круче,
+   поэтому он довёрнут на BEG_SLASH_TURN градусов (больше число — положе). */
+var BEG_SLASH_TURN = 27;
+var BEG_SLASH_DX_BEFORE = -0.14, BEG_SLASH_DX_AFTER = 0.22;
+function begSetCenterName(pc){
+  const b = BEG_BLACK_NOTES.find(n => n[0] === pc);
+  if(!b){ centerText.textContent = begNoteName(pc); return; }
+  centerText.textContent = '';
+  const NS = 'http://www.w3.org/2000/svg';
+  const part = (txt, rot, dx)=>{
+    const ts = document.createElementNS(NS, 'tspan');
+    if(rot) ts.setAttribute('rotate', String(rot));
+    if(dx) ts.setAttribute('dx', dx + 'em');
+    ts.textContent = txt;
+    centerText.appendChild(ts);
+  };
+  part(noteDisplay(b[1]) + ' ');
+  // довёрнутый знак уходит вправо — BEG_SLASH_DX_* возвращают одинаковые
+  // промежутки слева и справа от черты (в долях размера шрифта)
+  part('/', BEG_SLASH_TURN, BEG_SLASH_DX_BEFORE);
+  part(' ' + noteDisplay(b[2]), 0, BEG_SLASH_DX_AFTER);
+}
+// выбранные ноты (номера 0..11); по умолчанию — белые клавиши
+var notesBegSel = (function(){
+  const set = new Set();
+  let sv = null;
+  try{ sv = JSON.parse(ivLsGet(NOTES_BEG_SEL_KEY)); }catch(e){ sv = null; }
+  if(Array.isArray(sv)) sv.forEach(n=>{ if(typeof n === 'number' && n >= 0 && n < 12) set.add(n); });
+  if(!set.size){
+    // прежний вид сохранения (по названиям, C♯ и D♭ отдельно)
+    let old = null;
+    try{ old = JSON.parse(ivLsGet('circleNotesBegSel2')); }catch(e){ old = null; }
+    if(Array.isArray(old)) old.forEach(nm=>{
+      BEG_WHITE_NOTES.forEach(n=>{ if(n[1] === nm) set.add(n[0]); });
+      BEG_BLACK_NOTES.forEach(n=>{ if(n[1] === nm || n[2] === nm) set.add(n[0]); });
+    });
+  }
+  if(!set.size) BEG_WHITE_NOTES.forEach(n=> set.add(n[0]));
+  return set;
+})();
+// свой размер клавиатуры (х / ъ), как у остальных — в процентах
+var BEG_PIANO_ZOOM_KEY = 'circleOfFifthsPianoZoomBeg';
+var begPianoZoom = (function(){
+  const v = parseInt(ivLsGet(BEG_PIANO_ZOOM_KEY), 10);
+  return isNaN(v) ? PIANO_ZOOM_DEFAULT : v;
+})();
+// х / ъ в "Ноты на инструменте": dir 1 — больше, -1 — меньше, 0 — сброс
+function begZoomKey(dir){
+  if(!begShown() || isMobile || begGrif()) return false;
+  begPianoZoom = dir === 0 ? PIANO_ZOOM_DEFAULT
+    : Math.max(PIANO_ZOOM_MIN, Math.min(PIANO_ZOOM_MAX, begPianoZoom + dir * PIANO_ZOOM_STEP));
+  ivLsSet(BEG_PIANO_ZOOM_KEY, String(begPianoZoom));
+  begApplyZoom();
+  return true;
+}
+var begQ = null;         // текущий вопрос: { pc, name }
+var begBusy = false;     // пауза после верного ответа
+var begHistory = [];     // недавние вопросы (правило без повторов)
+var begLayer = null;     // слой клавиатуры в svg круга
+var begKeyEls = {};      // клавиши по номеру ноты (0..11)
+var begReady = false;    // модуль загружен (раньше по файлу его функции не вызываются)
+
+// "Начало" во вкладке "Ноты" включено
+function begGuard(){
+  return typeof begReady !== 'undefined' && begReady === true && !!notesBegOnFlag;
+}
+/* Окно по "?" у "Показывать клавиатуру" ("Обучение"): одна октава со всеми
+   нотами. На чёрных клавишах — "диез / бемоль" по диагонали (диез выше и
+   левее, бемоль ниже и правее). Под клавиатурой — подложка (.pianoNotesBack
+   в CSS), чтобы окно не сливалось с кругом. Размеры — числа PN_* ниже. */
+function buildPianoNotesView(){
+  const PN_WW = 64, PN_WH = 230, PN_BW = 48, PN_BH = 145, PN_PAD = 6;
+  const PN_DX = 9, PN_DY = 20;   // сдвиг диеза и бемоля от косой черты (в стороны / вверх-вниз)
+  const PN_SL = 7;               // половина размера косой черты (она под 45 градусов)
+  const wrap = document.createElement('div');
+  wrap.className = 'pianoNotesBack';
+  const width = PN_PAD * 2 + 7 * PN_WW, height = PN_PAD * 2 + PN_WH;
+  const sv = el('svg', { width:width, height:height, viewBox:'0 0 ' + width + ' ' + height, class:'pianoNotesSvg' });
+  const label = (x, y, txt, onBlack, size)=>{
+    const tEl = el('text', { x:x, y:y, class:'trainPianoKeyLabel', 'font-size':String(size),
+      fill: onBlack ? 'var(--piano-key-label-on-black, #fff)' : 'var(--piano-key-label-on-white, #141414)' });
+    tEl.textContent = noteDisplay(txt);
+    sv.appendChild(tEl);
+  };
+  BEG_WHITE_NOTES.forEach((n, i)=>{
+    sv.appendChild(el('rect', { x:PN_PAD + i * PN_WW, y:PN_PAD, width:PN_WW, height:PN_WH, class:'trainPianoWhiteKey' }));
+  });
+  // белые клавиши — цветами ступеней по порядку (те же цвета, что у ступеней
+  // аккорда — TRAIN_DEGREE_COLOR): C — тоника, D — 2-я (как 9-я), E — терция,
+  // F — 4-я (как 11-я), G — квинта, A — 6-я, B — 7-я. Цвет лежит поверх
+  // клавиши, как на клавиатуре "Обучения".
+  const PN_DEGREES = ['root', 'ninth', 'third', 'eleventh', 'fifth', 'sixth', 'seventh'];
+  BEG_WHITE_NOTES.forEach((n, i)=>{
+    sv.appendChild(el('rect', { x:PN_PAD + i * PN_WW, y:PN_PAD, width:PN_WW, height:PN_WH,
+      fill:TRAIN_DEGREE_COLOR[PN_DEGREES[i]], stroke:'var(--bg)', 'stroke-width':'1.5' }));
+  });
+  BEG_WHITE_NOTES.forEach((n, i)=> label(PN_PAD + (i + 0.5) * PN_WW, PN_PAD + PN_WH - 24, n[1], false, 22));
+  BEG_BLACK_NOTES.forEach(n=>{
+    const cx = PN_PAD + (n[3] / 2) * PN_WW;   // стык белых клавиш
+    const cy = PN_PAD + PN_BH - 22 - PN_DY;   // середина косой черты
+    sv.appendChild(el('rect', { x:cx - PN_BW / 2, y:PN_PAD, width:PN_BW, height:PN_BH, class:'trainPianoBlackKey' }));
+    label(cx - PN_DX, cy - PN_DY, n[1], true, 15);   // диез — выше и левее
+    // косая черта — линия под 45 градусов
+    sv.appendChild(el('line', { x1:cx - PN_SL, y1:cy + PN_SL, x2:cx + PN_SL, y2:cy - PN_SL,
+      stroke:'var(--piano-key-label-on-black, #fff)', 'stroke-width':'2', 'stroke-linecap':'round' }));
+    label(cx + PN_DX, cy + PN_DY, n[2], true, 15);   // бемоль — ниже и правее
+  });
+  wrap.appendChild(sv);
+  return wrap;
+}
+// гриф вместо своей клавиатуры — общей галкой "Показать гриф" вкладки "Ноты"
+function begGrif(){
+  try{ return !!notesInstrShown && notesInstrument !== 'piano'; }catch(e){ return false; }
+}
+// "Ноты на инструменте" со своей клавиатурой из 1 октавы (не гриф)
+function begOwnPiano(){ return begGuard() && !begGrif(); }
+// место ноты вопроса на грифе (случайное из всех мест этой ноты; пока
+// вопрос и инструмент те же — не меняется)
+function begGrifCell(){
+  if(!begQ) return null;
+  if(begQ.cell && begQ.cellInst === notesInstrument) return begQ.cell;
+  const inst = INSTRUMENTS[notesInstrument] || INSTRUMENTS.guitar;
+  const cells = [];
+  inst.tuning.forEach((open, s)=>{
+    for(let f = 0; f <= inst.full; f++) if((open + f) % 12 === begQ.pc) cells.push({ s:s, f:f });
+  });
+  begQ.cell = cells.length ? cells[Math.floor(Math.random() * cells.length)] : null;
+  begQ.cellInst = notesInstrument;
+  return begQ.cell;
+}
+function begShown(){
+  return begGuard() && appMode === 'practice' && (practiceLevel === 1 || practiceLevel === 2);
+}
+
+// название в центре и клавиатура под ним
+function begRender(){
+  if(!begLayer){
+    begLayer = el('g', {id:'begLayer'});
+    svg.appendChild(begLayer);
+  }
+  while(begLayer.firstChild) begLayer.removeChild(begLayer.firstChild);
+  begKeyEls = {};
+  if(!begShown()) return;
+  begApplyZoom();
+  const mouse = practiceLevel === 1;
+  if(begQ) begQ.name = begNoteName(begQ.pc);
+  if(mouse && begQ) begSetCenterName(begQ.pc);
+  else centerText.textContent = '';
+  centerModeLabelText.textContent = '';
+  // гриф рисует общая клавиатура/гриф вкладки "Ноты" (renderNotesInstrument)
+  if(begGrif()) return;
+  const x0 = CX - 7 * BEG_WHITE_W / 2;
+  const y0 = BEG_PIANO_Y;
+  const add = (pc, x, w, h, cls, black)=>{
+    const r = el('rect', { x:x, y:y0, width:w, height:h, class: cls + (mouse ? ' l3PianoAnswerKey' : '') });
+    if(mouse) r.addEventListener('click', ()=> begAnswerPc(pc));
+    begLayer.appendChild(r);
+    begKeyEls[pc] = { x:x, y:y0, w:w, h:h, black:black, el:r };
+  };
+  // "На MIDI/ПК клавиатуре": клавиша вопроса подсвечена — цвет лежит
+  // отдельным слоем поверх самой клавиши (как в "Обучении"), поэтому
+  // сквозь него не видно то, что под клавишей
+  const hl = (black)=>{
+    if(mouse || !begQ) return;
+    const k = begKeyEls[begQ.pc];
+    if(!k || k.black !== black) return;
+    const a = { x:k.x, y:k.y, width:k.w, height:k.h, fill:YELLOW_HIGHLIGHT_L2, 'pointer-events':'none' };
+    if(black) a.opacity = '0.85';
+    begLayer.appendChild(el('rect', a));
+  };
+  [0, 2, 4, 5, 7, 9, 11].forEach((pc, i)=> add(pc, x0 + i * BEG_WHITE_W, BEG_WHITE_W, BEG_WHITE_H, 'trainPianoWhiteKey', false));
+  hl(false);
+  begFirstBlack = null;
+  [[1, 1], [3, 2], [6, 4], [8, 5], [10, 6]].forEach(([pc, n])=>{
+    add(pc, x0 + n * BEG_WHITE_W - BEG_BLACK_W / 2, BEG_BLACK_W, BEG_BLACK_H, 'trainPianoBlackKey', true);
+    if(!begFirstBlack) begFirstBlack = begLayer.lastChild;
+  });
+  hl(true);
+}
+/* Размер клавиатуры не зависит от размера круга (+ / -): слой клавиатуры
+   лежит в svg круга и растёт вместе с ним, поэтому здесь рост круга
+   снимается, а вместо него ставится размер клавиатуры (х / ъ).
+   Клавиатура растёт вниз и в стороны от середины своего верхнего края. */
+function begApplyZoom(){
+  if(!begLayer) return;
+  // k — размер клавиатуры внутри svg круга; sv — во сколько раз увеличен сам svg
+  let k = 1, sv = 1;
+  try{
+    if(!isMobile){
+      const zp = (typeof zoomPractice === 'number' && zoomPractice > 0) ? zoomPractice : 100;
+      sv = zp / 100;
+      // на экране клавиатура увеличена в begPianoZoom / 100 раз — как клавиатура "Нот"
+      k = (begPianoZoom / 100) / sv;
+    }
+  }catch(e){ k = 1; sv = 1; }
+  // текст в центре увеличен отдельно (+ / -) — клавиатура отходит вниз вместе с ним
+  let ts = 1;
+  try{ ts = notesHiddenTextScale(); }catch(e){ ts = 1; }
+  // верх клавиш — там же, где у клавиатуры "Нот" под названием (см. layoutL3NearNote):
+  // под местом нижней строки текста + L3_NEAR_NOTE_GAP
+  const fs = centerFontSizes();
+  const yT = CY + (fs.top / 2 + CENTER_MODE_LABEL_CONFIG.gapBelowNote + fs.bottom) * ts + L3_NEAR_NOTE_GAP / sv;
+  begLayer.setAttribute('transform', 'translate(' + CX + ' ' + yT + ') scale(' + k + ') translate(' + (-CX) + ' ' + (-BEG_PIANO_Y) + ')');
+}
+// вспышка ответа на клавише — как на остальных клавиатурах (flashL3PianoKey):
+// белая — под чёрными клавишами, чёрная — поверх всего
+var begFirstBlack = null;
+function begFlashKey(pc, color){
+  const k = begKeyEls[pc];
+  if(!k || !begLayer) return;
+  const r = el('rect', { x:k.x, y:k.y, width:k.w, height:k.h, fill:color, 'pointer-events':'none' });
+  if(!k.black && begFirstBlack && begFirstBlack.parentNode === begLayer) begLayer.insertBefore(r, begFirstBlack);
+  else begLayer.appendChild(r);
+  setTimeout(()=>{ if(r.parentNode) r.parentNode.removeChild(r); }, 300);
+}
+
+// вкладка "Ноты" открыта / сменился способ ответа
+function begEnterView(){
+  if(!begShown()) return;
+  if(!begQ) begPickNew();
+  else begRender();
+}
+
+// варианты вопроса — выбранные ноты
+function begPool(){
+  const out = [];
+  for(let pc = 0; pc < 12; pc++) if(notesBegSel.has(pc)) out.push({ pc:pc, k:String(pc) });
+  if(!out.length) out.push({ pc:0, k:'0' });
+  return out;
+}
+function begPickNew(){
+  if(!begGuard()) return;
+  const pool = begPool();
+  const pick = pickNoRepeat(pool, c => c.k, begHistory, pool.length);
+  rememberRepeat(begHistory, pick.k);
+  begQ = { pc:pick.pc, name:begNoteName(pick.pc), cell:null, cellInst:null };
+  begBusy = false;
+  if(!(appMode === 'practice' && (practiceLevel === 1 || practiceLevel === 2))) return;
+  errStatsNewQ('notes');
+  if(typeof updateL3Piano === 'function') updateL3Piano(); else begRender();
+  begPlayQuestion();
+}
+
+// звук вопроса (Онлайн / DAW) — одна нота, как в категории "Ноты"
+function begPlayQuestion(){
+  try{
+    if(soundOutMode === 'mute' || !begQ) return;
+    const prevTrigger = midiKeyTriggerActive;
+    const prevTriggerNote = midiKeyTriggerNoteNum;
+    const prevDawMode = dawOutMode;
+    dawOutMode = 'together';
+    midiKeyTriggerActive = false;
+    try{ playCurrentTrainChordToDaw([{ pc:begQ.pc, rank:0 }]); }
+    finally{ midiKeyTriggerActive = prevTrigger; midiKeyTriggerNoteNum = prevTriggerNote; dawOutMode = prevDawMode; }
+  }catch(e){}
+}
+
+// ответ: клавиша (или место на грифе) мышью, буква на клавиатуре ПК или нота с MIDI
+function begAnswerPc(pc, src){
+  if(!begQ || begBusy || !begShown()) return;
+  const grif = begGrif();
+  const ok = pc === begQ.pc;
+  if(grif){
+    // "На MIDI/ПК клавиатуре": верный ответ мигает на отмеченном месте
+    if(ok && practiceLevel === 2 && begQ.cell && begQ.cellInst === notesInstrument){
+      try{ gtrFlash(l3PianoSvgEl, begQ.cell.s, begQ.cell.f, FLASH_GREEN); }catch(e){}
+    } else {
+      notesInstrLastSrc = src ? { pc:pc, src:src } : null;
+      notesInstrFlash(pc, ok);
+    }
+  } else {
+    begFlashKey(pc, ok ? FLASH_GREEN : FLASH_RED);
+  }
+  if(ok){
+    begBusy = true;
+    if(practiceLevel === 1) flashCenterText(FLASH_GREEN, 300);
+    errStatsOk('notes');
+    setTimeout(()=>{ begBusy = false; begPickNew(); }, 320);
+    return;
+  }
+  // название в центре при ошибке — красное с прозрачностью
+  if(practiceLevel === 1) flashCenterText(FLASH_RED, 300);
+  errStatsWrong('notes', begQ.name);
+}
+
+// буквы A–G (Shift — диез, Пробел перед буквой — бемоль)
+function begHandleLetterHotkey(e){
+  let pc;
+  if(flatModePending){
+    if(!HOTKEY_LETTER[e.code]) return false;
+    setFlatModePending(false);
+    pc = HOTKEY_FLAT_PC[e.code];
+  } else if(e.shiftKey){
+    pc = HOTKEY_SHARP_PC[e.code];
+  } else if(HOTKEY_LETTER[e.code]){
+    pc = NATURAL_PC[HOTKEY_LETTER[e.code]];
+  }
+  if(pc === undefined) return false;
+  begAnswerPc(pc);
+  return true;
+}
+
+/* ----- "Выберите ноты" категории "Начало": кнопки в виде клавиатуры ----- */
+function begRenderSelUi(){
+  const box = document.getElementById('begSelKeys');
+  if(!box) return;
+  if(!box.firstChild){
+    const mk = (name, cls, col, span)=>{
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'ringBtn ' + cls;
+      btn.setAttribute('data-note', name);
+      btn.style.gridColumn = col + ' / span ' + span;
+      btn.addEventListener('click', ()=> begToggleNote(name));
+      box.appendChild(btn);
+    };
+    BEG_BLACK_NOTES.forEach(n=> mk(n[0], 'begSelBlack', n[3], 2));
+    BEG_WHITE_NOTES.forEach((n, i)=> mk(n[0], 'begSelWhite', i * 2 + 1, 2));
+  }
+  box.querySelectorAll('.ringBtn[data-note]').forEach(b=>{
+    const pc = parseInt(b.getAttribute('data-note'), 10);
+    b.textContent = begNoteName(pc);
+    b.classList.toggle('active', notesBegSel.has(pc));
+  });
+}
+function begToggleNote(name){
+  // name — номер ноты (0..11)
+  // нажатие при невыбранной категории выбирает "Начало" (нажатая кнопка не отжимается)
+  if(!notesBegOnFlag){
+    notesBegSel.add(name);
+  } else if(notesBegSel.has(name)){
+    if(notesBegSel.size <= 1) return;   // последнюю не снять
+    notesBegSel.delete(name);
+  } else {
+    notesBegSel.add(name);
+  }
+  begRenderSelUi();
+  ivLsSet(NOTES_BEG_SEL_KEY, JSON.stringify(Array.from(notesBegSel)));
+  begHistory = [];
+  if(!notesBegOnFlag){ notesBegSetOn(true); return; }
+  // нота текущего вопроса снята — новый вопрос; иначе вопрос остаётся
+  if(begQ && begShown()){
+    if(!notesBegSel.has(begQ.pc)) begPickNew();
+  }
+}
+
+// включить / выключить категорию "Начало" (silent — следом включаются
+// "Интервалы", вопрос "Нот" задавать не нужно)
+function notesBegSetOn(on, silent){
+  on = !!on;
+  if(on === !!notesBegOnFlag){ syncNotesCategories(); return; }
+  if(on && notesIvOnFlag){
+    // "Начало" выключает "Интервалы"
+    notesIvOnFlag = false;
+    ivLsSet(NOTES_IV_ON_KEY, '0');
+    ivHistory = [];
+    ivClearPaint();
+    ivQ = null;
+    ivBusy = false;
+    notesIvRenderUi();
+  }
+  notesBegOnFlag = on;
+  ivLsSet(NOTES_BEG_ON_KEY, on ? '1' : '0');
+  begHistory = [];
+  begQ = null;
+  begBusy = false;
+  if(on){
+    // вопрос "Нот" убираем
+    if(currentL2) clearWedgeHighlightL2(currentL2.ring, currentL2.index);
+    current = null;
+    currentL2 = null;
+    if(begShown()) begPickNew();
+  } else {
+    begRender();
+    if(!silent){
+      centerText.textContent = '';
+      // сначала возвращаем круг, потом вопрос (иначе подсветка вопроса сотрётся)
+      try{ updateL3WedgeVisibility(); }catch(e){}
+      if(appMode === 'practice' && practiceLevel === 1) pickNewChord();
+      else if(appMode === 'practice' && practiceLevel === 2) pickNewChordL2();
+      if(typeof updateL3Piano === 'function') updateL3Piano();
+    }
+  }
+  syncNotesCategories();
+  try{ errStatsRender(); }catch(e){}
+}
+
+/* ----- категории вкладки "Ноты": 1. Ноты на инструменте ("Начало") / 2. Ноты / 3. Интервалы ----- */
 var __notesCatLastSel = null;
 function syncNotesCategories(){
-  const cats = { notes: document.getElementById('notesCatNotes'), iv: document.getElementById('notesCatIv') };
+  const cats = { beg: document.getElementById('notesCatBeg'), notes: document.getElementById('notesCatNotes'), iv: document.getElementById('notesCatIv') };
   if(!cats.notes || !cats.iv) return;
-  const sel = notesIvOnFlag ? 'iv' : 'notes';
+  const sel = (notesBegOnFlag && cats.beg) ? 'beg' : (notesIvOnFlag ? 'iv' : 'notes');
+  const cbB = document.getElementById('notesCatBegCb');
   const cbN = document.getElementById('notesCatNotesCb');
   const cbI = document.getElementById('notesCatIvCb');
+  if(cbB) cbB.checked = sel === 'beg';
   if(cbN) cbN.checked = sel === 'notes';
   if(cbI) cbI.checked = sel === 'iv';
   if(sel !== __notesCatLastSel){
     if(__notesCatLastSel !== null) keepCatHeadInPlace(cats[sel]);
     __notesCatLastSel = sel;
-    Object.keys(cats).forEach(k=> cats[k].classList.toggle('open', k === sel));
+    Object.keys(cats).forEach(k=>{ if(cats[k]) cats[k].classList.toggle('open', k === sel); });
   }
   // "за раз"/"по очереди" нужны только интервалам
   const dawRow = document.getElementById('notesDawModeRow');
@@ -25134,6 +26129,8 @@ function syncNotesCategories(){
 
 function notesIvSetOn(on){
   on = !!on;
+  // "Интервалы" выключают "Начало"
+  if(on && typeof begReady !== 'undefined' && begReady && notesBegOnFlag) notesBegSetOn(false, true);
   if(on === !!notesIvOnFlag){ syncNotesCategories(); return; }
   notesIvOnFlag = on;
   ivLsSet(NOTES_IV_ON_KEY, on ? '1' : '0');
@@ -25225,6 +26222,20 @@ function ivOnLangChange(){
     current = null;
     currentL2 = null;
     if(ivNotesShown()) ivPickNew();
+  }
+  syncNotesCategories();
+})();
+
+(function initNotesBeg(){
+  begRenderSelUi();
+  begReady = true;
+  // сохранённый выбор "Начала" — вопрос "Нот", заданный при загрузке, убираем
+  if(notesBegOnFlag){
+    if(currentL2) clearWedgeHighlightL2(currentL2.ring, currentL2.index);
+    current = null;
+    currentL2 = null;
+    centerText.textContent = '';
+    if(begShown()) begPickNew();
   }
   syncNotesCategories();
 })();
@@ -26019,13 +27030,42 @@ if(circleIsFirstLaunch){
     var schemeKind = icon.getAttribute('data-tip-scheme');
     schemePopup.appendChild(schemeKind === 'modes' ? buildModesSchemeView()
       : schemeKind === 'intervals' ? buildIntervalsSchemeView()   // схема интервалов
+      : schemeKind === 'piano' ? buildPianoNotesView()            // ноты на клавиатуре (1 октава)
       : buildInstrNotesView(schemeKind));
+    schemePopup.classList.toggle('pianoNotesPopup', schemeKind === 'piano');
     schemePopup.style.display = 'block';
     // по центру экрана
     schemePopup.style.left = '0px'; schemePopup.style.top = '0px';
     var pw = schemePopup.offsetWidth, ph = schemePopup.offsetHeight;
     schemePopup.style.left = Math.max(8, (window.innerWidth - pw) / 2) + 'px';
     schemePopup.style.top = Math.max(8, (window.innerHeight - ph) / 2) + 'px';
+    // "?" у "Показывать клавиатуру": окно закрывает собой круг, чтобы
+    // клавиатура с ним не сливалась (PIANO_NOTES_COVER_PAD — запас вокруг круга, px)
+    if(schemeKind === 'piano'){
+      try{
+        var PIANO_NOTES_COVER_PAD = 12;
+        var back = schemePopup.querySelector('.pianoNotesBack');
+        var cr = document.getElementById('trainCircle').getBoundingClientRect();
+        if(back && cr.width > 0){
+          var cs = getComputedStyle(schemePopup);
+          var padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+          var padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+          // окно стоит по центру экрана (клавиатура — ровно в центре) и при этом
+          // закрывает весь круг, где бы он ни стоял (напр. поднят при "Снизу"):
+          // от центра экрана окно тянется до дальнего края круга в каждую сторону
+          var sx = window.innerWidth / 2, sy = window.innerHeight / 2;
+          var halfW = Math.max(sx - cr.left, cr.right - sx) + PIANO_NOTES_COVER_PAD;
+          var halfH = Math.max(sy - cr.top, cr.bottom - sy) + PIANO_NOTES_COVER_PAD;
+          halfW = Math.min(halfW, sx - 8);
+          halfH = Math.min(halfH, sy - 8);
+          back.style.minWidth = Math.max(0, halfW * 2 - padX) + 'px';
+          back.style.minHeight = Math.max(0, halfH * 2 - padY) + 'px';
+          pw = schemePopup.offsetWidth; ph = schemePopup.offsetHeight;
+          schemePopup.style.left = Math.max(8, sx - pw / 2) + 'px';
+          schemePopup.style.top = Math.max(8, sy - ph / 2) + 'px';
+        }
+      }catch(err){}
+    }
     schemeIcon = icon;
     requestAnimationFrame(watchIcon);
   }
@@ -27236,6 +28276,15 @@ function invLabel(c, v, maxW, fs){
   if(!maxW) return vars[0];
   return vars.find(x=>x.length*fs*0.55<=maxW) || vars[vars.length-1];
 }
+/* Кружки вопроса "Голосоведения" ("Аккорды/Лады"): если расположение нот
+   не совпадает ни с одним обращением и ни с одним Drop 2 / Drop 3 (широкое
+   расположение после перехода из дропа) — названия у него нет, и подпись
+   "по нижней ноте" (напр. "Третье") была бы неверной: вместо неё пишутся
+   сами ноты снизу вверх. */
+function pairInvLabel(c, v, maxW, fs){
+  if(variantOf(c, v) < 0) return v.slice().sort((a,b)=>a-b).map(n=>nameIn(c,n)).join(' ');
+  return invLabel(c, v, maxW, fs);
+}
 const chordLabel = (c,v) => `${noteDisplay(cn(c))} (${invLabel(c,v)})`;
 
 /* ===================== НАСТРОЙКИ (запоминаются) ===================== */
@@ -28254,9 +29303,9 @@ function renderPair(){
   // "Не показывать предыдущий аккорд — в кругу": сыгранный левый кружок и стрелка не рисуются
   const hideC1 = done1 && pairHidePrevCircle();
   svg.innerHTML =
-    (hideC1 ? '' : pairCirc(PAIR_X1, Q.c, invLabel(Q.c, Q.stage===1?Q.v:Q.played, 124, 15), done1, 'vlPairC1') +
+    (hideC1 ? '' : pairCirc(PAIR_X1, Q.c, pairInvLabel(Q.c, Q.stage===1?Q.v:Q.played, 124, 15), done1, 'vlPairC1') +
     `<g id="vlPairArrow">${arrowSvg((PAIR_X1+PAIR_X2)/2, 85, 1, 0, 'var(--app-text-color)')}</g>`) +
-    pairCirc(PAIR_X2, Q.target, invLabel(Q.target, Q.t.to, 124, 15), false, 'vlPairC2');
+    pairCirc(PAIR_X2, Q.target, pairInvLabel(Q.target, Q.t.to, 124, 15), false, 'vlPairC2');
   applyNoteTexts(svg);
   renderProgStrip();
   drawPairKb();
@@ -28369,7 +29418,7 @@ function pairChordDone(){
   const pms=pairAnimMs(), hideC=pairHidePrevCircle();
   [c1,c2].filter(Boolean).forEach(g=>{ g.style.transition=`transform ${pms}ms ease, opacity ${pms}ms ease`; });
   c2.querySelector('circle').setAttribute('stroke','var(--green)'); c2.querySelector('circle').setAttribute('stroke-width','5');
-  c2.insertAdjacentHTML('beforebegin', pairCirc(PAIR_X2, tr.target, invLabel(tr.target,tr.to,124,15), false, 'vlPairNew'));
+  c2.insertAdjacentHTML('beforebegin', pairCirc(PAIR_X2, tr.target, pairInvLabel(tr.target,tr.to,124,15), false, 'vlPairNew'));
   applyNoteTexts($('vlPairSvg'));
   requestAnimationFrame(()=>{
     c2.style.transform=`translate(${PAIR_X1-PAIR_X2}px,0)`;

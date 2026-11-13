@@ -461,7 +461,7 @@
   .menu-panel.right-panel {
     position: fixed;
     top: 50%;
-    right: calc(50% + 440px);
+    right: calc(50% + 432px);
     width: 540px;
     height: 90vh;
     overflow-y: auto;
@@ -517,7 +517,7 @@
      .right-side — зеркальное отражение обычного "бокового" положения
      (которое задаётся базовым правилом .menu-panel.right-panel выше). */
   .menu-panel.right-panel.right-side {
-    left: calc(50% + 440px);
+    left: calc(50% + 432px);
     right: auto;
     transform: translate(30px, -50%);
   }
@@ -2277,7 +2277,6 @@
          И галочка "Настройки сбоку от меню" выключена (режим "по центру экрана") -->
     <div id="settingsBackdrop"></div>
 
-    <!-- НАСТРОЙКИ (ПОЯВЛЯЮТСЯ ПРИ СКРОЛЛЕ ВВЕРХ) -->
     <div class="menu-panel right-panel" id="right-panel">
 
       <div class="section">
@@ -2779,7 +2778,7 @@ window.EAR_TRAINER_CONFIG = {
       listenMode: 'Прослушать', listenModeTip: 'Режим, чтобы послушать и запомнить звучание до ответов на вопросы. Пока галка включена, вопросы не задаются: в центре показываются варианты, выбранные в настройках (тоника, октава, обращение, ширина, бас и т.д.) — ряд показывается, только если в нём 2 варианта и больше. В каждом ряду выбирается один вариант. Нажатие на аккорд или интервал (во вкладке «Ноты» — на ноту) проигрывает его с выбранными параметрами. Горячие клавиши: 1–9 и 0 на клавиатуре — первые 10 вариантов по порядку, белые клавиши C–B на MIDI-клавиатуре (в любой октаве) — первые 7. Сочетания, которые не выпали бы в вопросе (например, бас не ниже интервала/аккорда), недоступны.', listenTonic: 'Тоника', listenNote: 'Нота', listenOctave: 'Октава', listenWidth: 'Ширина',
       listenDirection: 'Направление', listenInversion: 'Обращение', listenBass: 'Бас', listenBassOct: 'Октава баса',
       listenBass2: 'Бас 2', listenBass2Oct: 'Октава баса 2', listenInterval: 'Интервал', listenChord: 'Аккорд',
-      bass1TipChords: "Дополнительная низкая нота, звучит ниже аккорда. «Первая нота аккорда» — тоника, «Вторая нота аккорда» — 3-я ступень (в Sus2 — 2-я, в Sus4 и 7sus4 — 4-я), «Третья нота аккорда» — 5-я ступень. Ноты берутся от основного вида аккорда, обращение на них не влияет. Если выбрано несколько нот или октав, каждый раз берётся случайный вариант, и его нужно угадать в окне ответа.", bass1TipIntervals: "Дополнительная низкая нота, звучит ниже интервала. «Первая нота интервала» — нота, которая звучит первой, «Вторая нота интервала» — нота, которая звучит второй. При «Сыграть за раз» и при «Интервал вверх» первая нота — нижняя (тоника), вторая — верхняя; при «Сыграть по очереди» с «Интервал вниз» — наоборот. Если выбрано несколько нот или октав, каждый раз берётся случайный вариант, и его нужно угадать в окне ответа.", bass2TipChords: "Вторая нота баса, всегда звучит ниже баса 1. Ноты те же, что у баса 1: «Первая нота аккорда» — тоника, «Вторая нота аккорда» — 3-я ступень (в Sus2 — 2-я, в Sus4 и 7sus4 — 4-я), «Третья нота аккорда» — 5-я ступень; берутся от основного вида аккорда. Если выбрано несколько нот или октав, каждый раз берётся случайный вариант, и его нужно угадать в окне ответа.", bass2TipIntervals: "Вторая нота баса, всегда звучит ниже баса 1. Ноты те же, что у баса 1: «Первая нота интервала» — нота, которая звучит первой, «Вторая нота интервала» — нота, которая звучит второй (при «Сыграть по очереди» с «Интервал вниз» первой звучит верхняя). Если выбрано несколько нот или октав, каждый раз берётся случайный вариант, и его нужно угадать в окне ответа.",
+      bass1TipChords: "Дополнительная низкая нота, звучит ниже аккорда. «Первая нота аккорда» — тоника, «Вторая нота аккорда» — 3-я ступень (в Sus2 — 2-я, в Sus4 и 7sus4 — 4-я), «Третья нота аккорда» — 5-я ступень. Ноты берутся от основного вида аккорда, обращение на них не влияет. Если выбрано несколько нот или октав, каждый раз берётся случайный вариант, и его нужно угадать в окне ответа.", bass1TipIntervals: "Дополнительная низкая нота, звучит ниже интервала. «Первая нота интервала» — тоника (звучит первой), «Вторая нота интервала» — нота, которая звучит второй: при «Интервал вверх» она выше тоники, при «Интервал вниз» — ниже. Если выбрано несколько нот или октав, каждый раз берётся случайный вариант, и его нужно угадать в окне ответа.", bass2TipChords: "Вторая нота баса, всегда звучит ниже баса 1. Ноты те же, что у баса 1: «Первая нота аккорда» — тоника, «Вторая нота аккорда» — 3-я ступень (в Sus2 — 2-я, в Sus4 и 7sus4 — 4-я), «Третья нота аккорда» — 5-я ступень; берутся от основного вида аккорда. Если выбрано несколько нот или октав, каждый раз берётся случайный вариант, и его нужно угадать в окне ответа.", bass2TipIntervals: "Вторая нота баса, всегда звучит ниже баса 1. Ноты те же, что у баса 1: «Первая нота интервала» — нота, которая звучит первой, «Вторая нота интервала» — нота, которая звучит второй (при «Сыграть по очереди» с «Интервал вниз» первой звучит верхняя). Если выбрано несколько нот или октав, каждый раз берётся случайный вариант, и его нужно угадать в окне ответа.",
       bassChordNote1: "Первая нота аккорда", bassChordNote2: "Вторая нота аккорда", bassChordNote3: "Третья нота аккорда", bassIntervalNote1: "Первая нота интервала", bassIntervalNote2: "Вторая нота интервала",
       bass1Label: 'Бас - одна нота', bass2Label: 'Бас - вторая нота', bass2OctaveTitle: 'Октава баса 2', bass2Word: 'Бас 2',
       mistakeBass2: 'Бас 2 не верный: у вас ', mistakeBass2Oct: 'октава баса 2: у вас ',
@@ -2794,7 +2793,7 @@ window.EAR_TRAINER_CONFIG = {
       settingsPositionCenter: 'по центру',
       settingsPositionRight: 'справа',
       autoNextOnWrong: 'новый вопрос по нажатию на любую клавишу',
-      autoNextOnWrongTip: 'После неправильного ответа новый вопрос начинается, когда вы нажмёте любую клавишу на клавиатуре ПК или MIDI-клавиатуре. Нажатия в первую секунду после ответа не считаются — чтобы случайно не пропустить разбор ошибки. Клавиши Y (настройки), Z (подсказка), V (курсор), Shift+F10, а также одиночные Shift, Ctrl, Alt и Win новый вопрос не запускают. Нажатая клавиша не идёт в ответ на новый вопрос. Если галка выключена — после ошибки новый вопрос только по кнопке «Новый вопрос», пробелу, колесу мыши вниз или питч-бенду вниз. После правильного ответа всё как обычно.',
+      autoNextOnWrongTip: 'После неправильного ответа новый вопрос начинается, когда вы нажмёте любую клавишу на клавиатуре ПК или MIDI-клавиатуре. Нажатия в первую секунду после ответа не считаются — чтобы случайно не пропустить разбор ошибки. Клавиши Y (настройки), Z (подсказка), V (курсор), Shift+F10, F5, а также одиночные Shift, Ctrl, Alt и Win новый вопрос не запускают. Нажатая клавиша не идёт в ответ на новый вопрос. Если галка выключена — после ошибки новый вопрос только по кнопке «Новый вопрос», пробелу, колесу мыши вниз или питч-бенду вниз. После правильного ответа всё как обычно.',
       langSectionTitle: 'Язык',
       audioOutputTitle: 'Вывод звука',
       outputDAW: 'DAW',
@@ -2842,6 +2841,8 @@ window.EAR_TRAINER_CONFIG = {
       rangeLowChord: 'Аккорд не помещается: нижняя нота ниже A0 (например, {ex})',
       rangeBothChord: 'Аккорд не помещается: у одних вариантов верхняя нота выше C8 (например, {exHigh}), у других нижняя нота ниже A0 (например, {exLow})',
       rangeHighIntervalNoEx: 'Интервал не помещается: верхняя нота выше C8 — выберите октаву ниже или меньшую ширину интервала.',
+      rangeLowInterval: 'Интервал не помещается: нижняя нота ниже A0 (например, {ex}) — выберите октаву выше или меньшую ширину интервала.',
+      rangeLowIntervalNoEx: 'Интервал не помещается: нижняя нота ниже A0 — выберите октаву выше или меньшую ширину интервала.',
       rangeHighChordNoEx: 'Аккорд не помещается: верхняя нота выше C8',
       rangeBothChordNoExHigh: 'Аккорд не помещается: у одних вариантов верхняя нота выше C8, у других нижняя нота ниже A0 (например, {exLow})',
       rangeFitOct: ' — подходит октава {octs}.', rangeFitOcts: ' — подходят октавы {octs}.',
@@ -2854,11 +2855,12 @@ window.EAR_TRAINER_CONFIG = {
       webMidiUnsupported: 'Web MIDI API не поддерживается в этом браузере.',
       midiConnected: 'MIDI подключён.',
       midiAccessDenied: 'Доступ к MIDI не разрешён браузером.',
-      wrongOrderIntervalDown: 'не тот порядок: интервал вниз — сначала верхняя нота, потом тоника',
-      wrongOrderIntervalUp: 'не тот порядок: интервал вверх — сначала тоника, потом верхняя',
+      wrongOrderIntervalDown: 'не тот порядок: интервал вниз — сначала тоника, потом нижняя нота',
+      wrongOrderIntervalUp: 'не тот порядок: интервал вверх — сначала тоника, потом верхняя нота',
       wrongOrderChord: 'не тот порядок: нужно ',
       mistakeInterval: 'интервал: у вас ', mistakeIntervalNeed: ', нужна ', mistakeIntervalNeedM: ', нужен ',
       mistakeChord: 'аккорд: у вас ', mistakeChordNeed: ', нужен ',
+      eqEither: 'либо ', eqOr: ', либо ',
       mistakeChordWrong: 'Аккорд не верный: у вас ', mistakeIntervalWrong: 'Интервал не верный: у вас ', mistakeIntervalWrongNeed: ', нужно ',
       mistakeTonic: 'тоника не верная: у вас ', mistakeTonicNeed: ', нужна ',
       mistakeDirection: 'направление: у вас ', mistakeDirectionNeed: ', нужен ',
@@ -2926,7 +2928,7 @@ window.EAR_TRAINER_CONFIG = {
       listenMode: 'Listen', listenModeTip: 'A mode to listen and memorize the sound before answering questions. While it is on, no questions are asked: the center shows the options selected in the settings (root, octave, inversion, width, bass, etc.) — a row is shown only if it has 2 or more options. Pick one option in each row. Clicking a chord or interval (a note on the “Notes” tab) plays it with the chosen parameters. Hotkeys: 1–9 and 0 on the keyboard — the first 10 options in order, white keys C–B on a MIDI keyboard (any octave) — the first 7. Combinations that could not appear in a question (e.g. bass not below the interval/chord) are unavailable.', listenTonic: 'Root', listenNote: 'Note', listenOctave: 'Octave', listenWidth: 'Width',
       listenDirection: 'Direction', listenInversion: 'Inversion', listenBass: 'Bass', listenBassOct: 'Bass octave',
       listenBass2: 'Bass 2', listenBass2Oct: 'Bass 2 octave', listenInterval: 'Interval', listenChord: 'Chord',
-      bass1TipChords: "An extra low note played below the chord. “First chord note” is the root, “Second chord note” is the 3rd (the 2nd in Sus2, the 4th in Sus4 and 7sus4), “Third chord note” is the 5th. Notes are taken from the chord in root position; the inversion does not affect them. If several notes or octaves are selected, a random option is chosen each time and you have to identify it in the answer panel.", bass1TipIntervals: "An extra low note played below the interval. “First interval note” is the note that sounds first, “Second interval note” is the note that sounds second. With “Play together” and with “Interval up” the first note is the lower one (root) and the second is the upper one; with “Play one by one” and “Interval down” it is the other way round. If several notes or octaves are selected, a random option is chosen each time and you have to identify it in the answer panel.", bass2TipChords: "The second bass note, always below bass 1. The notes are the same as for bass 1: “First chord note” is the root, “Second chord note” is the 3rd (the 2nd in Sus2, the 4th in Sus4 and 7sus4), “Third chord note” is the 5th; taken from the chord in root position. If several notes or octaves are selected, a random option is chosen each time and you have to identify it in the answer panel.", bass2TipIntervals: "The second bass note, always below bass 1. The notes are the same as for bass 1: “First interval note” is the note that sounds first, “Second interval note” is the note that sounds second (with “Play one by one” and “Interval down” the upper note sounds first). If several notes or octaves are selected, a random option is chosen each time and you have to identify it in the answer panel.",
+      bass1TipChords: "An extra low note played below the chord. “First chord note” is the root, “Second chord note” is the 3rd (the 2nd in Sus2, the 4th in Sus4 and 7sus4), “Third chord note” is the 5th. Notes are taken from the chord in root position; the inversion does not affect them. If several notes or octaves are selected, a random option is chosen each time and you have to identify it in the answer panel.", bass1TipIntervals: "An extra low note played below the interval. “First interval note” is the root (it sounds first), “Second interval note” is the note that sounds second: with “Interval up” it is above the root, with “Interval down” — below it. If several notes or octaves are selected, a random option is chosen each time and you have to identify it in the answer panel.", bass2TipChords: "The second bass note, always below bass 1. The notes are the same as for bass 1: “First chord note” is the root, “Second chord note” is the 3rd (the 2nd in Sus2, the 4th in Sus4 and 7sus4), “Third chord note” is the 5th; taken from the chord in root position. If several notes or octaves are selected, a random option is chosen each time and you have to identify it in the answer panel.", bass2TipIntervals: "The second bass note, always below bass 1. The notes are the same as for bass 1: “First interval note” is the note that sounds first, “Second interval note” is the note that sounds second (with “Play one by one” and “Interval down” the upper note sounds first). If several notes or octaves are selected, a random option is chosen each time and you have to identify it in the answer panel.",
       bassChordNote1: "First chord note", bassChordNote2: "Second chord note", bassChordNote3: "Third chord note", bassIntervalNote1: "First interval note", bassIntervalNote2: "Second interval note",
       bass1Label: 'Bass - one note', bass2Label: 'Bass - second note', bass2OctaveTitle: 'Bass 2 octave', bass2Word: 'Bass 2',
       mistakeBass2: 'Wrong bass 2: you played ', mistakeBass2Oct: 'bass 2 octave: you played ',
@@ -2941,7 +2943,7 @@ window.EAR_TRAINER_CONFIG = {
       settingsPositionCenter: 'centered',
       settingsPositionRight: 'right',
       autoNextOnWrong: 'new question on any key press',
-      autoNextOnWrongTip: 'After a wrong answer, a new question starts when you press any key on the PC keyboard or the MIDI keyboard. Presses during the first second after the answer are ignored, so you do not skip the error explanation by accident. Y (settings), Z (hint), V (cursor), Shift+F10 and Shift, Ctrl, Alt, Win on their own do not start a new question. The pressed key is not used as an answer to the new question. When unchecked, after a mistake a new question starts only with the “Next question” button, Space, mouse wheel down or pitch bend down. After a correct answer everything works as usual.',
+      autoNextOnWrongTip: 'After a wrong answer, a new question starts when you press any key on the PC keyboard or the MIDI keyboard. Presses during the first second after the answer are ignored, so you do not skip the error explanation by accident. Y (settings), Z (hint), V (cursor), Shift+F10, F5 and Shift, Ctrl, Alt, Win on their own do not start a new question. The pressed key is not used as an answer to the new question. When unchecked, after a mistake a new question starts only with the “Next question” button, Space, mouse wheel down or pitch bend down. After a correct answer everything works as usual.',
       langSectionTitle: 'Language',
       audioOutputTitle: 'Sound output',
       outputDAW: 'DAW',
@@ -2989,6 +2991,8 @@ window.EAR_TRAINER_CONFIG = {
       rangeLowChord: 'The chord does not fit: the bottom note is below A0 (e.g. {ex})',
       rangeBothChord: 'The chord does not fit: for some options the top note is above C8 (e.g. {exHigh}), for others the bottom note is below A0 (e.g. {exLow})',
       rangeHighIntervalNoEx: 'The interval does not fit: the top note is above C8 — choose a lower octave or a smaller interval spread.',
+      rangeLowInterval: 'The interval does not fit: the bottom note is below A0 (e.g. {ex}) — choose a higher octave or a smaller interval spread.',
+      rangeLowIntervalNoEx: 'The interval does not fit: the bottom note is below A0 — choose a higher octave or a smaller interval spread.',
       rangeHighChordNoEx: 'The chord does not fit: the top note is above C8',
       rangeBothChordNoExHigh: 'The chord does not fit: for some options the top note is above C8, for others the bottom note is below A0 (e.g. {exLow})',
       rangeFitOct: ' — octave {octs} fits.', rangeFitOcts: ' — octaves {octs} fit.',
@@ -3001,11 +3005,12 @@ window.EAR_TRAINER_CONFIG = {
       webMidiUnsupported: 'Web MIDI API is not supported in this browser.',
       midiConnected: 'MIDI connected.',
       midiAccessDenied: 'MIDI access was not granted by the browser.',
-      wrongOrderIntervalDown: 'wrong order: interval down — upper note first, then the root',
+      wrongOrderIntervalDown: 'wrong order: interval down — root first, then the lower note',
       wrongOrderIntervalUp: 'wrong order: interval up — root first, then the upper note',
       wrongOrderChord: 'wrong order: needed ',
       mistakeInterval: 'interval: you played ', mistakeIntervalNeed: ', needed ', mistakeIntervalNeedM: ', needed ',
       mistakeChord: 'chord: you played ', mistakeChordNeed: ', needed ',
+      eqEither: 'either ', eqOr: ' or ',
       mistakeChordWrong: 'Wrong chord: you played ', mistakeIntervalWrong: 'Wrong interval: you played ', mistakeIntervalWrongNeed: ', needed ',
       mistakeTonic: 'wrong root: you played ', mistakeTonicNeed: ', needed ',
       mistakeDirection: 'direction: you played ', mistakeDirectionNeed: ', needed ',
@@ -3073,7 +3078,7 @@ window.EAR_TRAINER_CONFIG = {
       listenMode: '试听', listenModeTip: '用于在答题前试听并记住声音的模式。勾选时不出题：中间显示设置中选择的选项（主音、八度、转位、宽度、低音等）——只有当某一行有 2 个及以上选项时才显示该行。每行选择一个选项。点击和弦或音程（在“音”标签中为音）会按所选参数播放。快捷键：键盘 1–9 和 0——按顺序的前 10 个选项；MIDI 键盘白键 C–B（任意八度）——前 7 个。在题目中不会出现的组合（例如低音不低于音程/和弦）不可用。', listenTonic: '主音', listenNote: '音', listenOctave: '八度', listenWidth: '宽度',
       listenDirection: '方向', listenInversion: '转位', listenBass: '低音', listenBassOct: '低音八度',
       listenBass2: '低音 2', listenBass2Oct: '低音 2 八度', listenInterval: '音程', listenChord: '和弦',
-      bass1TipChords: "在和弦下方额外弹奏的低音。“和弦第一个音”是根音，“和弦第二个音”是三级音（Sus2 中为二级，Sus4 和 7sus4 中为四级），“和弦第三个音”是五级音。音符按和弦原位计算，转位不影响。如果选择了多个音或八度，每次随机选择一个，需要在答题区判断。", bass1TipIntervals: "在音程下方额外弹奏的低音。“音程第一个音”是先响的音，“音程第二个音”是后响的音。“同时播放”或“音程上行”时，第一个音是低音（根音），第二个音是高音；“依次播放”且“音程下行”时则相反。如果选择了多个音或八度，每次随机选择一个，需要在答题区判断。", bass2TipChords: "第二个低音，始终低于低音1。音符与低音1相同：“和弦第一个音”是根音，“和弦第二个音”是三级音（Sus2 中为二级，Sus4 和 7sus4 中为四级），“和弦第三个音”是五级音；按和弦原位计算。如果选择了多个音或八度，每次随机选择一个，需要在答题区判断。", bass2TipIntervals: "第二个低音，始终低于低音1。音符与低音1相同：“音程第一个音”是先响的音，“音程第二个音”是后响的音（“依次播放”且“音程下行”时先响的是高音）。如果选择了多个音或八度，每次随机选择一个，需要在答题区判断。",
+      bass1TipChords: "在和弦下方额外弹奏的低音。“和弦第一个音”是根音，“和弦第二个音”是三级音（Sus2 中为二级，Sus4 和 7sus4 中为四级），“和弦第三个音”是五级音。音符按和弦原位计算，转位不影响。如果选择了多个音或八度，每次随机选择一个，需要在答题区判断。", bass1TipIntervals: "在音程下方额外弹奏的低音。“音程第一个音”是主音（先响），“音程第二个音”是后响的音：“音程上行”时它高于主音，“音程下行”时低于主音。如果选择了多个音或八度，每次随机选择一个，需要在答题区判断。", bass2TipChords: "第二个低音，始终低于低音1。音符与低音1相同：“和弦第一个音”是根音，“和弦第二个音”是三级音（Sus2 中为二级，Sus4 和 7sus4 中为四级），“和弦第三个音”是五级音；按和弦原位计算。如果选择了多个音或八度，每次随机选择一个，需要在答题区判断。", bass2TipIntervals: "第二个低音，始终低于低音1。音符与低音1相同：“音程第一个音”是先响的音，“音程第二个音”是后响的音（“依次播放”且“音程下行”时先响的是高音）。如果选择了多个音或八度，每次随机选择一个，需要在答题区判断。",
       bassChordNote1: "和弦第一个音", bassChordNote2: "和弦第二个音", bassChordNote3: "和弦第三个音", bassIntervalNote1: "音程第一个音", bassIntervalNote2: "音程第二个音",
       bass1Label: '低音 - 单音', bass2Label: '低音 - 第二个音', bass2OctaveTitle: '低音2八度', bass2Word: '低音2',
       mistakeBass2: '低音2错误：你弹的是 ', mistakeBass2Oct: '低音2八度：你弹的是 ',
@@ -3088,7 +3093,7 @@ window.EAR_TRAINER_CONFIG = {
       settingsPositionCenter: '居中',
       settingsPositionRight: '右侧',
       autoNextOnWrong: '按任意键出新题',
-      autoNextOnWrongTip: '答错后，按电脑键盘或 MIDI 键盘上的任意键即开始新题。答题后第一秒内的按键不计，以免误跳过错误说明。Y（设置）、Z（提示）、V（光标）、Shift+F10 以及单独的 Shift、Ctrl、Alt、Win 不会开始新题。按下的键不会作为新题的答案。未勾选时，答错后只能通过“下一题”按钮、空格、鼠标滚轮向下或弯音向下开始新题。答对后一切照常。',
+      autoNextOnWrongTip: '答错后，按电脑键盘或 MIDI 键盘上的任意键即开始新题。答题后第一秒内的按键不计，以免误跳过错误说明。Y（设置）、Z（提示）、V（光标）、Shift+F10、F5 以及单独的 Shift、Ctrl、Alt、Win 不会开始新题。按下的键不会作为新题的答案。未勾选时，答错后只能通过“下一题”按钮、空格、鼠标滚轮向下或弯音向下开始新题。答对后一切照常。',
       langSectionTitle: '语言',
       audioOutputTitle: '声音输出',
       outputDAW: 'DAW',
@@ -3136,6 +3141,8 @@ window.EAR_TRAINER_CONFIG = {
       rangeLowChord: '和弦超出音域：最低音低于 A0（例如 {ex}）',
       rangeBothChord: '和弦超出音域：部分选项的最高音高于 C8（例如 {exHigh}），其他选项的最低音低于 A0（例如 {exLow}）',
       rangeHighIntervalNoEx: '音程超出音域：最高音高于 C8——请选择更低的八度或更小的音程跨度。',
+      rangeLowInterval: '音程超出音域：最低音低于 A0（例如 {ex}）——请选择更高的八度或更小的音程跨度。',
+      rangeLowIntervalNoEx: '音程超出音域：最低音低于 A0——请选择更高的八度或更小的音程跨度。',
       rangeHighChordNoEx: '和弦超出音域：最高音高于 C8',
       rangeBothChordNoExHigh: '和弦超出音域：部分选项的最高音高于 C8，其他选项的最低音低于 A0（例如 {exLow}）',
       rangeFitOct: '——八度 {octs} 可用。', rangeFitOcts: '——八度 {octs} 可用。',
@@ -3148,11 +3155,12 @@ window.EAR_TRAINER_CONFIG = {
       webMidiUnsupported: '此浏览器不支持 Web MIDI API。',
       midiConnected: 'MIDI 已连接。',
       midiAccessDenied: '浏览器未授予 MIDI 访问权限。',
-      wrongOrderIntervalDown: '顺序错误：音程下行——应先弹高音，再弹主音',
+      wrongOrderIntervalDown: '顺序错误：音程下行——应先弹主音，再弹低音',
       wrongOrderIntervalUp: '顺序错误：音程上行——应先弹主音，再弹高音',
       wrongOrderChord: '顺序错误：需要 ',
       mistakeInterval: '音程：你弹的是 ', mistakeIntervalNeed: '，需要 ', mistakeIntervalNeedM: '，需要 ',
       mistakeChord: '和弦：你弹的是 ', mistakeChordNeed: '，需要 ',
+      eqEither: '', eqOr: ' 或 ',
       mistakeChordWrong: '和弦错误：你弹的是 ', mistakeIntervalWrong: '音程错误：你弹的是 ', mistakeIntervalWrongNeed: '，需要 ',
       mistakeTonic: '主音不对：你弹的是 ', mistakeTonicNeed: '，需要 ',
       mistakeDirection: '方向：你弹的是 ', mistakeDirectionNeed: '，需要 ',
@@ -3534,7 +3542,8 @@ window.EAR_TRAINER_CONFIG = {
     const asId = (el) => el.dataset.id;
     // Выбранное + то, что временно снято фильтром по тональности
     const withHidden = (gridSel, parse) => [...new Set([
-      ...[...document.querySelectorAll(gridSel + ' .toggle-chip.selected')].map(parse),
+      // вариант, включённый автоматически (когда из-за тональности ничего не осталось), не сохраняем
+      ...[...document.querySelectorAll(gridSel + ' .toggle-chip.selected:not([data-key-auto])')].map(parse),
       ...[...document.querySelectorAll(gridSel + ' .toggle-chip.out-of-key[data-key-hid-sel]')].map(parse),
     ])];
     if (state.mode === 'notes') {
@@ -3781,7 +3790,7 @@ window.EAR_TRAINER_CONFIG = {
     OCTAVES.forEach((o) => {
       const chip = document.createElement('div');
       chip.className = 'toggle-chip' + (savedOcts.includes(o.o) ? ' selected' : '');
-      chip.textContent = o.label;
+      chip.textContent = octChipLabel(o.o);
       chip.dataset.oct = o.o;
       chip.addEventListener('click', () => {
         if (chip.classList.contains('selected') && octGrid.querySelectorAll('.toggle-chip.selected').length === 1) return;
@@ -3820,7 +3829,7 @@ window.EAR_TRAINER_CONFIG = {
     OCTAVES.forEach((o) => {
       const chip = document.createElement('div');
       chip.className = 'toggle-chip' + (savedOcts2.includes(o.o) ? ' selected' : '');
-      chip.textContent = o.label;
+      chip.textContent = octChipLabel(o.o);
       chip.dataset.oct = o.o;
       chip.addEventListener('click', () => {
         if (chip.classList.contains('selected') && oct2Grid.querySelectorAll('.toggle-chip.selected').length === 1) return;
@@ -3896,12 +3905,11 @@ window.EAR_TRAINER_CONFIG = {
       if (!iv) return [];
       const semis = iv.semitones % 12;
       const root = target.answerPc;
-      // Интервал всегда строится вверх от выбранной ноты (C + кварта → C F).
-      // «Сыграть по очереди»: набирается в порядке звучания (вверх — C → F, вниз — F → C).
-      // «Сыграть за раз»: порядок не важен (засчитывается и C → F, и F → C).
-      const top = (root + semis) % 12;
-      if (target.answerDir === 'down' && intervalOrderMatters()) return [top, root];
-      return [root, top];
+      // По правилам сольфеджио: сначала тоника, потом вторая нота —
+      // «вверх» выше тоники (C + квинта → C G), «вниз» ниже тоники (C + квинта → C F).
+      // «Сыграть за раз»: порядок не важен (засчитывается и C → G, и G → C).
+      const second = target.answerDir === 'down' ? ((root - semis) % 12 + 12) % 12 : (root + semis) % 12;
+      return [root, second];
     }
     if (target.type === 'chords') {
       const chord = CHORDS.find((c) => c.id === target.answerId);
@@ -3946,10 +3954,16 @@ window.EAR_TRAINER_CONFIG = {
 
   function pcName(pc) { const k = PIANO_KEYS.find((k) => k.pc === pc); return pianoKeyLabel(pc, !!(k && k.black)); }
 
+  // Подпись кнопки октавы в настройках: C4 или До4 — по выбранным названиям нот
+  function octChipLabel(o) { return SHARP_NAMES[getNoteNaming()][0] + o; }
+
   function refreshNoteLabels() {
     document.querySelectorAll('.toggle-chip[data-pc]').forEach((el) => {
       const pc = parseInt(el.dataset.pc, 10);
       el.textContent = pianoKeyLabel(pc, el.classList.contains('black-key'));
+    });
+    document.querySelectorAll('#octave-grid .toggle-chip, #bass-octave-grid .toggle-chip, #bass2-octave-grid .toggle-chip').forEach((el) => {
+      el.textContent = octChipLabel(el.dataset.oct);
     });
     updateKeyLabel();
   }
@@ -4033,15 +4047,20 @@ window.EAR_TRAINER_CONFIG = {
     if (!chord) return null;
     return buildSpelling(rootPc, chord.intervals.map((s) => ({ pc: ((rootPc + s) % 12 + 12) % 12, offs: [chordDegreeOffset(s, chordId)] })));
   }
-  function intervalSpelling(rootPc, intervalId) {
+  // down — интервал вниз от тоники: вторая нота ниже (C + квинта вниз → F), буква — на столько же ступеней ниже
+  function intervalSpelling(rootPc, intervalId, down) {
     const iv = INTERVALS.find((i) => i.id === intervalId);
     if (!iv) return null;
-    return buildSpelling(rootPc, [{ pc: (rootPc + iv.semitones) % 12, offs: INTERVAL_DEGREE[intervalId] || [0] }]);
+    const offs = INTERVAL_DEGREE[intervalId] || [0];
+    if (down) {
+      return buildSpelling(rootPc, [{ pc: ((rootPc - iv.semitones) % 12 + 12) % 12, offs: offs.map((o) => (7 - o) % 7) }]);
+    }
+    return buildSpelling(rootPc, [{ pc: (rootPc + iv.semitones) % 12, offs }]);
   }
   function spellingForTarget(target) {
     if (!target) return null;
     if (target.type === 'chords') return chordSpelling(target.answerPc, target.answerId);
-    if (target.type === 'intervals') return intervalSpelling(target.answerPc, target.answerId);
+    if (target.type === 'intervals') return intervalSpelling(target.answerPc, target.answerId, target.answerDir === 'down');
     return null;
   }
   function spelledText(sp) {
@@ -4106,9 +4125,10 @@ window.EAR_TRAINER_CONFIG = {
   function ivPairText(rootPc, ivId, down) {
     const iv = INTERVALS.find((i) => i.id === ivId);
     if (!iv) return '';
-    const sp = intervalSpelling(rootPc, ivId);
-    const top = (rootPc + iv.semitones) % 12;
-    const pair = down ? [top, rootPc] : [rootPc, top];
+    const sp = intervalSpelling(rootPc, ivId, down);
+    // сначала тоника, потом вторая нота (при «вниз» — ниже тоники)
+    const second = down ? ((rootPc - iv.semitones) % 12 + 12) % 12 : (rootPc + iv.semitones) % 12;
+    const pair = [rootPc, second];
     return pair.map((pc) => spelledPcName(pc, sp)).join('–') + ' (' + iv.name.toLowerCase() + ')';
   }
   // «Интервал не верный: у вас D–F♯ (большая терция), нужно C–E (большая терция)»
@@ -4155,7 +4175,7 @@ window.EAR_TRAINER_CONFIG = {
       }
     } else if (!sameSet) {
       if (target.type === 'intervals' && mine.length >= 2) {
-        // При интервале вниз ноты набираются сверху вниз (F → C)
+        // Первой набирается тоника; при интервале вниз вторая нота ниже (C → F)
         const down = target.answerDir === 'down' && intervalOrderMatters();
         let semis = down
           ? ((mine[0] - mine[1]) % 12 + 12) % 12
@@ -4163,7 +4183,7 @@ window.EAR_TRAINER_CONFIG = {
         if (semis === 0) semis = 12;
         const played = INTERVALS.find((i) => i.semitones === semis);
         // Набраны другие ноты — неверен весь интервал (а не только тоника)
-        if (played) reasons.push(intervalWrongText(down ? mine[1] : mine[0], played.id, down, target));
+        if (played) reasons.push(intervalWrongText(mine[0], played.id, down, target));
       }
       if (target.type === 'chords' && mine.length) {
         const pcs = uniqSorted(mine);
@@ -4240,13 +4260,33 @@ window.EAR_TRAINER_CONFIG = {
         }
       }
     }
-    if (!viaMidi && target.type !== 'notes' && state.pendingPc !== null && state.pendingPc !== target.answerPc) {
+    // Вопрос звучит так же, как другой аккорд (CSus2 основной = GSus4 1 обращение):
+    // верным считается любой из них; при ошибке пишем, что нужен либо один, либо другой
+    let eqHandled = false;
+    if (!viaMidi && target.type === 'chords' && state.pendingPc !== null && state.pendingChoiceId !== null) {
+      const invRow = chordInvRowShown();
+      const eqList = equivalentChordAnswers(target, invRow ? getSelectedInversions() : null);
+      if (eqList.length) {
+        eqHandled = true;
+        if (!state.acceptedEq) {
+          const mainWrong = state.pendingPc !== target.answerPc || state.pendingChoiceId !== target.answerId
+            || (invRow && state.pendingInv !== target.inversion);
+          if (mainWrong) {
+            const nm = (pc, id, inv) => chordFullName(pc, id) + ((invRow && inv !== null && inv !== undefined) ? ' (' + invLabel(inv) + ')' : '');
+            const need = [{ pc: target.answerPc, id: target.answerId, inv: target.inversion || 0 }, ...eqList];
+            reasons.push(t('mistakeChordWrong') + colorToken(nm(state.pendingPc, state.pendingChoiceId, state.pendingInv), false)
+              + t('mistakeChordNeed') + t('eqEither') + need.map((e) => colorToken(nm(e.pc, e.id, e.inv), true)).join(t('eqOr')));
+          }
+        }
+      }
+    }
+    if (!eqHandled && !viaMidi && target.type !== 'notes' && state.pendingPc !== null && state.pendingPc !== target.answerPc) {
       // Тоника пишется так же, как в названии аккорда/интервала (B♭ мажор, а не A♯ мажор)
       const mineId = state.pendingChoiceId !== null ? state.pendingChoiceId : target.answerId;
-      const mineSp = target.type === 'chords' ? chordSpelling(state.pendingPc, mineId) : intervalSpelling(state.pendingPc, mineId);
+      const mineSp = target.type === 'chords' ? chordSpelling(state.pendingPc, mineId) : intervalSpelling(state.pendingPc, mineId, target.answerDir === 'down');
       reasons.push(t('mistakeTonic') + colorToken(spelledPcName(state.pendingPc, mineSp), false) + t('mistakeTonicNeed') + colorToken(spelledPcName(target.answerPc, spellingForTarget(target)), true));
     }
-    if (!viaMidi && state.pendingChoiceId !== null && state.pendingChoiceId !== target.answerId) {
+    if (!eqHandled && !viaMidi && state.pendingChoiceId !== null && state.pendingChoiceId !== target.answerId) {
       if (target.type === 'intervals') {
         const mineName = ivNameById(state.pendingChoiceId);
         if (mineName) reasons.push(t('mistakeInterval') + colorToken(mineName, false) + ivNeedWord(target.answerId) + colorToken(ivNameById(target.answerId), true));
@@ -4260,7 +4300,7 @@ window.EAR_TRAINER_CONFIG = {
     }
     // «Drop 2» с MIDI: сыграно в тесном расположении
     if (viaMidi && isDrop2Target(target) && state.pendingCloseVoicing) reasons.push(t('drop2CloseMidi'));
-    if (target.type === 'chords' && state.pendingInv !== null && typeof target.inversion === 'number'
+    if (!eqHandled && target.type === 'chords' && state.pendingInv !== null && typeof target.inversion === 'number'
       && INVERSION_CHORD_IDS.includes(target.answerId) && state.pendingInv !== target.inversion) {
       reasons.push(t('mistakeInversion') + colorToken(invLabel(state.pendingInv), false) + (target.inversion === 0 ? t('invNeedRootPre') + colorToken(t('invRootWord'), true) : t('mistakeInversionNeed') + colorToken(invLabel(target.inversion), true)));
     }
@@ -4426,23 +4466,61 @@ window.EAR_TRAINER_CONFIG = {
     return arr.sort((a, b) => a - b);
   }
 
+  // Аккорды, которые звучат точно так же, как аккорд вопроса (те же ноты в том же порядке снизу вверх):
+  // CSus2 основной = GSus4 1 обращение, Caug = Eaug 2 обращение, Cdim7 = E♭dim7 3 обращение и т.п.
+  // Берутся только из аккордов, выбранных в настройках; invSel — выбранные обращения
+  // (null — обращение в ответе не выбирается, поэтому не сравнивается).
+  function closeVoicingKey(pc, chord, inv) {
+    const iv = applyInversion(chord.intervals, inv);
+    const low = ((pc + iv[0]) % 12 + 12) % 12;
+    return low + ':' + iv.map((st) => st - iv[0]).join(',');
+  }
+  function equivalentChordAnswers(target, invSel) {
+    if (!target || target.type !== 'chords') return [];
+    const chord = CHORDS.find((c) => c.id === target.answerId);
+    if (!chord) return [];
+    const tInv = target.inversion || 0;
+    const key = closeVoicingKey(target.answerPc, chord, tInv);
+    const res = [];
+    getSelectedChords().forEach((c) => {
+      for (let inv = 0; inv < c.intervals.length; inv++) {
+        if (invSel && !invSel.includes(inv)) continue;
+        for (let pc = 0; pc < 12; pc++) {
+          if (c.id === chord.id && pc === target.answerPc && inv === tInv) continue;
+          if (closeVoicingKey(pc, c, inv) === key) res.push({ pc, id: c.id, inv });
+        }
+      }
+    });
+    return res;
+  }
+  function chordInvRowShown() {
+    return state.mode === 'chords' && getSelectedInversions().filter((iv) => iv <= maxInversionAvailable()).length >= 2;
+  }
+
   function getMidiChannel() { return CFG.defaultMidiChannel || 1; }
 
   // Подсказка «MIDI-выход не выбран» видна 3 секунды; каждое новое срабатывание отсчитывает 3 секунды заново
   let midiStatusHideTimer = null;
   const MIDI_OUT_WARN_MS = 3000;
   function showMidiOutWarning() {
-    showMidiStatus(t('midiOutNotSelected'), true);
+    showMidiStatus('midiOutNotSelected', true);
     midiStatusHideTimer = setTimeout(() => {
       midiStatusHideTimer = null;
+      midiStatusKey = null;
       $('midiStatus').textContent = '';
     }, MIDI_OUT_WARN_MS);
   }
 
-  function showMidiStatus(msg, isError) {
+  // Надпись состояния MIDI запоминается ключом — при смене языка она переводится
+  let midiStatusKey = null;
+  function refreshMidiStatusLang() {
+    if (midiStatusKey) $('midiStatus').textContent = t(midiStatusKey);
+  }
+  function showMidiStatus(key, isError) {
     if (midiStatusHideTimer) { clearTimeout(midiStatusHideTimer); midiStatusHideTimer = null; }
     const el = $('midiStatus');
-    el.textContent = msg;
+    midiStatusKey = key;
+    el.textContent = t(key);
     el.style.color = isError ? 'var(--bad-color)' : 'var(--text-hint)';
   }
 
@@ -4496,6 +4574,10 @@ window.EAR_TRAINER_CONFIG = {
   // { ok: true, mode, entries } или { ok: false, msg }
   function fmtT(key, vars) {
     let s = t(key);
+    // В сообщениях «не помещается» границы C8 и A0 пишутся выбранными названиями нот
+    if (key.indexOf('range') === 0 && getNoteNaming() === 'solfege') {
+      s = s.split('C8').join(noteName(0) + '8').split('A0').join(noteName(9) + '0');
+    }
     Object.keys(vars || {}).forEach((k) => { s = s.split('{' + k + '}').join(vars[k]); });
     return s;
   }
@@ -4566,26 +4648,41 @@ window.EAR_TRAINER_CONFIG = {
       const entries = [];
       let inKey = 0;
       let high = null;        // пример самого «близкого» варианта, который не влез сверху
+      let low = null;         // ... и снизу (интервал вниз)
       let bassFail = null;
       rootPcs.forEach((pc) => pool.forEach((iv) => dirPool.forEach((dir) => {
         if (!intervalFitsKey(pc, iv.semitones, dir)) return;
         inKey++;
         octaves.forEach((oct) => {
           const root = pcOctaveToMidi(pc, oct);
-          const spreads = spreadPool.filter((sp) => root >= MIN_MIDI && root + iv.semitones + 12 * sp <= MAX_MIDI);
+          // Тоника — в выбранной октаве; вторая нота выше («вверх») или ниже («вниз»)
+          const spreads = spreadPool.filter((sp) => {
+            const second = intervalSecondMidi(root, iv.semitones, sp, dir);
+            return Math.min(root, second) >= MIN_MIDI && Math.max(root, second) <= MAX_MIDI;
+          });
           if (!spreads.length) {
             const sp = Math.min(...spreadPool);
-            const top = root + iv.semitones + 12 * sp;
-            if (!high || top < high.top) high = { top, pc, iv, oct, sp };
+            const second = intervalSecondMidi(root, iv.semitones, sp, dir);
+            if (root < MIN_MIDI || second < MIN_MIDI) {
+              const bottom = Math.min(root, second);
+              if (!low || bottom > low.bottom) low = { bottom, second, pc, iv, oct, sp };
+            } else if (!high || second < high.top) high = { top: second, pc, iv, oct, sp };
             return;
           }
+          let okSpreads = spreads;
           if (bassCheck) {
-            const top = root + iv.semitones;
-            const soundPcs = (dir === 'down' && intervalOrderMatters()) ? [pcOfMidi(top), pcOfMidi(root)] : [pcOfMidi(root), pcOfMidi(top)];
-            const f = bassCheck(soundPcs, root);
-            if (f) { if (bassFail !== 'alertNoBass2InRange') bassFail = f; return; }
+            // ноты интервала в порядке звучания: тоника, потом вторая нота
+            const soundPcs = [pcOfMidi(root), pcOfMidi(intervalSecondMidi(root, iv.semitones, 0, dir))];
+            // бас — ниже самой низкой ноты (при «вниз» это вторая нота, и она ниже с каждой октавой ширины)
+            let f = null;
+            okSpreads = spreads.filter((sp) => {
+              const r = bassCheck(soundPcs, Math.min(root, intervalSecondMidi(root, iv.semitones, sp, dir)));
+              if (r && f !== 'alertNoBass2InRange') f = r;
+              return !r;
+            });
+            if (!okSpreads.length) { if (bassFail !== 'alertNoBass2InRange') bassFail = f; return; }
           }
-          entries.push({ pc, iv, dir, oct, spreads });
+          entries.push({ pc, iv, dir, oct, spreads: okSpreads });
         });
       })));
       if (entries.length) return { ok: true, mode: 'intervals', entries };
@@ -4593,11 +4690,19 @@ window.EAR_TRAINER_CONFIG = {
       if (bassFail) return { ok: false, msg: t(bassFail) };
       if (high) {
         // Нота выше G9 (самой высокой ноты MIDI) не существует — пишем без примера
-        if (high.top > MIDI_TOP_NOTE) return { ok: false, msg: t('rangeHighIntervalNoEx') };
+        if (high.top > MIDI_TOP_NOTE) return { ok: false, msg: fmtT('rangeHighIntervalNoEx') };
         const sp = intervalSpelling(high.pc, high.iv.id);
         const ex = spelledMidiName(pcOctaveToMidi(high.pc, high.oct), sp) + ' + ' + high.iv.name.toLowerCase()
           + (high.sp ? ' ' + t('spread' + high.sp) : '') + ' → ' + spelledMidiName(high.top, sp);
         return { ok: false, msg: fmtT('rangeHighInterval', { ex }) };
+      }
+      if (low) {
+        // Ноты ниже C-1 (самой низкой ноты MIDI) не существует — пишем без примера
+        if (low.bottom < 0) return { ok: false, msg: fmtT('rangeLowIntervalNoEx') };
+        const sp = intervalSpelling(low.pc, low.iv.id, true);
+        const ex = spelledMidiName(pcOctaveToMidi(low.pc, low.oct), sp) + ' − ' + low.iv.name.toLowerCase()
+          + (low.sp ? ' ' + t('spread' + low.sp) : '') + ' → ' + spelledMidiName(low.second, sp);
+        return { ok: false, msg: fmtT('rangeLowInterval', { ex }) };
       }
       return { ok: false, msg: t('alertNoIntervalInRange') };
     }
@@ -4687,7 +4792,7 @@ window.EAR_TRAINER_CONFIG = {
       let msg = (high && low)
         ? (highEx ? fmtT('rangeBothChord', { exHigh: exText(high, high.hi), exLow: exText(low, low.lo) })
           : fmtT('rangeBothChordNoExHigh', { exLow: exText(low, low.lo) }))
-        : (high ? (highEx ? fmtT('rangeHighChord', { ex: exText(high, high.hi) }) : t('rangeHighChordNoEx'))
+        : (high ? (highEx ? fmtT('rangeHighChord', { ex: exText(high, high.hi) }) : fmtT('rangeHighChordNoEx'))
           : fmtT('rangeLowChord', { ex: exText(low, low.lo) }));
       // Какие октавы (из 1–7) подошли бы при остальных тех же настройках
       const fit = [1, 2, 3, 4, 5, 6, 7].filter((o) => inKeyPairs.some((pv) => evalChord(pv.pc, pv.v, o, false)));
@@ -4725,16 +4830,17 @@ window.EAR_TRAINER_CONFIG = {
       const { pc, oct, iv, dir } = combo;
       const root = pcOctaveToMidi(pc, oct);
       const spread = combo.spreads[randInt(combo.spreads.length)];
-      // Интервал всегда строится вверх от выбранной ноты (C + кварта → C4 F4).
-      // Направление влияет только на порядок звучания: вверх C4 → F4, вниз F4 → C4.
-      const top = root + iv.semitones + 12 * spread;
-      const notes = [root, top];
+      // По правилам сольфеджио: тоника — в выбранной октаве и звучит первой,
+      // вторая нота выше («вверх»: C4 → G4) или ниже («вниз»: C4 → F3).
+      // notes — по возрастанию высоты (при «вниз» тоника — верхняя нота).
+      const second = intervalSecondMidi(root, iv.semitones, spread, dir);
+      const notes = second >= root ? [root, second] : [second, root];
       let bass = null;
       let bass2 = null;
       if (isBassOn()) {
-        // Первая/вторая нота интервала — в порядке звучания (вверх: C, F; вниз: F, C)
-        const soundPcs = (dir === 'down' && intervalOrderMatters()) ? [pcOfMidi(top), pcOfMidi(root)] : [pcOfMidi(root), pcOfMidi(top)];
-        const pair = pickBassPair(soundPcs, root);
+        // Первая/вторая нота интервала — в порядке звучания: тоника, потом вторая нота
+        const soundPcs = [pcOfMidi(root), pcOfMidi(second)];
+        const pair = pickBassPair(soundPcs, notes[0]);
         if (pair.fail) { updateNoteSeqInfo(t(pair.fail), true, true); return null; }
         bass = pair.bass; bass2 = pair.bass2;
       }
@@ -4788,7 +4894,7 @@ window.EAR_TRAINER_CONFIG = {
     if (!target || !target.notes) return '';
     const sp = spellingForTarget(target);
     const nm = (m) => spelledMidiName(m, sp);
-    // «Сыграть по очереди» + «Интервал вниз»: ноты в порядке звучания (сначала верхняя)
+    // «Сыграть по очереди» + «Интервал вниз»: ноты в порядке звучания (сначала тоника — она верхняя)
     const order = (target.type === 'intervals' && target.answerDir === 'down' && intervalOrderMatters())
       ? target.notes.slice().reverse() : target.notes;
     let main = order.map(nm).join(', ');
@@ -4916,8 +5022,8 @@ window.EAR_TRAINER_CONFIG = {
   }
 
   // Любая клавиша ПК после неправильного ответа — новый вопрос.
-  // Не срабатывает на Y (настройки), Z (подсказка), V (курсор), F10 и одиночные Shift/Ctrl/Alt/Win
-  const ANY_KEY_SKIP = new Set(['KeyY', 'KeyZ', 'KeyV', 'F10', 'ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight',
+  // Не срабатывает на Y (настройки), Z (подсказка), V (курсор), F10, F5 и одиночные Shift/Ctrl/Alt/Win
+  const ANY_KEY_SKIP = new Set(['KeyY', 'KeyZ', 'KeyV', 'F10', 'F5', 'ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight',
     'AltLeft', 'AltRight', 'MetaLeft', 'MetaRight', 'CapsLock', 'ContextMenu']);
   window.addEventListener('keydown', (e) => {
     if (e.repeat || e.ctrlKey || e.altKey || e.metaKey) return;
@@ -5073,6 +5179,20 @@ window.EAR_TRAINER_CONFIG = {
     return soundfontLoaderPromise;
   }
 
+  // «Прослушать»: строка результата там скрыта, поэтому «Нет интернета» пишем прямо в окне вариантов
+  function showListenNetHint(show) {
+    const panel = $('listenPanel');
+    if (!panel) return;
+    let el = panel.querySelector('.listen-net');
+    if (!show) { if (el) el.remove(); return; }
+    if (!el) {
+      el = document.createElement('div');
+      el.className = 'listen-hint listen-net';
+      panel.appendChild(el);
+    }
+    el.textContent = t('noInternet');
+  }
+
   async function loadSoundfontInstrument(name) {
     try {
       await loadSoundfontLib();
@@ -5098,10 +5218,12 @@ window.EAR_TRAINER_CONFIG = {
     const inst = await loadSoundfontInstrument(state.onlineInstrument);
     if (!inst) {
       // Сэмплы не загрузились — пишем об этом в строке результата и играем встроенным синтезатором
-      if (!state.answered) updateNoteSeqInfo(t('noInternet'), true, true);
+      if (isListenOn()) showListenNetHint(true);
+      else if (!state.answered) updateNoteSeqInfo(t('noInternet'), true, true);
       notes.forEach((n, i) => builtinSynthPlay(n, (velocities[i] / 127) * volMult, CFG.noteDurationMs / 1000, dl(i)));
       return;
     }
+    showListenNetHint(false);
     notes.forEach((n, i) => {
       inst.play(n, audioCtx.currentTime + dl(i), { gain: (velocities[i] / 127) * volMult, duration: CFG.noteDurationMs / 1000 });
     });
@@ -5133,7 +5255,7 @@ window.EAR_TRAINER_CONFIG = {
   function playTarget(target) {
     if (!target) return;
     // «Сыграть по очереди» (интервалы и аккорды): ноты звучат одна за другой
-    // через «Интервал между нотами». Интервал вверх — от нижней ноты, вниз — от верхней,
+    // через «Интервал между нотами». Сначала тоника: вверх — она нижняя, вниз — верхняя,
     // аккорд — снизу вверх. Бас (и бас 2) звучит вместе с первой нотой.
     const sequential = state.playMode === 'sequential' && (target.type === 'intervals' || target.type === 'chords');
     if (!sequential) {
@@ -5161,16 +5283,16 @@ window.EAR_TRAINER_CONFIG = {
   // ---------------- Web MIDI ----------------
   async function initMIDI() {
     if (!navigator.requestMIDIAccess) {
-      showMidiStatus(t('webMidiUnsupported'), true);
+      showMidiStatus('webMidiUnsupported', true);
       return;
     }
     try {
       midiAccess = await navigator.requestMIDIAccess({ sysex: false });
       populateMidiPortSelects();
       midiAccess.onstatechange = populateMidiPortSelects;
-      showMidiStatus(t('midiConnected'), false);
+      showMidiStatus('midiConnected', false);
     } catch (e) {
-      showMidiStatus(t('midiAccessDenied'), true);
+      showMidiStatus('midiAccessDenied', true);
     }
   }
 
@@ -5423,12 +5545,12 @@ window.EAR_TRAINER_CONFIG = {
         if (exactOct && octaveOfMidi(notes[0]) !== target.answerOct) return false;
         return true;
       }
-      // «Сыграть по очереди»: ноты нажимаются в порядке звучания: вверх — C, потом F выше; вниз — F, потом C ниже
+      // «Сыграть по очереди»: первой нажимается тоника, потом вторая нота: вверх — C, потом G выше; вниз — C, потом F ниже
       const firstNote = playedNotes[0];
       const lastNote = playedNotes[playedNotes.length - 1];
       const playedDir = lastNote > firstNote ? 'up' : (lastNote < firstNote ? 'down' : null);
       if (playedDir !== target.answerDir) return false;
-      const rootNote = target.answerDir === 'down' ? lastNote : firstNote;
+      const rootNote = firstNote;
       if (pcOfMidi(rootNote) !== target.answerPc) return false;
       if (exactOct && octaveOfMidi(rootNote) !== target.answerOct) return false;
       return true;
@@ -5495,11 +5617,8 @@ window.EAR_TRAINER_CONFIG = {
           result.pc = pcOfMidi(low);
           result.oct = octaveOfMidi(low);
           result.dir = null;
-        } else if (result.dir === 'down') {
-          // Сыграно сверху вниз — тоника (нижняя нота) нажата второй
-          result.pc = pcOfMidi(lastNote);
-          result.oct = octaveOfMidi(lastNote);
         }
+        // «Сыграть по очереди»: тоника — нота, нажатая первой (и при «вверх», и при «вниз»)
         const rawSemis = Math.abs(lastNote - firstNote);
         // 12, 24, 36... — это октава (P8), а не унисон: приводим к простому интервалу 1..12
         const semis = (rawSemis % 12 === 0 && rawSemis > 0) ? 12 : rawSemis % 12;
@@ -5837,12 +5956,12 @@ window.EAR_TRAINER_CONFIG = {
       if (isKeyFilterOn() && !intervalFitsKey(pc, iv.semitones, dir)) return {};
       const spread = parseInt(sel('spread') || '0', 10) || 0;
       const root = pcOctaveToMidi(pc, oct);
-      const top = root + iv.semitones + 12 * spread;
-      if (!inRange([root, top])) return {};
-      const soundPcs = (dir === 'down' && intervalOrderMatters()) ? [pcOfMidi(top), pcOfMidi(root)] : [pcOfMidi(root), pcOfMidi(top)];
-      const b = makeBass(soundPcs, root);
+      const second = intervalSecondMidi(root, iv.semitones, spread, dir);
+      if (!inRange([root, second])) return {};
+      const notes = second >= root ? [root, second] : [second, root];
+      const soundPcs = [pcOfMidi(root), pcOfMidi(second)];
+      const b = makeBass(soundPcs, notes[0]);
       if (b.fail) return { fail: b.fail };
-      const notes = [root, top];
       return { target: { type: 'intervals', answerDir: dir, notes, velocities: notes.map(randVelocity), bass: b.bass, bassVelocity: randVelocity(), bass2: b.bass2, bass2Velocity: randVelocity() } };
     }
     const chord = CHORDS.find((x) => x.id === id);
@@ -6121,6 +6240,7 @@ window.EAR_TRAINER_CONFIG = {
     state.pendingDir = null;
     state.pendingInv = null;
     state.pendingCloseVoicing = false;
+    state.acceptedEq = null;
     state.pendingSeq = [];
     state.pendingBassPc = null;
     state.pendingBassOct = null;
@@ -6288,14 +6408,22 @@ window.EAR_TRAINER_CONFIG = {
     if (needBassOct && state.pendingBassOct === null) return;
     if (!bass2AnswerReady(target)) return;
 
-    const correct = state.pendingChoiceId === target.answerId
+    let mainOk = state.pendingChoiceId === target.answerId
+      && state.pendingPc === target.answerPc
+      && (!needsInv || !INVERSION_CHORD_IDS.includes(target.answerId) || state.pendingInv === target.inversion);
+    // Аккорд, который звучит точно так же (CSus2 основной = GSus4 1 обращение), тоже верный ответ
+    state.acceptedEq = null;
+    if (!mainOk && target.type === 'chords') {
+      const eq = equivalentChordAnswers(target, needsInv ? getSelectedInversions() : null)
+        .find((e) => e.pc === state.pendingPc && e.id === state.pendingChoiceId && (!needsInv || e.inv === state.pendingInv));
+      if (eq) { mainOk = true; state.acceptedEq = eq; }
+    }
+    const correct = mainOk
       && bass2AnswerCorrect(target)
       && (!needBass || state.pendingBassPc === target.bass.pc)
       && (!needBassOct || state.pendingBassOct === target.bass.oct)
-      && state.pendingPc === target.answerPc
       && (!needsOct || state.pendingOct === target.answerOct)
-      && (!needsDir || state.pendingDir === target.answerDir)
-      && (!needsInv || !INVERSION_CHORD_IDS.includes(target.answerId) || state.pendingInv === target.inversion);
+      && (!needsDir || state.pendingDir === target.answerDir);
     finishAnswer(correct, target, state.pendingChoiceId);
   }
 
@@ -6336,6 +6464,7 @@ window.EAR_TRAINER_CONFIG = {
 
   function finishAnswer(correct, target, chosenId) {
     state.answered = true;
+    state.lastCorrect = correct;
     wrongAnswerAt = correct ? 0 : performance.now();
     if (correct) currentScore().ok++; else currentScore().bad++;
     renderScore();
@@ -6394,15 +6523,20 @@ window.EAR_TRAINER_CONFIG = {
       });
       addMissingMainOctChip();
     } else {
+      // Засчитан аккорд, звучащий так же, как вопрос, — зелёным подсвечиваем выбранное
+      const eqAns = (state.answerSource !== 'midi' && state.acceptedEq) || null;
+      const ansId = eqAns ? eqAns.id : target.answerId;
+      const ansPc = eqAns ? eqAns.pc : target.answerPc;
+      const ansInv = eqAns ? (state.pendingInv !== null ? state.pendingInv : eqAns.inv) : target.inversion;
       $('chipAnswer').querySelectorAll('.toggle-chip').forEach((el) => {
         el.classList.add('disabled');
-        if (el.dataset.id === target.answerId) el.classList.add('correct');
+        if (el.dataset.id === ansId) el.classList.add('correct');
         else if (chosenId !== null && el.dataset.id === chosenId) el.classList.add('incorrect');
       });
       {
         const neededPcs = (state.answerSource === 'midi' && target.notes && target.notes.length)
           ? uniqSorted(target.notes.map(pcOfMidi))
-          : [parseInt(target.answerPc, 10)];
+          : [parseInt(ansPc, 10)];
         // Нота баса (самая низкая сыгранная) показывается только в ряду баса, а не здесь
         const playedMain = (state.answerSource === 'midi' && state.lastPlayedNotes && state.lastPlayedNotes.length)
           ? (target.bass ? splitMidiBass(target, state.lastPlayedNotes).rest : state.lastPlayedNotes)
@@ -6431,7 +6565,7 @@ window.EAR_TRAINER_CONFIG = {
         else if (state.pendingDir !== null && el.dataset.dir === state.pendingDir) el.classList.add('incorrect');
       });
       // У аккорда без обращений выбранное обращение тоже верное
-      const rightInv = (!INVERSION_CHORD_IDS.includes(target.answerId) && state.pendingInv !== null) ? state.pendingInv : target.inversion;
+      const rightInv = (!INVERSION_CHORD_IDS.includes(target.answerId) && state.pendingInv !== null) ? state.pendingInv : ansInv;
       $('inversionAnswerRow').querySelectorAll('.toggle-chip').forEach((el) => {
         el.classList.add('disabled');
         if (parseInt(el.dataset.inv, 10) === rightInv) el.classList.add('correct');
@@ -6471,6 +6605,7 @@ window.EAR_TRAINER_CONFIG = {
     state.pendingDir = null;
     state.pendingInv = null;
     state.pendingCloseVoicing = false;
+    state.acceptedEq = null;
     state.pendingSeq = [];
     state.pendingBassPc = null;
     state.pendingBassOct = null;
@@ -6529,13 +6664,18 @@ window.EAR_TRAINER_CONFIG = {
     const scale = currentScalePcs();
     return chord.intervals.every((s) => scale.has(((rootPc + s) % 12 + 12) % 12));
   }
+  // Вторая нота интервала: «вверх» — выше тоники, «вниз» — ниже (spread — лишние октавы)
+  function intervalSecondMidi(root, semitones, spread, dir) {
+    const d = semitones + 12 * (spread || 0);
+    return dir === 'down' ? root - d : root + d;
+  }
   // Интервал допустим, если обе его ноты входят в тональность
   function intervalFitsKey(rootPc, semitones, dir) {
     if (!isKeyFilterOn()) return true;
     const scale = currentScalePcs();
     const base = ((rootPc % 12) + 12) % 12;
     if (!scale.has(base)) return false;
-    const other = ((base + semitones) % 12 + 12) % 12;
+    const other = ((base + (dir === 'down' ? -semitones : semitones)) % 12 + 12) % 12;
     return scale.has(other);
   }
   // Есть ли в тональности хоть одна ступень, от которой строится этот интервал
@@ -6680,11 +6820,17 @@ window.EAR_TRAINER_CONFIG = {
       if (!grid) return;
       const chips = [...grid.querySelectorAll('.toggle-chip')];
       if (!chips.length) return;
+      // Вариант, включённый автоматически, снимается, как только выбран любой другой,
+      // и не остаётся в выборе после выключения тональности
+      chips.forEach((c) => { if (c.dataset.keyAuto && !c.classList.contains('selected')) delete c.dataset.keyAuto; });
+      if (chips.some((c) => c.classList.contains('selected') && !c.dataset.keyAuto)) {
+        chips.forEach((c) => { if (c.dataset.keyAuto) { c.classList.remove('selected'); delete c.dataset.keyAuto; } });
+      }
       if (chips.some((c) => c.classList.contains('selected'))) return;
       const keep = (chips[0].dataset.pc !== undefined)
         ? pickKeepPianoChip(grid, grid === rootGrid ? rootFitsSelection : null)
         : chips.find((c) => !c.classList.contains('out-of-key') && !c.classList.contains('disabled'));
-      if (keep) keep.classList.add('selected');
+      if (keep) { keep.classList.add('selected'); if (on) keep.dataset.keyAuto = '1'; }
     });
 
     if (state.mode === 'chords') updateInversionAvailability();
@@ -7018,7 +7164,7 @@ window.EAR_TRAINER_CONFIG = {
       const isSelected = savedOcts ? savedOcts.includes(o.o) : OCTAVE_DEFAULT_SELECTED.has(o.o);
       const chip = document.createElement('div');
       chip.className = 'toggle-chip' + (isSelected ? ' selected' : '');
-      chip.textContent = o.label;
+      chip.textContent = octChipLabel(o.o);
       chip.dataset.oct = o.o;
       chip.addEventListener('click', () => {
         // Последнюю оставшуюся выбранную октаву снять нельзя
@@ -7056,6 +7202,7 @@ window.EAR_TRAINER_CONFIG = {
     document.querySelectorAll('#langSegment .segment-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         applyLanguage(btn.dataset.lang);
+        refreshMidiStatusLang();
         updateNoteGapInput();
         // После смены языка вопрос задаётся заново
         if (state.currentTarget) nextQuestion();
@@ -7139,6 +7286,7 @@ window.EAR_TRAINER_CONFIG = {
     $('selectAllPool').addEventListener('click', () => {
       // Варианты вне выбранной тональности не включаем
       document.querySelectorAll('#pool-grid .toggle-chip').forEach((c) => {
+        delete c.dataset.keyAuto;
         if (!c.classList.contains('out-of-key')) c.classList.add('selected');
       });
       updateInversionAvailability();
@@ -7174,6 +7322,7 @@ window.EAR_TRAINER_CONFIG = {
     $('selectAllRoot').addEventListener('click', () => {
       // Ступени вне выбранной тональности не включаем
       document.querySelectorAll('#root-note-grid .toggle-chip').forEach((c) => {
+        delete c.dataset.keyAuto;
         if (!c.classList.contains('out-of-key')) c.classList.add('selected');
       });
       settingsChanged();
@@ -7701,6 +7850,25 @@ window.EAR_TRAINER_CONFIG = {
       }
     });
 
+    // После ползунка громкости (мышью/пальцем) и после Enter в полях «Velocity» и
+    // «Интервал между нотами» фокус снимается — клавиши Y, Z, V, A–G снова работают
+    {
+      const volSl = $('volumeSlider');
+      let volByPointer = false;
+      volSl.addEventListener('pointerdown', () => { volByPointer = true; });
+      volSl.addEventListener('change', () => { if (volByPointer) { volByPointer = false; volSl.blur(); } });
+      ['noteGapInput', 'minVelocityInput'].forEach((id) => {
+        $(id).addEventListener('keydown', (e) => { if (e.key === 'Enter') e.target.blur(); });
+      });
+    }
+    // Enter в приложении не используется: он не должен «нажимать» кнопку, по которой последней кликнули мышью
+    window.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      const tag = document.activeElement ? document.activeElement.tagName : '';
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      e.preventDefault();
+    }, true);
+
     $('volumeSlider').addEventListener('input', (e) => {
       state.onlineVolume = parseInt(e.target.value, 10);
       $('volume-val').textContent = e.target.value + '%';
@@ -7766,6 +7934,12 @@ window.EAR_TRAINER_CONFIG = {
         btn.classList.add('active');
         state.noteNaming = btn.dataset.naming;
         refreshNoteLabels();
+        // Всё, где есть названия нот, сразу показывается в новом виде:
+        // подсказка Z, кнопки «Прослушать», строка результата / причина, почему нет вопроса
+        updateDebugAnswer();
+        renderListenPanel();
+        if (state.currentTarget && state.answered) updateNoteSeqInfo(buildMistakeText(state.currentTarget, !!state.lastCorrect), !state.lastCorrect);
+        else if (!state.currentTarget) showReadyOrError();
         saveSettings();
       });
     });

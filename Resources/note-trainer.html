@@ -932,7 +932,7 @@
     cursor:pointer;
     display:flex; align-items:flex-end; justify-content:center;
     padding-bottom:4px;
-    font-size: 10px; font-weight:600; color: var(--btn-text);
+    font-size: 14px; font-weight:600; color: var(--btn-text);
     font-family: var(--font-ui);
   }
   .big-piano .white-key,
@@ -940,6 +940,8 @@
     -webkit-tap-highlight-color: transparent;
     outline: none;
   }
+  /* чёрные клавиши — без рамки кнопки (была светлая обводка), как в подсказке «?» */
+  .big-piano .black-key{ border: none; padding: 0; box-shadow: none; }
   .big-piano .white-key:focus,
   .big-piano .black-key:focus,
   .big-piano .white-key:focus-visible,
@@ -1237,6 +1239,24 @@
   .rh-check input{ width:16px; height:16px; accent-color: var(--accent); cursor:pointer; }
   #settingsPanel .range-field input[type="number"]#rhCalibrateVal{ width:64px; }
   .range-field span.rh-calib-unit{ width:auto; text-align:left; }
+  /* Поле для ударов калибровки под кнопкой «Откалибровать»: ширина — как у кнопки
+     (поле само ширину столбца не задаёт: width:0 + min-width:100%), высота — 4 высоты
+     кнопки (ставится из JS). Во время калибровки обводка — цветом акцента. */
+  .rh-calib-col{ display:flex; flex-direction:column; align-items:stretch; align-self:stretch; gap:6px; }
+  .rh-calib-col .small-btn{ align-self:stretch; }
+  .rh-calib-pad{
+    width:0; min-width:100%; height:128px;
+    display:flex; align-items:center; justify-content:center; text-align:center;
+    padding:4px; box-sizing:border-box;
+    background: var(--ui-bg); color: var(--text-dim);
+    border:1px dashed var(--panel-border); border-radius: var(--radius-sm);
+    font-size:12px; line-height:1.3; cursor:pointer;
+    user-select:none; -webkit-user-select:none; touch-action:manipulation;
+  }
+  .rh-calib-pad.calibrating{ border:1px solid var(--accent); color: var(--text-main); }
+  .rh-calib-pad.calibrating.hit{ background: var(--btn-hover); }
+  /* отсчёт 3-2-1 перед калибровкой — крупные цифры в поле */
+  .rh-calib-pad.counting{ font-size:48px; font-weight:700; color: var(--accent); }
   .rh-calib-val{ font-family: var(--font-ui); font-size:14px; font-weight:600; color: var(--accent); }
 
   /* ================= МОБИЛЬНАЯ ВЕРСИЯ =================
@@ -1506,6 +1526,7 @@
   #settingsPanel #invGrid{ grid-template-columns:repeat(4, 1fr); }
   #settingsPanel #modeGrid button.row-start{ grid-column-start:1; }
   #settingsPanel #invGrid button:disabled{ opacity:0.35; cursor:default; }
+  #settingsPanel #nrTagGrid button:disabled{ opacity:0.35; cursor:default; }
   #settingsPanel #scaleTonicGrid{ grid-template-columns:repeat(7, 1fr); }
   #settingsPanel #durGrid{ grid-template-columns:repeat(6, 1fr); }
   #settingsPanel #nrTsGrid{ grid-template-columns:repeat(4, 1fr); }
@@ -1855,6 +1876,211 @@
   .piano-colors-sub label{ white-space:nowrap; width:auto !important; min-width:120px; }
   /* часть отмеченных аккордов не строится — короткая строка вверху стана, ноты не закрывает */
   #noChordsWarning.partial{ top:10px; transform:translateX(-50%); font-size:15px; padding:6px 12px; }
+
+  /* ===== Окно-подсказка «?» у заголовка «Ключ» (вкладка «Ноты») =====
+     Стан с обоими ключами и 5 добавочными линейками сверху/снизу.
+     Наведение на линейку/промежуток или на кнопку ноты — подсвечиваются все
+     такие ноты на стане; с галкой «Показать клавиатуру» — клавиатура вместо
+     кнопок, наведение на клавишу показывает точную ноту.
+     --sh-c-line/--sh-c-space : цвет линеек / промежутков (сейчас красим так)
+     --sh-shade           : плотность затемнения экрана под окном (1 = полностью)
+     --sh-c-*             : цвета нот — цвета ступеней из Circle of Fifths, ступени от C
+                            (C тоника, D нона, E терция, F ундецима, G квинта, A тердецима, B септима)
+     --sh-t-*             : цвет текста названия ноты на плашке такого же цвета
+     --sh-band-opacity    : прозрачность подсветки промежутка между линейками
+     --sh-ledger-opacity  : яркость добавочных линеек
+     Размер стана в окне = размер основного стана (считается в JS при открытии). */
+  #staffHelpIcon, #scaleHelpIcon{ cursor:pointer; font-style:normal; outline:none; }
+  body.mobile-mode #staffHelpIcon, body.mobile-mode #scaleHelpIcon{ display:none; }
+  .sh-popup{
+    --sh-c-green:  #689461;          --sh-t-green:  #ffffff;
+    --sh-c-cyan:   rgb(179,255,255); --sh-t-cyan:   #141414;
+    --sh-c-yellow: rgb(255,242,179); --sh-t-yellow: #141414;
+    --sh-c-orange: rgb(255,217,179); --sh-t-orange: #141414;
+    --sh-c-blue:   rgb(179,217,255); --sh-t-blue:   #141414;
+    --sh-c-lime:   rgb(220,255,179); --sh-t-lime:   #141414;
+    --sh-c-purple: rgb(217,179,255); --sh-t-purple: #141414;
+    /* режим «линейки / промежутки» (сейчас включён, см. SH_COLOR_MODE в JS):
+       линейки — зелёный тоники из круга, промежутки — красный формул из круга */
+    /* --sh-label-color — цвет названия ноты на плашке (свой, отдельный от темы):
+       светлый кремовый — читается и на зелёной, и на красной плашке */
+    --sh-label-color: #f3ece0;
+    --sh-c-line:  #689461;           --sh-t-line:  var(--sh-label-color);
+    --sh-c-space: rgba(250,82,86,.5); --sh-t-space: var(--sh-label-color);   /* красный с прозрачностью 50% (последнее число) */
+    /* цвет названий всех нот (без плашек): линейки / промежутки */
+    --sh-name-line:  #7fae77;
+    --sh-name-space: rgb(226,96,99);
+    --sh-band-opacity: .5;
+    --sh-ledger-opacity: .4;
+    display:none;
+    position:fixed;
+    z-index:10000;
+    width:auto;
+    max-width:98vw;
+    background:var(--panel-bg);
+    color:var(--text-main);
+    border:1px solid var(--panel-border);
+    border-radius:8px;
+    padding:10px 14px 14px;
+    box-shadow:0 4px 12px rgba(0,0,0,0.45);
+    font-family:var(--font-ui);
+    -webkit-user-select:none; user-select:none;
+  }
+  /* светлая тема — цвета как в светлой теме круга, текст на плашках белый */
+  [data-theme="5"] .sh-popup{
+    --sh-c-green:  #4c8a49;
+    --sh-c-cyan:   rgb(0,150,166);
+    --sh-c-yellow: rgb(196,140,0);
+    --sh-c-orange: rgb(214,101,32);
+    --sh-c-blue:   rgb(51,122,214);
+    --sh-c-lime:   rgb(96,153,25);
+    --sh-c-purple: rgb(140,66,201);
+    --sh-t-cyan: #fff; --sh-t-yellow: #fff; --sh-t-orange: #fff;
+    --sh-t-blue: #fff; --sh-t-lime: #fff; --sh-t-purple: #fff;
+    --sh-c-line:  #4c8a49;
+    --sh-c-space: rgba(214,58,62,.5);
+    --sh-name-line:  #3f7a3c;
+    --sh-name-space: rgb(190,45,50);
+    /* светлая тема: плашки светлее — название тёмное */
+    --sh-label-color: #1e1e1e;
+  }
+  /* затемнение под окном — закрывает и настройки; --sh-shade — его плотность */
+  .sh-shade{
+    display:none;
+    position:fixed; inset:0;
+    background:rgba(0,0,0,var(--sh-shade, 1));
+    z-index:9999;
+  }
+  .sh-popup .sh-top{
+    display:flex; align-items:center; justify-content:space-between; gap:16px;
+    margin-bottom:8px;
+  }
+  .sh-popup .sh-checks{ display:flex; align-items:center; gap:24px; }
+  .sh-popup .sh-check{
+    display:flex; align-items:center; gap:8px;
+    font-size:14px; cursor:pointer;
+  }
+  .sh-popup .sh-ledgers{ display:flex; align-items:center; gap:8px; font-size:14px; }
+  .sh-popup .sh-ledgers select{
+    background:var(--ui-bg);
+    color:var(--text-main);
+    border:1px solid var(--panel-border);
+    border-radius:var(--radius-sm);
+    padding:4px 8px;
+    font-family:var(--font-ui);
+    font-size:14px;
+    cursor:pointer;
+    outline:none;
+  }
+  .sh-popup .sh-staff-box{
+    background:var(--staff-bg);
+    border-radius:var(--radius);
+    padding:6px 10px;
+  }
+  .sh-popup svg{ display:block; height:auto; max-width:calc(98vw - 50px); }
+  .sh-popup .sh-label{ font-family:var(--font-ui); font-size:12px; font-weight:700; }
+  /* названия всех нот (галки «Показать ноты» / «Растянуть ноты») — без плашек */
+  .sh-popup .sh-name{ font-family:var(--font-ui); font-size:11px; font-weight:700; }
+  /* «Лады»: название ноты в кружке, номер ступени под кружком, знак ♯/♭ слева сверху.
+     Цвет кружков — по месту на стане: --sh-deg-line (на линейке) / --sh-deg-space (в промежутке);
+     знак ♯/♭ — того же цвета, чуть светлее, чтобы читался: --sh-acc-line / --sh-acc-space */
+  .sh-popup{
+    --sh-deg-line: #689461;
+    --sh-deg-space: color-mix(in srgb, rgb(250,82,86) 55%, var(--staff-bg));
+    --sh-acc-line: #7fae77;
+    --sh-acc-space: rgb(226,96,99);
+  }
+  [data-theme="5"] .sh-popup{
+    --sh-deg-line: #4c8a49;
+    --sh-deg-space: color-mix(in srgb, rgb(214,58,62) 70%, var(--staff-bg));
+    --sh-acc-line: #3f7a3c;
+    --sh-acc-space: rgb(190,45,50);
+  }
+  .sh-popup .sh-scale-name{ font-family:var(--font-ui); font-size:7px; font-weight:700; fill:var(--sh-label-color); }
+  .sh-popup .sh-deg{ font-family:var(--font-ui); font-size:8px; font-weight:700; }   /* цвет — как у ноты (из JS) */
+  .sh-popup .sh-scale-acc{ font-size:12px; font-weight:700; stroke:var(--staff-bg); stroke-width:2.5px; paint-order:stroke; stroke-linejoin:round; }
+  /* «Лады»: кнопка тональности с меньшим числом знаков (D♯ мажор → E♭) — зелёная */
+  .sh-popup .sh-buttons .sh-better,
+  [data-theme="5"] .sh-popup .sh-buttons .sh-better{ background:var(--sh-deg-line); color:#fff; }
+  /* «Лады»: увеличенный вид стана — поверх основного, того же размера */
+  .sh-popup .sh-svgwrap{ position:relative; }
+  .sh-popup svg.sh-zoom{ position:absolute; left:0; top:0; width:100%; height:100%; max-width:none; }
+  /* плавные переходы увеличенного вида (длительность — как ZOOM_ANIM_MS в JS) */
+  .sh-popup .sh-svgwrap > svg{ transition:opacity .25s ease; }
+  /* ноты увеличенного вида плавно съезжают на новое место при смене тоники */
+  .sh-popup svg.sh-zoom.sh-zoom-anim .sh-zoom-note{ transition:transform .22s cubic-bezier(.25,.8,.3,1); }
+  /* (i) у выпадашки «Лад» и её подсказка */
+  .sh-popup .sh-mode-info{ cursor:help; flex:0 0 auto; }
+  .sh-tip{
+    display:none; position:fixed; z-index:10003;
+    max-width:min(420px, 90vw);
+    background:var(--panel-bg); color:var(--text-main);
+    border:1px solid var(--panel-border); border-radius:8px;
+    padding:8px 10px; font-family:var(--font-ui); font-size:16px; line-height:1.4;
+    box-shadow:0 4px 12px rgba(0,0,0,.45); pointer-events:none;
+  }
+  /* знак ♯/♭ на стане слева от названия ноты — цвета линеек стана, размер — как на основном стане */
+  .sh-popup .sh-acc{ font-size:22px; fill:var(--line-color); }
+  /* низ окна всегда одной высоты (как клавиатура) — стан не прыгает при переключении галки */
+  .sh-popup .sh-bottom{ margin-top:10px; min-height:130px; }
+  /* кнопки нот — как кнопки ответа под основным станом (раскладка пианино) */
+  .sh-popup .sh-buttons{ position:relative; padding-top:62px; }
+  .sh-popup .sh-naturals{ display:flex; gap:6px; }
+  .sh-popup .sh-naturals .note-btn{ flex:1; min-width:0; }
+  .sh-popup .sh-sharp{
+    position:absolute; top:0;
+    background:var(--btn-bg);
+    color:var(--btn-text);
+    border:none; border-radius:var(--radius-sm);
+    padding:14px 2px;
+    font-size:14px; font-weight:600;
+    font-family:var(--font-ui);
+    box-shadow:0 var(--btn-shadow-depth) 0 var(--btn-bg-bottom);
+    text-align:center;
+    line-height:1.15;
+    z-index:2;
+    transition:background .15s ease;
+  }
+  .sh-popup .sh-sharp:hover{ background:var(--btn-hover); }
+  /* клавиатура — как большая клавиатура пианино (G1–E6) */
+  .sh-popup .sh-piano{
+    position:relative;
+    height:130px;
+    background:var(--staff-bg);
+    border:1px solid var(--panel-border);
+    border-radius:var(--radius);
+    box-sizing:border-box;
+    padding:4px;
+  }
+  .sh-popup .sh-piano .white-key{
+    position:absolute; top:0; height:100%;
+    background:var(--piano-white-key);
+    border:1px solid var(--panel-border);
+    border-radius:0 0 4px 4px;
+    display:flex; align-items:flex-end; justify-content:center;
+    padding:0 0 4px 0;
+    font-size:14px; font-weight:600; color:var(--btn-text);
+    font-family:var(--font-ui);
+    outline:none;
+  }
+  .sh-popup .sh-piano .black-key{
+    position:absolute; top:0; height:62%;
+    background:var(--piano-black-key);
+    border:none;
+    border-radius:0 0 3px 3px;
+    padding:0;
+    z-index:2;
+    outline:none;
+  }
+  /* светлая тема — кнопки нот такие же тёмные, как кнопки ответов под станом */
+  [data-theme="5"] .sh-popup .sh-buttons .note-btn,
+  [data-theme="5"] .sh-popup .sh-buttons .sh-sharp{
+    background:#383838;
+    color:#e4e4e4;
+    box-shadow:0 var(--btn-shadow-depth) 0 #56565b;
+  }
+  [data-theme="5"] .sh-popup .sh-buttons .note-btn:hover,
+  [data-theme="5"] .sh-popup .sh-buttons .sh-sharp:hover{ background:#23242b; }
 </style>
 </head>
 <body>
@@ -1927,7 +2153,10 @@
   </div>
 
   <div class="settings-block">
-    <h3 data-i18n="h_clef">Ключ</h3>
+    <!-- (?) — по клику окно-подсказка: стан с обоими ключами (+5 добавочных линеек сверху
+         и снизу), при наведении на линейку/промежуток или на кнопку ноты подсвечиваются
+         все такие ноты на стане. Строится в JS: staffHelpModule. -->
+    <h3 class="h3-with-info"><span data-i18n="h_clef">Ключ</span><span class="info-icon" id="staffHelpIcon" tabindex="0">?</span></h3>
     <div class="settings-box">
       <div class="segmented" data-group="clef">
         <div class="seg-row">
@@ -1984,18 +2213,6 @@
         <div class="seg-row">
           <button data-value="show" class="active" data-i18n="btn_show">Показывать</button>
           <button data-value="hide" data-i18n="btn_hide">Скрыть</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="settings-block">
-    <h3 data-i18n="h_note_names">Названия нот</h3>
-    <div class="settings-box">
-      <div class="segmented" data-group="naming">
-        <div class="seg-row">
-          <button data-value="letters" class="active">A B C</button>
-          <button data-value="solfege" data-i18n="naming_solfege">До Ре Ми</button>
         </div>
       </div>
     </div>
@@ -2126,11 +2343,24 @@
     <button class="small-btn midi-connect-btn" id="resetDefaultsBtn" data-i18n="btn_reset_defaults">Восстановить настройки по умолчанию</button>
   </div>
 
+  <div class="settings-block">
+    <h3 data-i18n="h_note_names">Названия нот</h3>
+    <div class="settings-box">
+      <div class="segmented" data-group="naming">
+        <div class="seg-row">
+          <button data-value="letters" class="active">A B C</button>
+          <button data-value="solfege" data-i18n="naming_solfege">До Ре Ми</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   </div><!-- /noteSettingsBlocks -->
 
   <div id="scaleSettingsBlocks" style="display:none">
     <div class="settings-block">
-      <h3 data-i18n="h_clef">Ключ</h3>
+      <!-- (?) — окно-подсказка «Лады»: лад на стане от ноты, на которую навели (staffHelpModule, kind "scales") -->
+      <h3 class="h3-with-info"><span data-i18n="h_clef">Ключ</span><span class="info-icon" id="scaleHelpIcon" tabindex="0">?</span></h3>
       <div class="settings-box">
         <div class="segmented" data-sgroup="clef">
           <div class="seg-row">
@@ -2198,7 +2428,7 @@
       <div class="settings-box">
         <div class="range-field"><label style="width:50px" data-i18n="lbl_top">Верх</label><input type="range" id="scaleLabelTop" min="0" max="200"><input type="number" class="range-number" id="scaleLabelTopVal" min="0" max="200"></div>
         <div class="range-field"><label style="width:50px" data-i18n="lbl_side">Бок</label><input type="range" id="scaleLabelLeft" min="0" max="100"><input type="number" class="range-number" id="scaleLabelLeftVal" min="0" max="100"></div>
-        <div class="range-field"><label style="width:50px" data-i18n="lbl_size">Размер</label><input type="range" id="scaleLabelSize" min="30" max="50"><input type="number" class="range-number" id="scaleLabelSizeVal" min="30" max="50"></div>
+        <div class="range-field"><label style="width:50px" data-i18n="lbl_size">Размер</label><input type="range" id="scaleLabelSize" min="10" max="100"><input type="number" class="range-number" id="scaleLabelSizeVal" min="10" max="100"></div>
       </div>
     </div>
     <div class="settings-block">
@@ -2249,18 +2479,6 @@
       </span>
     </div>
 
-    <div class="settings-block">
-      <h3 data-i18n="h_note_names">Названия нот</h3>
-      <div class="settings-box">
-        <div class="segmented" data-group="naming">
-          <div class="seg-row">
-            <button data-value="letters" class="active">A B C</button>
-            <button data-value="solfege" data-i18n="naming_solfege">До Ре Ми</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <div class="settings-block midi-row">
       <h3 data-i18n="h_midi">MIDI</h3>
       <div class="settings-box">
@@ -2274,6 +2492,18 @@
         </div>
         <button class="small-btn midi-connect-btn" id="midiConnectBtnScale" data-i18n="btn_connect_midi">Подключить MIDI</button>
         <span class="midi-status" id="midiStatusScale"></span>
+      </div>
+    </div>
+
+    <div class="settings-block">
+      <h3 data-i18n="h_note_names">Названия нот</h3>
+      <div class="settings-box">
+        <div class="segmented" data-group="naming">
+          <div class="seg-row">
+            <button data-value="letters" class="active">A B C</button>
+            <button data-value="solfege" data-i18n="naming_solfege">До Ре Ми</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -2360,18 +2590,6 @@
       </span>
     </div>
 
-    <div class="settings-block">
-      <h3 data-i18n="h_note_names">Названия нот</h3>
-      <div class="settings-box">
-        <div class="segmented" data-group="naming">
-          <div class="seg-row">
-            <button data-value="letters" class="active">A B C</button>
-            <button data-value="solfege" data-i18n="naming_solfege">До Ре Ми</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <div class="settings-block midi-row">
       <h3 data-i18n="h_midi">MIDI</h3>
       <div class="settings-box">
@@ -2385,6 +2603,18 @@
         </div>
         <button class="small-btn midi-connect-btn" id="midiConnectBtnDur" data-i18n="btn_connect_midi">Подключить MIDI</button>
         <span class="midi-status" id="midiStatusDur"></span>
+      </div>
+    </div>
+
+    <div class="settings-block">
+      <h3 data-i18n="h_note_names">Названия нот</h3>
+      <div class="settings-box">
+        <div class="segmented" data-group="naming">
+          <div class="seg-row">
+            <button data-value="letters" class="active">A B C</button>
+            <button data-value="solfege" data-i18n="naming_solfege">До Ре Ми</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -2447,7 +2677,10 @@
           <label style="width:96px" data-i18n="lbl_offset">Смещение</label>
           <input type="number" class="range-number" id="rhCalibrateVal" min="-300" max="300" step="1" value="0"><span class="rh-calib-unit" data-i18n="unit_ms">мс</span>
         </div>
-        <button class="small-btn" id="rhCalibrateBtn" data-i18n="btn_calibrate">Откалибровать</button>
+        <div class="rh-calib-col">
+          <button class="small-btn" id="rhCalibrateBtn" data-i18n="btn_calibrate">Откалибровать</button>
+          <div class="rh-calib-pad" id="rhCalibratePad" data-i18n="calib_pad">Жми мышкой в это поле</div>
+        </div>
         <div class="rh-hint" id="rhCalibrateStatus"></div>
       </div>
     </div>
@@ -2500,18 +2733,6 @@
       </span>
     </div>
 
-    <div class="settings-block">
-      <h3 data-i18n="h_note_names">Названия нот</h3>
-      <div class="settings-box">
-        <div class="segmented" data-group="naming">
-          <div class="seg-row">
-            <button data-value="letters" class="active">A B C</button>
-            <button data-value="solfege" data-i18n="naming_solfege">До Ре Ми</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <div class="settings-block midi-row">
       <h3 data-i18n="h_midi">MIDI</h3>
       <div class="settings-box">
@@ -2525,6 +2746,18 @@
         </div>
         <button class="small-btn midi-connect-btn" id="midiConnectBtnNr" data-i18n="btn_connect_midi">Подключить MIDI</button>
         <span class="midi-status" id="midiStatusNr"></span>
+      </div>
+    </div>
+
+    <div class="settings-block">
+      <h3 data-i18n="h_note_names">Названия нот</h3>
+      <div class="settings-box">
+        <div class="segmented" data-group="naming">
+          <div class="seg-row">
+            <button data-value="letters" class="active">A B C</button>
+            <button data-value="solfege" data-i18n="naming_solfege">До Ре Ми</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -2656,6 +2889,23 @@
    после ПОСЛЕДНЕГО изменения (каждое новое изменение запускает отсчёт заново).
    При закрытии / перезагрузке страницы всё несохранённое пишется сразу.
    Чтение (getItem) сразу видит ещё не записанные значения. */
+/* Если браузер запрещает хранилище (localStorage недоступен), приложение работает
+   как обычно, но без сохранения: настройки живут в памяти до закрытия страницы. */
+(function(){
+  var ok = false;
+  try { var ls = window.localStorage; ls.getItem("__nt_probe__"); ok = !!ls; } catch(e){}
+  if(ok) return;
+  var mem = {};
+  var shim = {
+    getItem: function(k){ k = String(k); return Object.prototype.hasOwnProperty.call(mem, k) ? mem[k] : null; },
+    setItem: function(k, v){ mem[String(k)] = String(v); },
+    removeItem: function(k){ delete mem[String(k)]; },
+    clear: function(){ mem = {}; },
+    key: function(i){ return Object.keys(mem)[i] || null; }
+  };
+  Object.defineProperty(shim, "length", { get: function(){ return Object.keys(mem).length; } });
+  try { Object.defineProperty(window, "localStorage", { value: shim, configurable: true, writable: true }); } catch(e){}
+})();
 (function(){
   var SAVE_DELAY_MS = 10000;
   var LS = null;
@@ -2808,22 +3058,25 @@
       "Y / Н, W / Ц, правая кнопка мыши или Shift + F10 — открыть / закрыть настройки<br>" +
       "V / М — спрятать курсор (сам прячется через 10 секунд без движения мыши)<br>" +
       "Q / Й — окно ошибок<br>" +
-      "+ / = — увеличить масштаб, − — уменьшить, Shift + − — вернуть 100%<br><br>" +
+      "+ / = — увеличить масштаб, − — уменьшить, Shift + − — вернуть 100%<br>" +
+      "Ctrl + клик по заголовку в настройках — вернуть настройки этого блока по умолчанию (кроме MIDI, языка и темы)<br><br>" +
       "<b>Ноты</b><br>" +
       "A B C D E F G — ответ нотой (в русской раскладке — те же клавиши)<br>" +
       "Shift + буква — диез<br>" +
       "Буква, затем цифра 1–6 — нота с октавой (если включено «Указывать октаву в ответе»)<br>" +
       "R / К (удерживать) — подсказка<br>" +
       "T / Е — закрепить / открепить подсказку<br>" +
-      "Z / Я (удерживать) — названия линеек стана<br><br>" +
+      "Z / Я (удерживать) — названия линеек стана<br>" +
+      "U / Г — подсказка: стан с названиями нот (окно «?» у «Ключ»)<br><br>" +
       "<b>Лады</b><br>" +
       "A B C D E F G, Shift + буква — ответ нотой<br>" +
-      "R / К, T / Е, Z / Я — как в «Нотах»<br><br>" +
+      "R / К, T / Е, Z / Я — как в «Нотах»<br>" +
+      "U / Г — подсказка: лад на стане (окно «?» у «Ключ»)<br><br>" +
       "<b>Ритм → Одна нота</b><br>" +
       "1 … 9, 0 — кнопка ответа по порядку слева направо<br><br>" +
       "<b>Ритм → Бесконечно</b><br>" +
       "Пробел или клик по нотному стану — тап<br>" +
-      "Пробел — тап во время калибровки<br><br>" +
+      "Пробел или клик по полю «Жми мышкой в это поле» под кнопкой «Откалибровать» — тап во время калибровки (после отсчёта 3, 2, 1)<br><br>" +
       "<b>MIDI-клавиатура</b><br>" +
       "Ноты, Лады — ответ нотой<br>" +
       "Одна нота — C D E F G A B (любая октава) = кнопки 1–7<br>" +
@@ -2833,24 +3086,27 @@
       "Y, W, right mouse button or Shift + F10 — open / close settings<br>" +
       "V — hide the cursor (hides by itself after 10 seconds without mouse movement)<br>" +
       "Q — errors window<br>" +
-      "+ / = — zoom in, − — zoom out, Shift + − — reset to 100%<br><br>" +
+      "+ / = — zoom in, − — zoom out, Shift + − — reset to 100%<br>" +
+      "Ctrl + click on a heading in the settings — reset that block to defaults (except MIDI, language and theme)<br><br>" +
       "<b>Notes</b><br>" +
       "A B C D E F G — answer with a note<br>" +
       "Shift + letter — sharp<br>" +
       "Letter, then digit 1–6 — note with octave (if “Specify octave in answer” is on)<br>" +
       "R (hold) — hint<br>" +
       "T — pin / unpin hint<br>" +
-      "Z (hold) — staff line names<br><br>" +
-      "<b>Modes</b><br>" +
+      "Z (hold) — staff line names<br>" +
+      "U — hint: staff with note names (the “?” window next to “Clef”)<br><br>" +
+      "<b>Scales</b><br>" +
       "A B C D E F G, Shift + letter — answer with a note<br>" +
-      "R, T, Z — same as in “Notes”<br><br>" +
+      "R, T, Z — same as in “Notes”<br>" +
+      "U — hint: the scale on the staff (the “?” window next to “Clef”)<br><br>" +
       "<b>Rhythm → One note</b><br>" +
       "1 … 9, 0 — answer button by order from left to right<br><br>" +
       "<b>Rhythm → Infinite</b><br>" +
       "Space or click on the staff — tap<br>" +
-      "Space — tap during calibration<br><br>" +
+      "Space or a click on the “Click in this field with the mouse” field under “Calibrate” — tap during calibration (after the 3, 2, 1 count-in)<br><br>" +
       "<b>MIDI keyboard</b><br>" +
-      "Notes, Modes — answer with a note<br>" +
+      "Notes, Scales — answer with a note<br>" +
       "One note — C D E F G A B (any octave) = buttons 1–7<br>" +
       "Infinite — any key = tap",
     zh:
@@ -2858,22 +3114,25 @@
       "Y、W、鼠标右键或 Shift + F10 — 打开 / 关闭设置<br>" +
       "V — 隐藏光标（鼠标 10 秒不动时自动隐藏）<br>" +
       "Q — 错误窗口<br>" +
-      "+ / = — 放大，− — 缩小，Shift + − — 恢复 100%<br><br>" +
+      "+ / = — 放大，− — 缩小，Shift + − — 恢复 100%<br>" +
+      "Ctrl + 点击设置中的标题 — 将该区块恢复为默认值（MIDI、语言和主题除外）<br><br>" +
       "<b>音符</b><br>" +
       "A B C D E F G — 用音符作答<br>" +
       "Shift + 字母 — 升号<br>" +
       "字母，然后数字 1–6 — 带八度的音符（开启“答案中指定八度”时）<br>" +
       "R（按住）— 提示<br>" +
       "T — 固定 / 取消固定提示<br>" +
-      "Z（按住）— 谱线名称<br><br>" +
+      "Z（按住）— 谱线名称<br>" +
+      "U — 提示：带音名的五线谱（“谱号”旁的“?”窗口）<br><br>" +
       "<b>调式</b><br>" +
       "A B C D E F G、Shift + 字母 — 用音符作答<br>" +
-      "R、T、Z — 与“音符”相同<br><br>" +
+      "R、T、Z — 与“音符”相同<br>" +
+      "U — 提示：五线谱上的调式（“谱号”旁的“?”窗口）<br><br>" +
       "<b>节奏 → 单个音符</b><br>" +
       "1 … 9、0 — 按从左到右的顺序选择答案按钮<br><br>" +
       "<b>节奏 → 无限</b><br>" +
       "空格或点击五线谱 — 敲击<br>" +
-      "空格 — 校准时敲击<br><br>" +
+      "空格或点击“校准”下方的“用鼠标点击此区域” — 校准时敲击（倒数 3、2、1 之后）<br><br>" +
       "<b>MIDI 键盘</b><br>" +
       "音符、调式 — 用音符作答<br>" +
       "单个音符 — C D E F G A B（任意八度）= 按钮 1–7<br>" +
@@ -2913,6 +3172,21 @@
     revealShowNoteIcon: true,
     // ШАГ 0: рисовать ноты разными длительностями (только внешний вид, ответ прежний)
     showDurations: false,
+    // окно-подсказка «?» у «Ключ»: галка «Показать клавиатуру» (вместо 7 кнопок нот)
+    staffHelpPiano: false,
+    // окно-подсказка «?»: выпадашка «Дополнительные линейки» (0–5)
+    staffHelpLedgers: 5,
+    // окно-подсказка «?»: галка «Показать ноты» (названия всех нот слева от линеек)
+    staffHelpNames: false,
+    // окно-подсказка «?»: галка «Растянуть ноты» (каждая нота — свой столбец)
+    staffHelpStretch: false,
+    // окно-подсказка «?» во вкладке «Лады» — свои настройки
+    scaleHelpPiano: false,
+    scaleHelpLedgers: 5,
+    scaleHelpNames: false,
+    scaleHelpMode: "major",
+    scaleHelpDegrees: true,
+    scaleHelpZoom: false,
     // положение окна истории ошибок (px от центра экрана) — своё для каждого уровня
     errorsPosNotesX: -753,
     errorsPosNotesY: 0,
@@ -2963,7 +3237,7 @@
     if(!settings.pianoWhiteColor) settings.pianoWhiteColor = "#68665e";
     if(!settings.pianoBlackColor) settings.pianoBlackColor = "#1a1a1c";
     if(!settings.errorFontSize) settings.errorFontSize = 13;
-    settings.errorFontSize = Math.min(50, Math.max(10, Math.round(settings.errorFontSize)));
+    settings.errorFontSize = Math.min(100, Math.max(10, Math.round(settings.errorFontSize)));
     if(!settings.scale) settings.scale = 100;
     if(!["notes","scales","durations","flow"].includes(settings.activeLevel)) settings.activeLevel = "scales";
     if(!saved || typeof saved.uiLang !== "string"){
@@ -3056,7 +3330,9 @@
   }
   // добавляем недостающие токены (напр. новые B♯/C♭/E♯/F♭) как включённые по умолчанию,
   // не трогая уже сохранённый пользователем выбор остальных нот
-  TOKENS.forEach(t => { if(typeof settings.allowedTokens[t.key] !== "boolean") settings.allowedTokens[t.key] = true; });
+  // при первом запуске (ничего не сохранено) по умолчанию выбрана только C
+  const tokensFresh = !Object.keys(settings.allowedTokens).length;
+  TOKENS.forEach(t => { if(typeof settings.allowedTokens[t.key] !== "boolean") settings.allowedTokens[t.key] = tokensFresh ? (t.key === "C") : true; });
 
   // Все аккорды — тот же набор и порядок, что в Ear Trainer.
   // degrees — ступени (шаги на стане от тоники), semis — полутоны от тоники.
@@ -3511,7 +3787,14 @@
   //   запрет 4 последних оставлял ровно 1 вариант, и аккорды шли по кругу в одном порядке.
   function variantCount(mode){
     if(mode === "chords") return chordVariantTotal();
-    return activeTokens().length * ((parseInt(settings.range, 10) || 0) + 1);
+    // Реальное число разных нот (нота + октава), которые могут выпасть: по обоим станам,
+    // если выбрано «Оба ключа». Нота, стоящая на обоих станах (C4), считается один раз —
+    // в истории запрета она тоже одна (ключ истории — нота + октава).
+    const range = stepRange();
+    const clefs = settings.clef === "both" ? ["treble", "bass"] : [settings.clef];
+    const keys = new Set();
+    clefs.forEach(c => flatCandidates(range, c).forEach(x => keys.add(x.token.key + "|" + x.octave)));
+    return keys.size || activeTokens().length;
   }
   function blockedTokenKeys(mode){
     const list = historyFor(mode);
@@ -3680,7 +3963,7 @@
     applyErrorFontVar(); saveSettings();
   });
   el.errorFontPlus.addEventListener("click", () => {
-    settings.errorFontSize = Math.min(50, settings.errorFontSize + 1);
+    settings.errorFontSize = Math.min(100, settings.errorFontSize + 1);
     applyErrorFontVar(); saveSettings();
   });
 
@@ -3713,6 +3996,13 @@
     mode_1note: { ru: "1 нота", en: "1 note", zh: "1个音" },
     mode_2notes: { ru: "2 ноты", en: "2 notes", zh: "2个音" },
     h_clef: { ru: "Ключ", en: "Clef", zh: "谱号" },
+    sh_show_piano: { ru: "Показать клавиатуру", en: "Show keyboard", zh: "显示键盘" },
+    sh_ledgers: { ru: "Дополнительные линейки", en: "Ledger lines", zh: "加线" },
+    sh_show_names: { ru: "Показать ноты", en: "Show notes", zh: "显示音名" },
+    sh_stretch: { ru: "Растянуть ноты", en: "Stretch notes", zh: "展开音符" },
+    sh_mode: { ru: "Лад", en: "Scale", zh: "调式" },
+    sh_show_degrees: { ru: "Показывать ступени", en: "Show degrees", zh: "显示音级" },
+    sh_zoom: { ru: "Увеличить отображение аккорда", en: "Enlarge chord view", zh: "放大和弦显示" },
     clef_treble: { ru: "Скрипичный", en: "Treble", zh: "高音谱号" },
     clef_bass: { ru: "Басовый", en: "Bass", zh: "低音谱号" },
     clef_both: { ru: "Оба ключа одновременно", en: "Both clefs at once", zh: "两个谱号同时" },
@@ -3783,7 +4073,7 @@
     pos_center: { ru: "по центру", en: "centered", zh: "居中" },
     pos_right: { ru: "справа", en: "on the right", zh: "在右侧" },
     h_tonics: { ru: "Выберите тонику", en: "Choose tonic", zh: "选择主音" },
-    h_scales_modes: { ru: "Выберите лад", en: "Choose mode", zh: "选择调式" },
+    h_scales_modes: { ru: "Выберите лад", en: "Choose scale", zh: "选择调式" },
     h_start_degree: { ru: "Ступень начала", en: "Starting degree", zh: "起始音级" },
     chk_random_start: { ru: "Начинать со случайной ступени (не только с тоники)", en: "Start on a random degree (not only the tonic)", zh: "从随机音级开始（不仅是主音）" },
     lbl_theme: { ru: "Тема:", en: "Theme:", zh: "主题：" },
@@ -3810,7 +4100,7 @@
     chk_metro_during: { ru: "Метроном во время ритма", en: "Metronome during rhythm", zh: "节奏时播放节拍器" },
     lbl_metro_division: { ru: "Дробление метронома", en: "Metronome subdivision", zh: "节拍器细分" },
     h_calibration: { ru: "Калибровка звуковой задержки", en: "Audio latency calibration", zh: "音频延迟校准" },
-    tt_calibration_hint: { ru: "Звук из динамиков/наушников доходит с небольшой задержкой, и на разных устройствах она разная. Калибровка учитывает её при оценке ответа.", en: "Sound from speakers/headphones arrives with a small delay that varies between devices. Calibration accounts for it when scoring the answer.", zh: "扬声器/耳机的声音会有轻微延迟，且不同设备各不相同。校准会在评估答案时考虑这一延迟。" },
+    tt_calibration_hint: { ru: "Звук из динамиков/наушников доходит с небольшой задержкой, и на разных устройствах она разная. Калибровка учитывает её при оценке ответа. Нажмите «Откалибровать»: в поле под кнопкой пойдёт отсчёт 3, 2, 1, после него стучите в такт 12 кликам — мышкой по полю «Жми мышкой в это поле» (или пробелом, или клавишей MIDI).", en: "Sound from speakers/headphones arrives with a small delay that varies between devices. Calibration accounts for it when scoring the answer. Press “Calibrate”: the field under the button counts 3, 2, 1, then tap along with 12 clicks — with the mouse in the “Click in this field with the mouse” field (or with Space, or a MIDI key).", zh: "扬声器/耳机的声音会有轻微延迟，且不同设备各不相同。校准会在评估答案时考虑这一延迟。点击“校准”：按钮下方的区域会倒数 3、2、1，之后跟着 12 次节拍声敲击——用鼠标点击“用鼠标点击此区域”（或按空格键、MIDI 键）。" },
     lbl_offset: { ru: "Смещение", en: "Offset", zh: "偏移" },
     btn_calibrate: { ru: "Откалибровать", en: "Calibrate", zh: "校准" },
     lbl_treble_clef_label: { ru: "Скрипичный ключ", en: "Treble clef", zh: "高音谱号" },
@@ -3820,7 +4110,7 @@
     btn_clear_history: { ru: "Очистить историю", en: "Clear history", zh: "清除历史" },
     lbl_font_size: { ru: "Размер шрифта", en: "Font size", zh: "字体大小" },
     errors_title_notes: { ru: "Ошибки — Ноты (Q / Й)", en: "Errors — Notes (Q)", zh: "错误 — 音符（Q键）" },
-    errors_title_scales: { ru: "Ошибки — Тональности / Лады (Q / Й)", en: "Errors — Keys / Scales (Q)", zh: "错误 — 调式（Q键）" },
+    errors_title_scales: { ru: "Ошибки — Лады (Q / Й)", en: "Errors — Scales (Q)", zh: "错误 — 调式（Q键）" },
     errors_title_durations: { ru: "Ошибки — Ритм (Q / Й)", en: "Errors — Rhythm (Q)", zh: "错误 — 节奏（Q键）" },
     errors_title_flow: { ru: "Статистика — Ритм: Бесконечно (Q / Й)", en: "Stats — Rhythm: Infinite (Q)", zh: "统计 — 节奏：无限模式（Q键）" },
     page_title: { ru: "Ноты и ритм", en: "Notes and rhythm", zh: "音符与节奏" },
@@ -3836,6 +4126,7 @@
     lad_phrygian: { ru: "Фригийский",           en: "Phrygian",        zh: "弗里几亚调式" },
     lad_lydian:   { ru: "Лидийский",            en: "Lydian",          zh: "利底亚调式" },
     lad_mixo:     { ru: "Миксолидийский",       en: "Mixolydian",      zh: "混合利底亚调式" },
+    lad_mixo_short: { ru: "Миксолид.",          en: "Mixolydian",      zh: "混合利底亚调式" },
     lad_locrian:  { ru: "Локрийский",           en: "Locrian",         zh: "洛克里亚调式" },
     lbl_degree:   { ru: "ступень", en: "degree", zh: "级" },
 
@@ -3869,6 +4160,9 @@
 
     msg_no_errors:        { ru: "пока нет ошибок",        en: "no errors yet",             zh: "暂无错误" },
     lbl_errors_count:     { ru: "ошибок",                 en: "errors",                    zh: "错误数" },
+    msg_no_double: { ru: "«2 ноты»: на стане нет двух разных мест для выбранных нот. Включите ещё ноты в «Выберите тонику» или добавочные линейки.",
+      en: "“2 notes”: there are no two different places on the staff for the selected notes. Enable more notes in “Choose tonic” or ledger lines.",
+      zh: "“2个音”：五线谱上没有两个不同的位置放置所选音符。请在“选择主音”中启用更多音符或加线。" },
     msg_no_chords: { ru: "С текущими настройками не строится ни один из отмеченных аккордов. Включите другие тоники в «Выберите тонику», другие обращения или другие аккорды.",
       en: "None of the selected chords can be built with the current settings. Enable other tonics in “Choose tonic”, other inversions or other chords.",
       zh: "按当前设置，所选和弦一个也无法构成。请在“选择主音”中启用其他主音，或选择其他转位或其他和弦。" },
@@ -3882,7 +4176,8 @@
     err_choose_time_sig:  { ru: "Выберите хотя бы один размер такта.", en: "Choose at least one time signature.", zh: "请至少选择一种拍号。" },
     err_cant_build_bar:   { ru: "Не удалось собрать такт — включите больше длительностей.", en: "Could not build a bar — enable more durations.", zh: "无法生成小节 — 请启用更多时值。" },
 
-    calib_listen:  { ru: "Слушай ровные клики и стучи в такт (кнопкой, пробелом или MIDI)…", en: "Listen to the steady clicks and tap along (button, spacebar, or MIDI)…", zh: "聆听均匀的节拍声并跟着敲击（按钮、空格键或MIDI）……" },
+    calib_listen:  { ru: "После отсчёта 3, 2, 1 стучи в такт кликам: жми мышкой в поле под кнопкой, пробел или клавишу MIDI…", en: "After the 3, 2, 1 count-in, tap along with the clicks: click the field under the button, press Space or a MIDI key…", zh: "倒数 3、2、1 之后跟着节拍声敲击：用鼠标点击按钮下方的区域、按空格键或 MIDI 键……" },
+    calib_pad: { ru: "Жми мышкой в это поле", en: "Click in this field with the mouse", zh: "用鼠标点击此区域" },
     calib_failed:  { ru: "Не получилось — попробуй ещё раз, стуча ровно на каждый клик.", en: "Didn't work — try again, tapping right on each click.", zh: "未成功 — 请重试，准确地在每次点击时敲击。" },
     calib_done_prefix: { ru: "Готово — смещение ", en: "Done — offset ", zh: "完成 — 偏移 " },
     calib_done_mid:    { ru: " мс (по ", en: " ms (based on ", zh: " 毫秒（基于 " },
@@ -3950,6 +4245,7 @@
 
   function applyUiLang(){
     document.title = t("page_title");
+    document.documentElement.lang = settings.uiLang === "zh" ? "zh-Hans" : (settings.uiLang || "ru");
     document.querySelectorAll("[data-i18n]").forEach(el => {
       const key = el.getAttribute("data-i18n");
       if(I18N[key]) el.textContent = t(key);
@@ -4292,6 +4588,8 @@
   // пальцем/пером — долгое нажатие настройки не открывает.
   let ctxLastDown = null;
   let ctxKeyboardUntil = 0;
+  let ctxLastKeyTime = 0;
+  window.addEventListener("keydown", () => { ctxLastKeyTime = performance.now(); }, { capture: true, passive: true });
   const ctxRememberDown = (e) => {
     ctxLastDown = { type: e.pointerType || "mouse", button: e.button, time: performance.now() };
   };
@@ -4312,7 +4610,12 @@
     if(recent && ctxLastDown.type === "touch") return;
     e.preventDefault();
     if(now < ctxKeyboardUntil) return;
-    if(recent ? ctxLastDown.button === 2 : e.button === 2) toggleSettings();
+    // мышь — правая кнопка; перо (графический планшет) — правая кнопка пера или долгое
+    // нажатие пером (так Windows делает «правый клик» пером) — тоже настройки
+    // если после последнего нажатия мышью/пером уже нажимали клавиши (например, Ctrl+A
+    // в поле с цифрами), это меню вызвано не правым кликом — настройки не трогаем
+    if(recent && ctxLastKeyTime > ctxLastDown.time) return;
+    if(recent ? (ctxLastDown.button === 2 || ctxLastDown.type === "pen") : e.button === 2) toggleSettings();
   });
 
   // ---- Сенсорные жесты: тап двумя пальцами = настройки, тремя = окно ошибок ----
@@ -4587,32 +4890,85 @@
     return build(candidates[Math.floor(Math.random() * candidates.length)]);
   }
 
-  function generateDouble(range, clef){
+  // Выбрана ровно одна нота («Выберите тонику»), а мест для неё на стане несколько
+  // (октавы, оба ключа): место вопроса = ключ + положение на стане. Правило:
+  //   место, выпавшее в прошлый раз, выпадает в 2 раза реже каждого из остальных мест
+  //   (вес 0,5 против 1: при 2 местах — 33%, при 3 — 20%, при 6 — 9%);
+  //   выпало 2 раза подряд — третий раз подряд не выпадает вообще.
+  //   Выпало другое место — счёт начинается заново уже для него.
+  // История — только в памяти вкладки. null — правило не применяется (обычная генерация).
+  let onePlaceHist = [];
+  function generateSingleOneToken(range){
+    if(activeTokens().length !== 1) return null;
+    const clefs = settings.clef === "both" ? ["treble", "bass"] : [settings.clef];
+    let all = [];
+    clefs.forEach(c => flatCandidates(range, c).forEach(x => all.push({ clef: c, step: x.step, token: x.token, octave: x.octave, key: c + "|" + x.step })));
+    if(all.length < 2) return null;
+    const last = onePlaceHist[onePlaceHist.length - 1];
+    const prev = onePlaceHist[onePlaceHist.length - 2];
+    const weightOf = x => x.key !== last ? 1 : (last === prev ? 0 : 0.5);
+    const total = all.reduce((sum, x) => sum + weightOf(x), 0);
+    let r = Math.random() * total, pick = all[all.length - 1];
+    for(const x of all){ r -= weightOf(x); if(r < 0){ pick = x; break; } }
+    onePlaceHist.push(pick.key);
+    if(onePlaceHist.length > 2) onePlaceHist.shift();
+    return { clef: pick.clef, notes: [{ step: pick.step, letter: pick.token.letter, octave: pick.octave, accidental: pick.token.accidental }] };
+  }
+
+  // Две ноты в паре никогда не стоят на одном месте стана (одной линейке / в одном промежутке)
+  // и не звучат одинаково (E♭4 и D♯4).
+  // Обычно ноты пары ещё и разные по названию и звучанию в любой октаве (C и D, но не C4 и C5,
+  // не E♭ и D♯). Если таких пар при текущих настройках нет (например, в «Выберите тонику»
+  // включена одна C), берутся пары одной ноты в разных местах: C4 + C5.
+  // Если и так не получается (у ноты одно место на стане) — «2 ноты» не выпадают,
+  // на стане предупреждение (см. updateNoChordsWarning).
+  function doubleCandAbs(c){ return absolutePitch(c.token.letter, c.token.accidental, c.octave); }
+  function doubleStrictOK(a, b){
+    return a.token.letter !== b.token.letter && a.step !== b.step
+      && pitchClassIndex(a.token.letter, a.token.accidental) !== pitchClassIndex(b.token.letter, b.token.accidental);
+  }
+  function doubleLooseOK(a, b){ return a.step !== b.step && doubleCandAbs(a) !== doubleCandAbs(b); }
+  function doubleAllPairs(candidates, ok){
+    const pairs = [];
+    for(let i = 0; i < candidates.length; i++)
+      for(let k = i + 1; k < candidates.length; k++)
+        if(ok(candidates[i], candidates[k])) pairs.push([candidates[i], candidates[k]]);
+    return pairs;
+  }
+  // правило подбора пары для ключа clef: строгое, запасное или null (пару не составить)
+  function doubleRule(range, clef){
     const candidates = flatCandidates(range, clef);
-    if(candidates.length < 2) return generateSingle(range, clef).concat(generateSingle(range, clef));
+    const any = ok => candidates.some((a, i) => candidates.some((b, k) => k > i && ok(a, b)));
+    if(any(doubleStrictOK)) return { candidates, ok: doubleStrictOK };
+    if(any(doubleLooseOK)) return { candidates, ok: doubleLooseOK };
+    return null;
+  }
+  function doubleBuildable(clef){ return !!doubleRule(stepRange(), clef); }
+
+  function generateDouble(range, clef){
+    const rule = doubleRule(range, clef);
+    if(!rule) return null;
+    const { candidates, ok } = rule;
     // Запрет считается по НИЖНЕЙ ноте пары: пара отбрасывается, если её нижняя нота
     // входит в недавние. Верхняя нота не ограничена. После 30 неудачных попыток
-    // берём любую валидную пару — генератор не должен зацикливаться.
+    // запрет не учитывается — генератор не должен зацикливаться.
     const blocked = blockedTokenKeys("double");
+    const build = (p1, p2) => [
+      { step: p1.step, letter: p1.token.letter, octave: noteFromStep(p1.step, clef).octave, accidental: p1.token.accidental },
+      { step: p2.step, letter: p2.token.letter, octave: noteFromStep(p2.step, clef).octave, accidental: p2.token.accidental }
+    ];
     for(let attempt = 0; attempt < 40; attempt++){
       const pick1 = candidates[Math.floor(Math.random() * candidates.length)];
-      // вторая нота не должна звучать так же, как первая: исключаем и ту же букву,
-      // и энгармонически равные ноты (E♭ и D♯, B♯ и C, E♯ и F и т.п.) в любой октаве
-      const pc1 = pitchClassIndex(pick1.token.letter, pick1.token.accidental);
-      const candidates2 = candidates.filter(c => c.token.letter !== pick1.token.letter && c.step !== pick1.step
-        && pitchClassIndex(c.token.letter, c.token.accidental) !== pc1);
+      const candidates2 = candidates.filter(c => ok(pick1, c));
       if(!candidates2.length) continue;
       const pick2 = candidates2[Math.floor(Math.random() * candidates2.length)];
       const lower = pick1.step <= pick2.step ? pick1 : pick2;
       if(blocked.has(lower.token.key + "|" + lower.octave) && attempt < 30) continue;
-      const o1 = noteFromStep(pick1.step, clef).octave;
-      const o2 = noteFromStep(pick2.step, clef).octave;
-      return [
-        { step: pick1.step, letter: pick1.token.letter, octave: o1, accidental: pick1.token.accidental },
-        { step: pick2.step, letter: pick2.token.letter, octave: o2, accidental: pick2.token.accidental }
-      ];
+      return build(pick1, pick2);
     }
-    return generateSingle(range, clef).concat(generateSingle(range, clef));
+    const pairs = doubleAllPairs(candidates, ok);
+    const p = pairs[Math.floor(Math.random() * pairs.length)];
+    return build(p[0], p[1]);
   }
 
   // ================= АККОРДЫ =================
@@ -4755,7 +5111,7 @@
   function generateQuestion(){
     let clef = pickClef();
     const range = stepRange();
-    const canUse = (v, c) => v === "single" || v === "double" || chordBuildable(v, c);
+    const canUse = (v, c) => v === "single" || (v === "double" ? doubleBuildable(c) : chordBuildable(v, c));
     // "оба ключа": если в выпавшем ключе ничего не строится, а в другом строится — берём другой
     if(settings.clef === "both" && !settings.modes.some(v => canUse(v, clef))){
       const other = clef === "treble" ? "bass" : "treble";
@@ -4773,7 +5129,9 @@
     const picked = pool.length ? pool[Math.floor(Math.random() * pool.length)] : "single";
     const mode = (picked === "single" || picked === "double") ? picked : "chords";
     let notes;
-    if(mode === "single") notes = generateSingle(range, clef, mode);
+    const onePlace = (mode === "single") ? generateSingleOneToken(range) : null;
+    if(onePlace){ clef = onePlace.clef; notes = onePlace.notes; }
+    else if(mode === "single") notes = generateSingle(range, clef, mode);
     else if(mode === "double") notes = generateDouble(range, clef);
     else{
       // сначала выпавший вид аккорда; если все его аккорды сейчас под запретом повтора
@@ -5135,6 +5493,1226 @@
     }
   });
 
+  // ================= ОКНО-ПОДСКАЗКА «?» У «КЛЮЧ» (вкладка «Ноты») =================
+  // По клику на «?» — окно по центру экрана поверх затемнения (затемнение закрывает и
+  // настройки): стан с обоими ключами. Сверху — галка «Показать клавиатуру» и выпадашка
+  // «Дополнительные линейки» (0–5, сверху у скрипичного и снизу у басового; линейка C4
+  // между ключами — при 1 и больше). Размер стана — как у основного стана на экране.
+  // Наведение на линейку/промежуток или на кнопку ноты внизу подсвечивает ВСЕ такие ноты
+  // на стане (название с октавой по центру стана). С галкой «Показать клавиатуру» вместо
+  // кнопок — клавиатура C1–C7: наведение на клавишу показывает точную ноту на стане
+  // (чёрная клавиша — оба названия: F♯4 и G♭4), наведение на стан — эту ноту на клавиатуре.
+  // Закрывается кликом по затемнению, Esc, прокруткой, изменением размера окна и если
+  // «?» пропал с экрана (закрыли настройки, сменили вкладку).
+  // На телефоне «?» скрыт (наведения мышью там нет).
+  //
+  // То же окно есть во вкладке «Лады» (kind: "scales", «?» у «Ключ» в настройках «Ладов»,
+  // та же клавиша U / Г): вместо отдельных нот показывается ЛАД. Лад выбирается
+  // выпадашкой «Лад», над станом — название и формула («Мажор — тон тон полутон …»).
+  // Тоника — нота, на которую навели: кнопка ноты — лад от неё во всех октавах, что
+  // помещаются на стан (C1–B1, C2–B2 …); клавиша или место на стане — один лад ровно от
+  // этой ноты. 7 нот (тоника … 7-я ступень), со знаками ♯/♭, если есть; каждая нота —
+  // кружок с номером ступени 1–7 цветом ступени из Circle of Fifths, под ним название.
+  // На клавиатуре подсвечиваются клавиши лада. Когда мышь уходит — остаётся последнее
+  // показанное (только до перезагрузки страницы, на диск не сохраняется).
+  // Настройки окна у «Нот» и «Ладов» свои (staffHelp* / scaleHelp* в settings).
+  function createStaffHelp(cfg){
+    const kind = cfg.kind;                 // "notes" | "scales"
+    const SCALES = kind === "scales";
+    const icon = document.getElementById(cfg.iconId);
+    if(!icon) return;
+    const P = SCALES ? "scaleHelp" : "staffHelp";
+    const sget = (name) => settings[P + name];
+    const sset = (name, v) => { settings[P + name] = v; };
+
+    const SH_MAX_LEDGERS = 5;      // максимум в выпадашке «Дополнительные линейки»
+    const SH_LX1 = 40;             // левый край линеек
+    const SH_LX2 = STAFF_LINE_X2;  // правый край линеек — как на основном стане
+    const SH_NOTE_X = (SH_LX1 + SH_LX2) / 2; // центр стана
+    // Добавочные линейки — КОРОТКИЕ, как в нотной записи (а не на всю ширину), чтобы
+    // не сливаться с 5 основными линейками. SH_LEDGER_HALF — половина их длины.
+    const SH_LEDGER_HALF = 50;
+    const SH_BAND = 9;             // высота подсветки промежутка (расстояние между линейками — 14)
+    const SH_VB_X = STAFF_VIEW_MIN_X;   // левый край стана в окне — как у основного
+    // Галка «Растянуть ноты»: каждая нота C1…C7 — свой столбец, слева направо снизу вверх
+    // (названия идут по стану «лесенкой», а не столбиком). Столбцы стоят ровно над
+    // белыми клавишами клавиатуры внизу (клавиатура подстраивается под них).
+    // SH_ST_X0 — столбец C1 (правее ключей), SH_ST_STEP — расстояние между столбцами;
+    // в этом режиме линейки стана длиннее (стан шире), масштаб — прежний.
+    const SH_ST_X0 = 96, SH_ST_STEP = 13, SH_ST_COLS = 43;
+    // в «Ладах» ноты всегда растянуты (лад идёт по стану лесенкой, по октавам)
+    const isStretch = () => SCALES || !!sget("Stretch");
+    const stCol = (p) => (p.octave - 1) * 7 + NATURAL_LETTERS.indexOf(p.letter);
+    const stX = (p) => SH_ST_X0 + stCol(p) * SH_ST_STEP;
+    const linesEnd = () => isStretch() ? SH_ST_X0 + (SH_ST_COLS - 1) * SH_ST_STEP + 14 : SH_LX2;
+    // ширина стана в окне — всегда как с «Растянуть ноты» (окно не меняет размер);
+    // без растяжки стан стоит по центру этой ширины (справа — место под «Показать ноты»)
+    const SH_W_ST = SH_ST_X0 + (SH_ST_COLS - 1) * SH_ST_STEP + 14 + 60 - SH_VB_X;
+    const vbW = () => SH_W_ST;
+    const vbX = () => isStretch() ? SH_VB_X : SH_VB_X - (SH_W_ST - (SH_LX2 + 60 - SH_VB_X)) / 2;
+    const SH_NOTE_GAP = 3;         // зазор между соседними плашками названий
+    const SH_NOTE_GAP_ACC = 20;    // то же, если у правой ноты знак ♯/♭ (он стоит между плашками)
+    // Цвета нот — цвета ступеней из Circle of Fifths, ступени считаются от C:
+    // C тоника (зелёный), D нона (бирюзовый), E терция (жёлтый), F ундецима (оранжевый),
+    // G квинта (синий), A тердецима (салатовый), B септима (фиолетовый).
+    // Сами цвета — CSS-переменные --sh-c-* в стилях #staffHelpPopup.
+    const SH_COLOR = { C:"green", D:"cyan", E:"yellow", F:"orange", G:"blue", A:"lime", B:"purple" };
+    // Как красить: "lineSpace" — все линейки зелёным, все промежутки красным (цвета —
+    // --sh-c-line / --sh-c-space); "letters" — каждая нота своим цветом из SH_COLOR выше.
+    const SH_COLOR_MODE = "lineSpace";
+    const colorOf = (place) => SH_COLOR_MODE === "letters" ? SH_COLOR[place.letter] : (place.onLine ? "line" : "space");
+    const shY = (step, clef) => STAFF_BASE_Y - (clef === "treble" ? step + 12 : step) * STEP_PX;
+
+    function ledgerCount(){
+      const n = parseInt(sget("Ledgers"), 10);
+      return Number.isFinite(n) ? Math.max(0, Math.min(SH_MAX_LEDGERS, n)) : SH_MAX_LEDGERS;
+    }
+
+    // ---- затемнение под окном (закрывает и настройки) ----
+    const shade = document.createElement("div");
+    shade.className = "sh-shade";
+    document.body.appendChild(shade);
+
+    // ---- окно ----
+    const popup = document.createElement("div");
+    popup.className = "sh-popup";
+    popup.id = SCALES ? "scaleHelpPopup" : "staffHelpPopup";
+    document.body.appendChild(popup);
+
+    // верхняя строка: галка «Показать клавиатуру» + «Дополнительные линейки»
+    const topRow = document.createElement("div");
+    topRow.className = "sh-top";
+    popup.appendChild(topRow);
+    const checkRow = document.createElement("label");
+    checkRow.className = "sh-check";
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    const cbText = document.createElement("span");
+    cbText.setAttribute("data-i18n", "sh_show_piano");
+    cbText.textContent = t("sh_show_piano");
+    checkRow.appendChild(cb);
+    checkRow.appendChild(cbText);
+    // галки слева: «Показать клавиатуру», «Растянуть ноты», «Показать ноты»
+    // («Растянуть ноты» и «Показать ноты» — только одна из двух или ни одной)
+    const checksGroup = document.createElement("div");
+    checksGroup.className = "sh-checks";
+    topRow.appendChild(checksGroup);
+    checksGroup.appendChild(checkRow);
+    const stretchRow = document.createElement("label");
+    stretchRow.className = "sh-check";
+    const stretchCb = document.createElement("input");
+    stretchCb.type = "checkbox";
+    const stretchText = document.createElement("span");
+    stretchText.setAttribute("data-i18n", "sh_stretch");
+    stretchText.textContent = t("sh_stretch");
+    stretchRow.appendChild(stretchCb);
+    stretchRow.appendChild(stretchText);
+    if(!SCALES) checksGroup.appendChild(stretchRow);
+    const namesRow = document.createElement("label");
+    namesRow.className = "sh-check";
+    const namesCb = document.createElement("input");
+    namesCb.type = "checkbox";
+    const namesText = document.createElement("span");
+    namesText.setAttribute("data-i18n", "sh_show_names");
+    namesText.textContent = t("sh_show_names");
+    namesRow.appendChild(namesCb);
+    namesRow.appendChild(namesText);
+    if(!SCALES) checksGroup.appendChild(namesRow);   // в «Ладах» галки «Показать ноты» нет
+    const ledgerRow = document.createElement("label");
+    ledgerRow.className = "sh-ledgers";
+    const ledgerText = document.createElement("span");
+    ledgerText.setAttribute("data-i18n", "sh_ledgers");
+    ledgerText.textContent = t("sh_ledgers");
+    const ledgerSel = document.createElement("select");
+    for(let i = 0; i <= SH_MAX_LEDGERS; i++){
+      const o = document.createElement("option");
+      o.value = String(i); o.textContent = String(i);
+      ledgerSel.appendChild(o);
+    }
+    ledgerRow.appendChild(ledgerText);
+    ledgerRow.appendChild(ledgerSel);
+    // «Лады»: слева после «Показать клавиатуру» — выпадашка «Лад», справа от неё (i) с
+    // названием и формулой лада («Мажор — тон тон полутон …»), дальше галка
+    // «Показывать ступени» (номера 1–7 под нотами)
+    let modeSel = null, tipIcon = null, tipBox = null, degCb = null, zoomCb = null;
+    if(SCALES){
+      const modeRow = document.createElement("label");
+      modeRow.className = "sh-ledgers";
+      const modeText = document.createElement("span");
+      modeText.setAttribute("data-i18n", "sh_mode");
+      modeText.textContent = t("sh_mode");
+      modeSel = document.createElement("select");
+      tipIcon = document.createElement("span");
+      tipIcon.className = "info-icon sh-mode-info";
+      tipIcon.textContent = "i";
+      modeRow.appendChild(modeText);
+      modeRow.appendChild(modeSel);
+      modeRow.appendChild(tipIcon);
+      checksGroup.appendChild(modeRow);
+      tipBox = document.createElement("div");
+      tipBox.className = "sh-tip";
+      document.body.appendChild(tipBox);
+      tipIcon.addEventListener("pointerenter", () => {
+        tipBox.textContent = modeTitle();
+        tipBox.style.display = "block";
+        const r = tipIcon.getBoundingClientRect();
+        tipBox.style.left = "0px"; tipBox.style.top = "0px";
+        const w = tipBox.offsetWidth;
+        tipBox.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)) + "px";
+        tipBox.style.top = (r.bottom + 6) + "px";
+      });
+      tipIcon.addEventListener("pointerleave", () => { tipBox.style.display = "none"; });
+      const degRow = document.createElement("label");
+      degRow.className = "sh-check";
+      degCb = document.createElement("input");
+      degCb.type = "checkbox";
+      const degText = document.createElement("span");
+      degText.setAttribute("data-i18n", "sh_show_degrees");
+      degText.textContent = t("sh_show_degrees");
+      degRow.appendChild(degCb);
+      degRow.appendChild(degText);
+      checksGroup.appendChild(degRow);
+      degCb.addEventListener("change", () => {
+        sset("Degrees", degCb.checked);
+        saveSettings();
+        redrawScale();
+      });
+      const zoomRow = document.createElement("label");
+      zoomRow.className = "sh-check";
+      zoomCb = document.createElement("input");
+      zoomCb.type = "checkbox";
+      const zoomText = document.createElement("span");
+      zoomText.setAttribute("data-i18n", "sh_zoom");
+      zoomText.textContent = t("sh_zoom");
+      zoomRow.appendChild(zoomCb);
+      zoomRow.appendChild(zoomText);
+      checksGroup.appendChild(zoomRow);
+      zoomCb.addEventListener("change", () => {
+        sset("Zoom", zoomCb.checked);
+        saveSettings();
+        redrawScale();
+      });
+    }
+    topRow.appendChild(ledgerRow);
+
+    // ---- стан ----
+    const box = document.createElement("div");
+    box.className = "sh-staff-box";
+    popup.appendChild(box);
+    const svg = ns("svg");
+    // обёртка: основной стан + поверх него (того же размера) увеличенный вид («Лады»,
+    // галка «Увеличить отображение аккорда»)
+    const svgWrap = document.createElement("div");
+    svgWrap.className = "sh-svgwrap";
+    box.appendChild(svgWrap);
+    svgWrap.appendChild(svg);
+    const zoomSvg = ns("svg");
+    zoomSvg.setAttribute("class", "sh-zoom");
+    zoomSvg.style.display = "none";
+    svgWrap.appendChild(zoomSvg);
+
+    // ключи — те же картинки, что на основном стане (маски копируются)
+    const defs = ns("defs");
+    function addMask(id, srcImgId, x, y, w, h){
+      const m = ns("mask");
+      m.setAttribute("id", id);
+      m.setAttribute("maskUnits", "userSpaceOnUse");
+      m.setAttribute("style", "mask-type:alpha;");
+      // область маски — ровно картинка ключа (иначе по умолчанию она считается в % от
+      // размера стана и в увеличенном виде срезает верх ключа)
+      m.setAttribute("x", x); m.setAttribute("y", y);
+      m.setAttribute("width", w); m.setAttribute("height", h);
+      const img = ns("image");
+      const src = document.getElementById(srcImgId);
+      img.setAttribute("href", src ? (src.getAttribute("href") || "") : "");
+      img.setAttribute("x", x); img.setAttribute("y", y);
+      img.setAttribute("width", w); img.setAttribute("height", h);
+      img.setAttribute("preserveAspectRatio", "none");
+      m.appendChild(img);
+      defs.appendChild(m);
+    }
+    // положение ключей — как на основном стане в режиме «Оба ключа одновременно»
+    addMask(P + "TrebleMask", "clefTrebleImg", 40, -33, 32, 90);
+    addMask(P + "BassMask", "clefBassImg", 34, 62, 47, 55);
+    svg.appendChild(defs);
+    const staffG = ns("g");   // линейки и ключи
+    const namesG = ns("g");   // названия всех нот слева от линеек (галка «Показать ноты»)
+    namesG.setAttribute("pointer-events", "none");
+    const hlG = ns("g");      // подсветка
+    hlG.setAttribute("pointer-events", "none");
+    const zonesG = ns("g");   // невидимые зоны наведения
+    svg.appendChild(staffG);
+    svg.appendChild(namesG);
+    svg.appendChild(hlG);
+    svg.appendChild(zonesG);
+
+    let places = [];
+    function buildStaff(){
+      const n = ledgerCount();
+      staffG.innerHTML = ""; hlG.innerHTML = ""; zonesG.innerHTML = "";
+      if(typeof staffHoverReset === "function") staffHoverReset();
+      // все места на стане снизу вверх (step 0 — нижняя линейка своего ключа)
+      places = [];
+      const addPlace = (step, clef) => {
+        const nn = noteFromStep(step, clef);
+        places.push({ letter: nn.letter, octave: nn.octave, y: shY(step, clef), step, clef,
+                      onLine: step % 2 === 0, inStaff: step >= 0 && step <= 8 });
+      };
+      for(let s = -(n * 2 + 1); s <= (n >= 1 ? 10 : 9); s++) addPlace(s, "bass");   // … B3 (и C4 при линейках ≥ 1)
+      for(let s = -1; s <= 8 + n * 2 + 1; s++) addPlace(s, "treble");               // D4 …
+
+      const addLine = (y, x1, x2) => {
+        const l = ns("line");
+        l.setAttribute("x1", x1); l.setAttribute("x2", x2);
+        l.setAttribute("y1", y); l.setAttribute("y2", y);
+        l.setAttribute("stroke", "var(--line-color)");
+        l.setAttribute("stroke-width", 2);
+        staffG.appendChild(l);
+      };
+      const lx2 = linesEnd();
+      for(let s = 0; s <= 8; s += 2){ addLine(shY(s, "treble"), SH_LX1, lx2); addLine(shY(s, "bass"), SH_LX1, lx2); }
+      if(isStretch()){
+        // растянуто: у каждой ноты за пределами 5 линеек — свои короткие добавочные
+        // линейки (от стана до ноты), как в нотной записи
+        places.forEach(p => {
+          if(p.inStaff) return;
+          // половина шага: отрезки соседних столбцов смыкаются — линейка сплошная
+          const x = stX(p), h = SH_ST_STEP / 2;
+          const steps = [];
+          if(p.clef === "bass" && p.step < 0){ for(let s = -2; s >= p.step; s -= 2) steps.push(s); }
+          else if(p.clef === "treble" && p.step > 8){ for(let s = 10; s <= p.step; s += 2) steps.push(s); }
+          else if(p.clef === "bass" && p.step === 10) steps.push(10);   // C4
+          steps.forEach(s => addLine(shY(s, p.clef), x - h, x + h));
+        });
+      } else {
+        for(let i = 1; i <= n; i++){
+          addLine(shY(8 + i * 2, "treble"), SH_NOTE_X - SH_LEDGER_HALF, SH_NOTE_X + SH_LEDGER_HALF);
+          addLine(shY(-i * 2, "bass"), SH_NOTE_X - SH_LEDGER_HALF, SH_NOTE_X + SH_LEDGER_HALF);
+        }
+        if(n >= 1) addLine(shY(10, "bass"), SH_NOTE_X - SH_LEDGER_HALF, SH_NOTE_X + SH_LEDGER_HALF); // C4
+      }
+
+      const clefT = ns("rect");
+      clefT.setAttribute("x", 40); clefT.setAttribute("y", -33); clefT.setAttribute("width", 32); clefT.setAttribute("height", 90);
+      clefT.setAttribute("fill", "var(--clef-color)"); clefT.setAttribute("mask", `url(#${P}TrebleMask)`);
+      staffG.appendChild(clefT);
+      const clefB = ns("rect");
+      clefB.setAttribute("x", 34); clefB.setAttribute("y", 62); clefB.setAttribute("width", 47); clefB.setAttribute("height", 55);
+      clefB.setAttribute("fill", "var(--clef-color)"); clefB.setAttribute("mask", `url(#${P}BassMask)`);
+      staffG.appendChild(clefB);
+
+      // зоны наведения: полоса высотой в 1 шаг стана на каждую линейку/промежуток
+      places.forEach((p, i) => {
+        const r = ns("rect");
+        r.setAttribute("x", vbX()); r.setAttribute("width", vbW());
+        r.setAttribute("y", p.y - STEP_PX / 2); r.setAttribute("height", STEP_PX);
+        r.setAttribute("fill", "transparent");
+        r.dataset.idx = i;
+        zonesG.appendChild(r);
+      });
+
+      // размер окна всегда как при 5 дополнительных линейках (стан не меняет размер
+      // при выборе 0–5): край — ноты над/под 5-й линейкой (C7 и C1)
+      const vbTop = shY(8 + SH_MAX_LEDGERS * 2 + 1, "treble") - 14;
+      const vbBottom = shY(-(SH_MAX_LEDGERS * 2 + 1), "bass") + 14;
+      svg.setAttribute("viewBox", `${vbX()} ${vbTop} ${vbW()} ${vbBottom - vbTop}`);
+      buildNames();
+      if(SCALES) redrawScale();
+    }
+
+    // ---- названия всех нот (без плашек; линейки — зелёные, промежутки — красные) ----
+    // «Показать ноты»: справа от стана, все в одном месте по горизонтали — и на основных,
+    //   и на добавочных линейках; соседние не сливаются: линейки — левый столбец,
+    //   промежутки — правый.
+    // «Растянуть ноты»: каждая нота в своём столбце (см. SH_ST_* выше).
+    const SH_NAMES_GAP = 6;    // от конца линеек до первого столбца названий
+    const SH_NAMES_COL = 20;   // расстояние между столбцами линеек и промежутков
+    const SH_NAME_PAD = 4;     // «Растянуть ноты»: зазор между названием и обрывом линейки
+    function buildNames(){
+      namesG.innerHTML = "";
+      const stretch = isStretch();
+      if(SCALES || (!stretch && !sget("Names"))) return;
+      places.forEach(p => {
+        const g = ns("g");
+        const tx = ns("text");
+        tx.setAttribute("class", "sh-name");
+        tx.setAttribute("fill", p.onLine ? "var(--sh-name-line)" : "var(--sh-name-space)");
+        tx.setAttribute("y", p.y + 4.5);
+        if(stretch){
+          tx.setAttribute("text-anchor", "middle");
+          tx.setAttribute("x", stX(p));
+        } else {
+          tx.setAttribute("text-anchor", "start");
+          tx.setAttribute("x", linesEnd() + SH_NAMES_GAP + (p.onLine ? 0 : SH_NAMES_COL));
+        }
+        // растянуто — как на картинке-образце: только буква (у C — с октавой, как на
+        // клавиатуре), под названием линейки прерываются (подложка цвета фона стана;
+        // SH_NAME_PAD — отступ от названия до обрыва линейки с каждой стороны)
+        tx.textContent = displayNameFor(p.letter, null) + ((!stretch || p.letter === "C") ? p.octave : "");
+        g.appendChild(tx);
+        namesG.appendChild(g);
+        if(stretch){
+          let w = 8;
+          try{ w = tx.getComputedTextLength(); }catch(e){}
+          const bg = ns("rect");
+          bg.setAttribute("x", stX(p) - w / 2 - SH_NAME_PAD); bg.setAttribute("width", w + 2 * SH_NAME_PAD);
+          bg.setAttribute("y", p.y - 5.5); bg.setAttribute("height", 11);
+          bg.setAttribute("fill", "var(--staff-bg)");
+          g.insertBefore(bg, tx);
+        }
+      });
+    }
+
+    // ---- подсветка ----
+    // keepNames = true — названия всех нот остаются спрятанными (идёт наведение по стану);
+    // иначе они возвращаются, но не сразу, а через SH_HOVER_DELAY — чтобы при переходе
+    // с ноты на ноту (клавиша → клавиша, линейка → линейка) все названия не мелькали
+    let namesRestoreTimer = null;
+    function cancelNamesRestore(){ if(namesRestoreTimer){ clearTimeout(namesRestoreTimer); namesRestoreTimer = null; } }
+    function scheduleNamesRestore(){
+      cancelNamesRestore();
+      if(namesG.style.display !== "none") return;
+      namesRestoreTimer = setTimeout(() => { namesRestoreTimer = null; namesG.style.display = ""; }, SH_HOVER_DELAY);
+    }
+    function clearHl(keepNames){
+      hlG.innerHTML = "";
+      if(!keepNames) scheduleNamesRestore();
+      piano.querySelectorAll(".sh-key-hl").forEach(k => { k.classList.remove("sh-key-hl"); k.style.background = ""; k.style.color = ""; });
+    }
+    // Название ноты — по центру стана в цветной плашке; если 2 ноты рядом (линейка и
+    // соседний промежуток, напр. D♯3 и E♭3 у чёрной клавиши) — нижняя левее центра,
+    // верхняя правее, чтобы не сливались.
+    function noteSides(list){
+      const sides = list.map(() => 0);        // 0 — по центру, -1 — левее, +1 — правее
+      const order = list.map((_, i) => i).sort((a, b) => list[b].place.y - list[a].place.y); // снизу вверх
+      for(let k = 1; k < order.length; k++){
+        const lo = order[k - 1], hi = order[k];
+        if(Math.abs(list[lo].place.y - list[hi].place.y) <= STEP_PX + 0.1){
+          sides[lo] = -1;
+          sides[hi] = 1;
+        }
+      }
+      return sides;
+    }
+    // list: [{ place, label, acc }]; acc ("sharp"/"flat") — знак ♯/♭ на стане слева от
+    // плашки с названием (в самой плашке — только буква с октавой)
+    function drawHl(list){
+      clearHl(true);
+      cancelNamesRestore();
+      if(!list.length) scheduleNamesRestore();
+      // пока что-то подсвечено — видны только подсвеченные ноты: названия всех нот
+      // («Показать ноты» / «Растянуть ноты») прячутся, чтобы не сливались и не
+      // просвечивали под полупрозрачными красными плашками
+      // (только в «Растянуть ноты»: там названия стоят на тех же местах, что плашки;
+      // при «Показать ноты» названия справа от стана видны всегда)
+      if(list.length && !SCALES && isStretch()) namesG.style.display = "none";
+      const sides = noteSides(list);
+      list.forEach(({ place }) => {
+        const c = colorOf(place);
+        // в пределах 5 линеек — на всю ширину, на добавочных — по длине добавочной линейки
+        // (растянуто — только у своего столбца)
+        const stretch = isStretch();
+        const half = stretch ? SH_ST_STEP / 2 : SH_LEDGER_HALF;
+        const mid = stretch ? stX(place) : SH_NOTE_X;
+        const x1 = place.inStaff ? SH_LX1 : mid - half;
+        const x2 = place.inStaff ? linesEnd() : mid + half;
+        if(place.onLine){
+          const l = ns("line");
+          l.setAttribute("x1", x1); l.setAttribute("x2", x2);
+          l.setAttribute("y1", place.y); l.setAttribute("y2", place.y);
+          l.setAttribute("stroke", `var(--sh-c-${c})`);
+          l.setAttribute("stroke-width", "4");
+          hlG.appendChild(l);
+        } else {
+          const r = ns("rect");
+          r.setAttribute("x", x1); r.setAttribute("width", x2 - x1);
+          r.setAttribute("y", place.y - SH_BAND / 2); r.setAttribute("height", SH_BAND);
+          r.setAttribute("rx", "2");
+          r.setAttribute("fill", `var(--sh-c-${c})`);
+          r.setAttribute("style", "opacity:var(--sh-band-opacity)");
+          hlG.appendChild(r);
+        }
+      });
+      // плашки с названиями — поверх подсветки линеек/промежутков
+      list.forEach(({ place, label, acc }, idx) => {
+        const c = colorOf(place);
+        const g = ns("g");
+        const pill = ns("rect");
+        const tx = ns("text");
+        tx.setAttribute("class", "sh-label");
+        tx.setAttribute("text-anchor", "middle");
+        tx.setAttribute("fill", `var(--sh-t-${c})`);
+        tx.textContent = label;
+        g.appendChild(pill);
+        g.appendChild(tx);
+        hlG.appendChild(g);
+        let w = 30;
+        try{ w = tx.getComputedTextLength() + 10; }catch(e){}
+        const side = sides[idx];
+        const gap = list.some(it => it.acc) ? SH_NOTE_GAP_ACC : SH_NOTE_GAP;
+        // растянуто — плашка на столбце своей ноты (поверх её названия), иначе — по центру
+        // (соседняя пара, напр. C♯4/D♭4 у чёрной клавиши, — разводится влево/вправо от
+        // середины между их столбцами, чтобы плашки не наезжали друг на друга)
+        let cx;
+        if(isStretch()){
+          cx = side === 0 ? stX(place) : stX(place) - side * SH_ST_STEP / 2 + side * (gap / 2 + w / 2);
+        } else {
+          cx = side === 0 ? SH_NOTE_X : SH_NOTE_X + side * (gap / 2 + w / 2);
+        }
+        tx.setAttribute("x", cx);
+        tx.setAttribute("y", place.y + 4.5);
+        pill.setAttribute("x", cx - w / 2); pill.setAttribute("width", w);
+        pill.setAttribute("y", place.y - 7); pill.setAttribute("height", 14);
+        pill.setAttribute("rx", "4");
+        pill.setAttribute("fill", `var(--sh-c-${c})`);
+        if(acc){
+          const sign = ns("text");
+          sign.setAttribute("class", "sh-acc");
+          sign.setAttribute("text-anchor", "end");
+          sign.setAttribute("font-family", ACC_FONT_STACK);
+          sign.setAttribute("x", cx - w / 2 - 3);
+          sign.setAttribute("y", place.y + 7);
+          sign.textContent = accidentalSign(acc);
+          g.appendChild(sign);
+        }
+      });
+    }
+    // все ноты с этой буквой (F → F1, F2 … F6)
+    function showLetter(letter){
+      drawHl(places.filter(p => p.letter === letter)
+        .map(p => ({ place: p, label: displayNameFor(p.letter, null) + p.octave })));
+    }
+    // точная нота; notes: [{ letter, accidental, octave }]
+    function showExact(notes){
+      const list = [];
+      notes.forEach(n => {
+        const p = places.find(q => q.letter === n.letter && q.octave === n.octave);
+        // в плашке — только буква с октавой, знак ♯/♭ рисуется на стане слева от неё
+        if(p) list.push({ place: p, label: displayNameFor(n.letter, null) + n.octave, acc: n.accidental || null });
+      });
+      drawHl(list);
+    }
+    // наведение на стан: все такие ноты на стане; при включённой клавиатуре — ещё и
+    // клавиша именно той ноты, на которую навели (цветом ноты)
+    function showFromStaff(place){
+      if(SCALES){ showScale(place.letter, null, place.octave, "staff"); return; }
+      showLetter(place.letter);
+      if(!sget("Piano")) return;
+      const key = piano.querySelector(`.white-key[data-letter="${place.letter}"][data-octave="${place.octave}"]`);
+      if(key){
+        key.classList.add("sh-key-hl");
+        key.style.background = `var(--sh-c-${colorOf(place)})`;
+        key.style.color = `var(--sh-t-${colorOf(place)})`;
+      }
+    }
+
+    // ---- «Лады»: лад от ноты, на которую навели ----
+    // цвет ноты — по месту на стане: на линейке — зелёный, в промежутке — красный
+    // (--sh-deg-line / --sh-deg-space; знак ♯/♭ — тем же цветом: --sh-acc-line / --sh-acc-space).
+    // Линейка или промежуток — по чётности шага от G2 (нижняя линейка басового ключа);
+    // в скрипичном ключе сдвиг 12 шагов, чётность та же.
+    const onLineOf = (n) => ((n.octave * 7 + NATURAL_LETTERS.indexOf(n.letter) - 18) % 2 + 2) % 2 === 0;
+    const degFill = (n) => onLineOf(n) ? "var(--sh-deg-line)" : "var(--sh-deg-space)";
+    const accFill = (n) => onLineOf(n) ? "var(--sh-acc-line)" : "var(--sh-acc-space)";
+    let lastScale = null;   // последнее показанное { letter, acc, octave|null } — только в памяти
+    const scaleTypes = () => window.__ntScaleTypes || [];
+    function currentType(){
+      const list = scaleTypes();
+      return list.find(x => x.key === sget("Mode")) || list.find(x => x.key === "major") || list[0];
+    }
+    // 7 нот лада от тоники (letter + acc) в октаве octave
+    function scaleNotes(letter, acc, octave){
+      const type = currentType();
+      if(!type || typeof window.__ntBuildFullScale !== "function") return [];
+      const tonic = { letter, pc: pitchClassIndex(letter, acc) };
+      return window.__ntBuildFullScale(tonic, type, octave).slice(0, 7)
+        .map((n, i) => ({ letter: n.letter, octave: n.octave, accidental: n.accidental, degree: i + 1 }));
+    }
+    const ACC_WEIGHT = { sharp:1, flat:1, doubleSharp:2, doubleFlat:2 };
+    // чёрная клавиша: тоника — то написание (диез или бемоль), при котором в ладу меньше знаков
+    function blackKeySpelling(sharpLetter, flatLetter, octave){
+      const count = (l, a) => scaleNotes(l, a, octave).reduce((sum, n) => sum + (ACC_WEIGHT[n.accidental] || 0), 0);
+      return count(flatLetter, "flat") < count(sharpLetter, "sharp")
+        ? { letter: flatLetter, acc: "flat" } : { letter: sharpLetter, acc: "sharp" };
+    }
+    function accText(acc){
+      if(acc === "doubleSharp") return ACC_SHARP + ACC_SHARP;
+      if(acc === "doubleFlat") return ACC_FLAT + ACC_FLAT;
+      return accidentalSign(acc);
+    }
+    // рисует ноты лада: название ноты (буква + октава) в кружке — на линейке зелёный,
+    // в промежутке красный; знак ♯/♭ слева сверху от кружка; номер ступени 1–7 под кружком (галка
+    // «Показывать ступени»); на клавиатуре — клавиши лада теми же цветами
+    const SC_R = 6.4;   // радиус кружка (столбцы через 13 — соседние кружки не касаются)
+    // зазор между знаком ♯/♭ и кружком его ноты (больше — левее)
+    const SC_ACC_GAP = 0;
+    // одна нота лада: кружок с названием, номер ступени под ним, знак ♯/♭ слева (в signs —
+    // рисуются последними, поверх кружков соседних нот)
+    function drawScaleNote(parent, signs, x, y, n, showDeg){
+      const g = ns("g");
+      if(showDeg){
+        const bg = ns("rect");          // под номером ступени линейки прерываются
+        bg.setAttribute("x", x - 4); bg.setAttribute("width", 8);
+        bg.setAttribute("y", y + SC_R + 1); bg.setAttribute("height", 8.5);
+        bg.setAttribute("fill", "var(--staff-bg)");
+        const deg = ns("text");
+        deg.setAttribute("class", "sh-deg");
+        deg.setAttribute("text-anchor", "middle");
+        deg.setAttribute("x", x); deg.setAttribute("y", y + SC_R + 8);
+        deg.setAttribute("fill", accFill(n));   // номер ступени — цветом своей ноты
+        deg.textContent = String(n.degree);
+        g.appendChild(bg); g.appendChild(deg);
+      }
+      const circ = ns("circle");
+      circ.setAttribute("cx", x); circ.setAttribute("cy", y); circ.setAttribute("r", SC_R);
+      circ.setAttribute("fill", degFill(n));
+      const nameTx = ns("text");
+      nameTx.setAttribute("class", "sh-scale-name");
+      nameTx.setAttribute("text-anchor", "middle");
+      nameTx.setAttribute("x", x); nameTx.setAttribute("y", y + 2.6);
+      nameTx.textContent = displayNameFor(n.letter, null) + n.octave;
+      g.appendChild(circ); g.appendChild(nameTx);
+      if(n.accidental){
+        // слева от кружка, на одном уровне с нотой; с обводкой цвета фона стана
+        const sign = ns("text");
+        sign.setAttribute("class", "sh-scale-acc");
+        sign.setAttribute("text-anchor", "end");
+        sign.setAttribute("font-family", ACC_FONT_STACK);
+        sign.setAttribute("x", x - SC_R - SC_ACC_GAP); sign.setAttribute("y", y + 3);
+        sign.setAttribute("fill", accFill(n));
+        sign.textContent = accText(n.accidental);
+        signs.push(sign);
+      }
+      parent.appendChild(g);
+      // длинное название (напр. «Соль4») ужимаем, чтобы влезло в кружок
+      try{ if(nameTx.getComputedTextLength() > SC_R * 2 - 1.5) nameTx.setAttribute("textLength", SC_R * 2 - 1.5), nameTx.setAttribute("lengthAdjust", "spacingAndGlyphs"); }catch(e){}
+    }
+    function drawScale(notes){
+      clearHl(true);
+      const showDeg = !!sget("Degrees");
+      const signs = [];
+      notes.forEach(n => {
+        const key = piano.querySelector(`[data-pitch="${absolutePitch(n.letter, n.accidental, n.octave)}"]`);
+        if(key){
+          key.classList.add("sh-key-hl");
+          key.style.background = degFill(n);
+          key.style.color = "var(--sh-label-color)";
+        }
+        const place = places.find(q => q.letter === n.letter && q.octave === n.octave);
+        if(!place) return;
+        drawScaleNote(hlG, signs, stX(place), place.y, n, showDeg);
+      });
+      signs.forEach(sg => hlG.appendChild(sg));
+    }
+
+    // ---- «Лады», галка «Увеличить отображение аккорда» ----
+    // При наведении на место на стане или на клавишу (один лад) показывается только нужная
+    // часть стана, крупно: скрипичный ключ (+ добавочные линейки сверху, если ноты выше),
+    // басовый (+ добавочные снизу), или оба ключа, если лад заходит в оба. Ноты стоят сразу
+    // за ключом через ZOOM_STEP, затем всё увеличивается до размера окна (окно не меняется).
+    // Наведение на другую ноту в увеличенном виде — сразу увеличение под её лад.
+    // Кнопки нот (лад во всех октавах) и уход мыши из окна — снова весь стан.
+    const ZOOM_X0 = 96;     // первая нота — сразу за ключом
+    const ZOOM_STEP = 20;   // расстояние между нотами в увеличенном виде
+    // диатонический номер ноты: C1 = 7, … ; шаг стана от G2 (басовый) = d - 18,
+    // от E4 (скрипичный) = d - 30; y не зависит от ключа: y = 120 - (d - 18) * 7
+    const dIndex = (n) => n.octave * 7 + NATURAL_LETTERS.indexOf(n.letter);
+    const yOfD = (d) => STAFF_BASE_Y - (d - 18) * STEP_PX;
+    const C4_D = 28;
+    // Масштаб увеличенного вида — всегда один и тот же (как у лада в одном ключе, напр.
+    // G4 мажор): ZOOM_W × ZOOM_H единиц стана. Нарисованы сразу оба ключа со всеми
+    // линейками, окно — как камера над ними (что не влезло — не видно).
+    // Камера НЕ двигается от наведения на стан (мышь остаётся на той линейке, от которой
+    // лад); стан прокручивается колесом мыши (Shift + колесо — смена лада). Камера сама
+    // подъезжает к ладу только при входе в увеличенный вид и при наведении на клавишу.
+    // 7 нот (по одной на ступень) постоянные: при смене тоники они плавно съезжают на
+    // новое место (переход .sh-zoom-note в CSS), камера плавно догоняет цель.
+    // ZOOM_SCROLL — сдвиг стана за один щелчок колеса (2 = одна линейка/промежуток);
+    // ZOOM_CAM_EASE — плавность камеры (меньше — плавнее и медленнее).
+    const ZOOM_W = 266, ZOOM_H = 104;
+    const ZOOM_ANIM_MS = 250;
+    const ZOOM_SCROLL = 14;
+    const ZOOM_CAM_EASE = 0.18;
+    // пределы камеры: сверху — до лада от C7 (клавиша C7 → до B7), снизу — C1
+    const ZOOM_CAM_MIN = yOfD(55) - 20, ZOOM_CAM_MAX = yOfD(7) + 24 - ZOOM_H;
+    let zoomOn = false, zoomBuilt = false, zoomZones = null, zoomLedgers = null, zoomNotes = [];
+    let zoomCam = 0, zoomCamTarget = 0, zoomLoop = 0, zoomHideTimer = null;
+    const zoomActive = () => zoomOn;
+    const clampCam = (y) => Math.max(ZOOM_CAM_MIN, Math.min(ZOOM_CAM_MAX, y));
+    function setZoomCam(y){
+      zoomCam = y;
+      zoomSvg.setAttribute("viewBox", `${SH_VB_X} ${y} ${ZOOM_W} ${ZOOM_H}`);
+    }
+    // камера плавно догоняет цель: каждый кадр — часть оставшегося пути
+    function zoomFrame(){
+      zoomLoop = 0;
+      if(!zoomOn) return;
+      const diff = zoomCamTarget - zoomCam;
+      if(Math.abs(diff) > 0.05) setZoomCam(zoomCam + diff * ZOOM_CAM_EASE);
+      else if(diff !== 0) setZoomCam(zoomCamTarget);
+      zoomLoop = requestAnimationFrame(zoomFrame);
+    }
+    function centerCamOn(ys){
+      const center = ((Math.min.apply(null, ys) - 10) + (Math.max.apply(null, ys) + 18)) / 2;
+      return clampCam(center - ZOOM_H / 2);
+    }
+    // сцена: оба ключа, 5+5 линеек, 7 постоянных нот, зоны наведения C1…C7
+    function buildZoomScene(){
+      zoomSvg.innerHTML = "";
+      const zDefs = defs.cloneNode(true);   // свои маски ключей (основной стан прозрачный)
+      zDefs.querySelectorAll("mask").forEach(m => m.setAttribute("id", "z" + m.getAttribute("id")));
+      zoomSvg.appendChild(zDefs);
+      const lineEnd = ZOOM_X0 + 6 * ZOOM_STEP + 18;
+      const addLine = (parent, y, x1, x2) => {
+        const l = ns("line");
+        l.setAttribute("x1", x1); l.setAttribute("x2", x2);
+        l.setAttribute("y1", y); l.setAttribute("y2", y);
+        l.setAttribute("stroke", "var(--line-color)");
+        l.setAttribute("stroke-width", 2);
+        parent.appendChild(l);
+      };
+      for(let st = 0; st <= 8; st += 2){ addLine(zoomSvg, yOfD(30 + st), SH_LX1, lineEnd); addLine(zoomSvg, yOfD(18 + st), SH_LX1, lineEnd); }
+      const ct = ns("rect");
+      ct.setAttribute("x", 40); ct.setAttribute("y", -33); ct.setAttribute("width", 32); ct.setAttribute("height", 90);
+      ct.setAttribute("fill", "var(--clef-color)"); ct.setAttribute("mask", `url(#z${P}TrebleMask)`);
+      zoomSvg.appendChild(ct);
+      const cbs = ns("rect");
+      cbs.setAttribute("x", 34); cbs.setAttribute("y", 62); cbs.setAttribute("width", 47); cbs.setAttribute("height", 55);
+      cbs.setAttribute("fill", "var(--clef-color)"); cbs.setAttribute("mask", `url(#z${P}BassMask)`);
+      zoomSvg.appendChild(cbs);
+      zoomLedgers = ns("g");
+      zoomSvg.appendChild(zoomLedgers);
+      zoomLedgers.addLineAt = (y, x, h) => addLine(zoomLedgers, y, x - h, x + h);
+      zoomNotes = [];
+      const signsG = ns("g");   // знаки ♯/♭ — поверх всех кружков
+      for(let i = 0; i < 7; i++){
+        const g = ns("g"); g.setAttribute("class", "sh-zoom-note");
+        const bg = ns("rect");   // под номером ступени линейки прерываются
+        bg.setAttribute("x", -4); bg.setAttribute("width", 8);
+        bg.setAttribute("y", SC_R + 1); bg.setAttribute("height", 8.5);
+        bg.setAttribute("fill", "var(--staff-bg)");
+        const deg = ns("text"); deg.setAttribute("class", "sh-deg"); deg.setAttribute("text-anchor", "middle"); deg.setAttribute("y", SC_R + 8);
+        const circ = ns("circle"); circ.setAttribute("r", SC_R);
+        const name = ns("text"); name.setAttribute("class", "sh-scale-name"); name.setAttribute("text-anchor", "middle"); name.setAttribute("y", 2.6);
+        g.append(bg, deg, circ, name);
+        zoomSvg.appendChild(g);
+        const sg = ns("g"); sg.setAttribute("class", "sh-zoom-note");
+        const acc = ns("text"); acc.setAttribute("class", "sh-scale-acc"); acc.setAttribute("text-anchor", "end");
+        acc.setAttribute("font-family", ACC_FONT_STACK);
+        acc.setAttribute("x", -SC_R - SC_ACC_GAP); acc.setAttribute("y", 3);
+        sg.appendChild(acc);
+        signsG.appendChild(sg);
+        zoomNotes.push({ g, sg, bg, deg, circ, name, acc });
+      }
+      zoomSvg.appendChild(signsG);
+      zoomZones = ns("g");
+      for(let d = 7; d <= 49; d++){
+        const r = ns("rect");
+        r.setAttribute("x", SH_VB_X - 20); r.setAttribute("width", ZOOM_W + 40);
+        r.setAttribute("y", yOfD(d) - STEP_PX / 2); r.setAttribute("height", STEP_PX);
+        r.setAttribute("fill", "transparent");
+        r.dataset.d = d;
+        zoomZones.appendChild(r);
+      }
+      zoomSvg.appendChild(zoomZones);
+      zoomBuilt = true;
+    }
+    function hideZoom(immediate){
+      if(!zoomOn && !immediate) return;
+      zoomOn = false;
+      if(zoomLoop){ cancelAnimationFrame(zoomLoop); zoomLoop = 0; }
+      zoomHoverReset();
+      svg.style.opacity = ""; svg.style.pointerEvents = "";
+      zoomSvg.style.opacity = "0";
+      zoomSvg.classList.remove("sh-zoom-anim");
+      if(zoomHideTimer) clearTimeout(zoomHideTimer);
+      const done = () => { zoomHideTimer = null; if(!zoomOn) zoomSvg.style.display = "none"; };
+      if(immediate) done(); else zoomHideTimer = setTimeout(done, ZOOM_ANIM_MS);
+      syncPiano();
+    }
+    // centerCam — подвезти камеру к ладу (вход, клавиша); от наведения на стан — нет
+    function drawZoom(notes, centerCam){
+      if(!zoomBuilt) buildZoomScene();
+      if(zoomHideTimer){ clearTimeout(zoomHideTimer); zoomHideTimer = null; }
+      const entering = !zoomOn;
+      if(entering) zoomSvg.classList.remove("sh-zoom-anim");   // при входе ноты сразу на месте
+      const showDeg = !!sget("Degrees");
+      const ys = [];
+      zoomLedgers.innerHTML = "";
+      zoomNotes.forEach((p, i) => {
+        const n = notes[i];
+        if(!n){ p.g.style.display = p.sg.style.display = "none"; return; }
+        p.g.style.display = p.sg.style.display = "";
+        const d = dIndex(n), x = ZOOM_X0 + i * ZOOM_STEP, y = yOfD(d);
+        ys.push(y);
+        p.g.style.transform = p.sg.style.transform = `translate(${x}px, ${y}px)`;
+        p.circ.setAttribute("fill", degFill(n));
+        p.name.removeAttribute("textLength"); p.name.removeAttribute("lengthAdjust");
+        p.name.textContent = displayNameFor(n.letter, null) + n.octave;
+        try{ if(p.name.getComputedTextLength() > SC_R * 2 - 1.5){ p.name.setAttribute("textLength", SC_R * 2 - 1.5); p.name.setAttribute("lengthAdjust", "spacingAndGlyphs"); } }catch(e){}
+        p.deg.textContent = String(n.degree);
+        p.deg.setAttribute("fill", accFill(n));
+        p.deg.style.display = p.bg.style.display = showDeg ? "" : "none";
+        p.acc.textContent = n.accidental ? accText(n.accidental) : "";
+        p.acc.setAttribute("fill", accFill(n));
+        // короткие добавочные линейки — сразу на новом месте (соседние смыкаются)
+        const h = ZOOM_STEP / 2;
+        if(d >= 40){ for(let k = 40; k <= d; k += 2) zoomLedgers.addLineAt(yOfD(k), x, h); }        // выше скрипичного
+        else if(d <= 16){ for(let k = 16; k >= d; k -= 2) zoomLedgers.addLineAt(yOfD(k), x, h); }   // ниже басового
+        else if(d === C4_D) zoomLedgers.addLineAt(yOfD(C4_D), x, h);                               // C4
+      });
+      if(entering){
+        zoomOn = true;
+        zoomCamTarget = centerCamOn(ys);
+        setZoomCam(zoomCamTarget);
+        zoomSvg.style.display = "block";
+        zoomSvg.style.opacity = "0";
+        void zoomSvg.getBoundingClientRect();
+        requestAnimationFrame(() => {
+          zoomSvg.style.opacity = "1";
+          zoomSvg.classList.add("sh-zoom-anim");   // дальше ноты съезжают плавно
+        });
+        svg.style.opacity = "0"; svg.style.pointerEvents = "none";
+        piano.style.marginLeft = ""; piano.style.width = "";   // клавиатура — обычная, без привязки к нотам
+        if(!zoomLoop) zoomLoop = requestAnimationFrame(zoomFrame);
+      } else if(centerCam){
+        zoomCamTarget = centerCamOn(ys);
+      }
+    }
+    // наведение в увеличенном виде — с той же задержкой, что и на стане
+    let zHoverTimer = null, zHoverD = null, zAnchorX = 0, zAnchorY = 0;
+    function zoomHoverReset(){ if(zHoverTimer){ clearTimeout(zHoverTimer); zHoverTimer = null; } zHoverD = null; }
+    zoomSvg.addEventListener("pointermove", (e) => {
+      if(e.pointerType === "touch") return;
+      const z = e.target && e.target.closest ? e.target.closest("rect[data-d]") : null;
+      const d = z ? +z.dataset.d : null;
+      const moved = Math.abs(e.clientX - zAnchorX) > SH_HOVER_STILL_PX || Math.abs(e.clientY - zAnchorY) > SH_HOVER_STILL_PX;
+      if(d === zHoverD && !moved) return;
+      if(d === zHoverD && zHoverTimer === null) return;   // уже показано для этой линейки
+      zHoverD = d; zAnchorX = e.clientX; zAnchorY = e.clientY;
+      if(zHoverTimer) clearTimeout(zHoverTimer);
+      zHoverTimer = setTimeout(() => {
+        zHoverTimer = null;
+        if(d == null) return;
+        const dd = Math.min(d, 43);   // лад целиком в пределах C7
+        const letter = NATURAL_LETTERS[((dd % 7) + 7) % 7], octave = Math.floor(dd / 7);
+        if(lastScale && lastScale.letter === letter && !lastScale.acc && lastScale.octave === octave) return;
+        showScale(letter, null, octave, "staff");
+      }, SH_HOVER_DELAY);
+    });
+    // кнопка ноты: лад от неё во всех октавах, где он целиком помещается на стан
+    function scaleAllOctaves(letter, acc){
+      let all = [];
+      for(let oct = 0; oct <= 7; oct++){
+        const notes = scaleNotes(letter, acc, oct);
+        if(notes.length && notes.every(n => places.some(q => q.letter === n.letter && q.octave === n.octave))) all = all.concat(notes);
+      }
+      return all;
+    }
+    // «Лады»: если у тональности есть запись с меньшим числом знаков (D♯ мажор, 9 ♯ →
+    // E♭ мажор, 3 ♭), при наведении на её кнопку зелёным подсвечивается кнопка той записи.
+    // Сравниваются только кнопки окна (C D E F G A B и 10 кнопок со знаками).
+    function accCount(letter, acc){
+      return scaleNotes(letter, acc, 4).reduce((sum, n) => sum + (ACC_WEIGHT[n.accidental] || 0), 0);
+    }
+    function markBetterButton(letter, acc){
+      btnRow.querySelectorAll(".sh-better").forEach(b => b.classList.remove("sh-better"));
+      if(!letter) return;
+      const pc = pitchClassIndex(letter, acc);
+      const mine = accCount(letter, acc);
+      let best = null, bestCount = mine;
+      btnRow.querySelectorAll("button[data-letter]").forEach(b => {
+        const l = b.dataset.letter, a = b.dataset.acc || null;
+        if(l === letter && a === acc) return;
+        if(pitchClassIndex(l, a) !== pc) return;
+        const c = accCount(l, a);
+        if(c < bestCount){ best = b; bestCount = c; }
+      });
+      if(best) best.classList.add("sh-better");
+    }
+    // src: "staff" — наведение на стан (камера увеличенного вида не двигается),
+    // иначе (клавиша, кнопка) — камера подъезжает к ладу
+    function showScale(letter, acc, octave, src){
+      lastScale = { letter, acc, octave, src: src || "" };
+      redrawScale();
+    }
+    function redrawScale(){
+      if(!lastScale || popup.style.display !== "block"){ if(!lastScale) clearHl(true); hideZoom(); return; }
+      const { letter, acc, octave } = lastScale;
+      const notes = octave == null ? scaleAllOctaves(letter, acc) : scaleNotes(letter, acc, octave);
+      drawScale(notes);
+      // один лад (место на стане / клавиша) + галка «Увеличить отображение аккорда»
+      if(octave != null && sget("Zoom") && notes.length) drawZoom(notes, lastScale.src !== "staff");
+      else hideZoom();
+    }
+    // подсказка (i) у выпадашки «Лад»: «Мажор — тон тон полутон тон тон тон полутон — 221 222 1»
+    // (формулы — 1-я и 2-я красные части подсказки (i) лада в настройках «Ладов»)
+    function modeTitle(){
+      const type = currentType();
+      if(!type) return "";
+      const parts = [];
+      const re = /@@([^@]+)@@/g;
+      let m;
+      const tip = t("tip_scale_" + type.key);
+      while((m = re.exec(tip)) && parts.length < 2) parts.push(m[1]);
+      return [type.label].concat(parts).join(" \u2014 ");
+    }
+
+    // Наведение на стан — с задержкой SH_HOVER_DELAY мс: пока мышь/перо едет по линейкам,
+    // ноты не показываются; остановилось на линейке/промежутке — показываются.
+    // Перо над планшетом никогда не стоит идеально неподвижно (дрожит и шлёт события
+    // движения без остановки), поэтому «остановилось» = осталось на той же линейке/
+    // промежутке и сдвинулось меньше SH_HOVER_STILL_PX от точки, где начался отсчёт —
+    // такое дрожание отсчёт НЕ перезапускает. Показанное не сбрасывается, пока
+    // указатель на той же линейке/промежутке.
+    const SH_HOVER_DELAY = 100;
+    const SH_HOVER_STILL_PX = 6;
+    let hoverTimer = null, hoverIdx = -1, shownIdx = -1, anchorX = 0, anchorY = 0;
+    function staffHoverReset(){
+      if(hoverTimer){ clearTimeout(hoverTimer); hoverTimer = null; }
+      hoverIdx = -1; shownIdx = -1;
+    }
+    function staffZoneAt(e){
+      const z = e.target && e.target.closest ? e.target.closest("rect[data-idx]") : null;
+      return (z && places[+z.dataset.idx]) ? +z.dataset.idx : -1;
+    }
+    function startHoverTimer(e){
+      anchorX = e.clientX; anchorY = e.clientY;
+      if(hoverTimer) clearTimeout(hoverTimer);
+      hoverTimer = setTimeout(() => {
+        hoverTimer = null;
+        // остановились вне линеек/промежутков — вернуть названия всех нот
+        if(hoverIdx === -1 || !places[hoverIdx]){ if(!SCALES){ cancelNamesRestore(); namesG.style.display = ""; } return; }
+        showFromStaff(places[hoverIdx]);
+        shownIdx = hoverIdx;
+      }, SH_HOVER_DELAY);
+    }
+    svg.addEventListener("pointermove", (e) => {
+      if(e.pointerType === "touch") return;
+      const idx = staffZoneAt(e);
+      if(idx !== -1 && idx === shownIdx) return;          // на той же линейке — оставляем
+      // названия пока не возвращаем; в «Ладах» показанный лад остаётся до нового
+      if(shownIdx !== -1){ if(!SCALES) clearHl(true); shownIdx = -1; }
+      if(idx !== hoverIdx){                               // перешли на другую линейку/промежуток
+        hoverIdx = idx;
+        startHoverTimer(e);
+        return;
+      }
+      // та же линейка, ещё не показано: дрожание пера отсчёт не сбрасывает,
+      // заметное движение — сбрасывает
+      if(Math.abs(e.clientX - anchorX) > SH_HOVER_STILL_PX || Math.abs(e.clientY - anchorY) > SH_HOVER_STILL_PX){
+        startHoverTimer(e);
+      }
+    });
+    svg.addEventListener("pointerleave", () => { staffHoverReset(); if(!SCALES) clearHl(); });
+
+    // ---- низ окна: 7 кнопок нот или клавиатура ----
+    const bottom = document.createElement("div");
+    bottom.className = "sh-bottom";
+    popup.appendChild(bottom);
+    const btnRow = document.createElement("div");
+    btnRow.className = "sh-buttons";
+    bottom.appendChild(btnRow);
+    const piano = document.createElement("div");
+    piano.className = "sh-piano";
+    bottom.appendChild(piano);
+
+    // Кнопки — как кнопки ответа под основным станом: снизу 7 нот, сверху 10 кнопок
+    // со знаками: на месте каждой чёрной клавиши пианино — пара кнопок рядом, слева диез,
+    // справа бемоль (C♯ | D♭ между C и D и т.д.). Наведение на C♯ — все C♯ на местах C
+    // (со знаком ♯ на стане), на D♭ — все D♭ на местах D.
+    // (свой класс sh-sharp, а не piano-sharp: основная клавиатура при перестройке
+    // удаляет со страницы все .piano-sharp)
+    function showAccidental(letter, acc){
+      drawHl(places.filter(p => p.letter === letter)
+        .map(p => ({ place: p, label: displayNameFor(p.letter, null) + p.octave, acc })));
+    }
+    function buildButtons(){
+      btnRow.innerHTML = "";
+      const naturals = document.createElement("div");
+      naturals.className = "sh-naturals";
+      btnRow.appendChild(naturals);
+      NATURAL_LETTERS.forEach(letter => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "note-btn";
+        b.textContent = displayNameFor(letter, null);
+        b.dataset.letter = letter; b.dataset.acc = "";
+        b.addEventListener("pointerenter", () => { if(SCALES){ showScale(letter, null, null); markBetterButton(letter, null); } else showLetter(letter); });
+        b.addEventListener("pointerleave", () => { if(SCALES) markBetterButton(null); else clearHl(); });
+        naturals.appendChild(b);
+      });
+      const SHARP_W = 6.3;   // ширина одной кнопки со знаком, %
+      const SHARP_GAP = 0.5; // зазор между диезом и бемолем в паре, %
+      BLACK_KEY_SLOTS.forEach(slot => {
+        const center = slot.boundary * 100;
+        [[slot.sharpLetter, "sharp", center - SHARP_GAP / 2 - SHARP_W],
+         [slot.flatLetter,  "flat",  center + SHARP_GAP / 2]].forEach(([letter, acc, left]) => {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.className = "sh-sharp";
+          b.style.left = left + "%";
+          b.style.width = SHARP_W + "%";
+          b.textContent = displayNameFor(letter, acc);
+          b.dataset.letter = letter; b.dataset.acc = acc;
+          b.addEventListener("pointerenter", () => { if(SCALES){ showScale(letter, acc, null); markBetterButton(letter, acc); } else showAccidental(letter, acc); });
+          b.addEventListener("pointerleave", () => { if(SCALES) markBetterButton(null); else clearHl(); });
+          btnRow.appendChild(b);
+        });
+      });
+    }
+    // вид — как у большой клавиатуры пианино, диапазон — C1–C7 (весь стан при 5 линейках)
+    function buildPiano(){
+      piano.innerHTML = "";
+      const whites = [];
+      for(let oct = 1; oct <= 7; oct++){
+        NATURAL_LETTERS.forEach(letter => {
+          if(oct === 7 && letter !== "C") return;
+          whites.push({ letter, oct });
+        });
+      }
+      const n = whites.length;
+      const wPct = 100 / n;
+      whites.forEach((w, i) => {
+        const k = document.createElement("div");
+        k.className = "white-key";
+        k.style.left = (i * wPct) + "%";
+        k.style.width = wPct + "%";
+        k.dataset.letter = w.letter; k.dataset.octave = w.oct;
+        k.dataset.pitch = absolutePitch(w.letter, null, w.oct);
+        k.textContent = w.letter === "C" ? (displayNameFor(w.letter, null) + w.oct) : displayNameFor(w.letter, null);
+        k.addEventListener("pointerenter", () => SCALES ? showScale(w.letter, null, w.oct)
+          : showExact([{ letter: w.letter, accidental: null, octave: w.oct }]));
+        k.addEventListener("pointerleave", () => { if(!SCALES) clearHl(); });
+        piano.appendChild(k);
+        if(["C", "D", "F", "G", "A"].includes(w.letter) && i + 1 < n){
+          const bw = wPct * 0.6;
+          const bk = document.createElement("div");
+          bk.className = "black-key";
+          bk.style.left = ((i + 1) * wPct - bw / 2) + "%";
+          bk.style.width = bw + "%";
+          bk.dataset.pitch = absolutePitch(w.letter, "sharp", w.oct);
+          const next = NATURAL_LETTERS[NATURAL_LETTERS.indexOf(w.letter) + 1];
+          bk.addEventListener("pointerenter", () => {
+            if(SCALES){
+              const sp = blackKeySpelling(w.letter, next, w.oct);
+              showScale(sp.letter, sp.acc, w.oct);
+              return;
+            }
+            showExact([
+              { letter: w.letter, accidental: "sharp", octave: w.oct },
+              { letter: next, accidental: "flat", octave: w.oct }
+            ]);
+          });
+          bk.addEventListener("pointerleave", () => { if(!SCALES) clearHl(); });
+          piano.appendChild(bk);
+        }
+      });
+    }
+    function applyMode(){
+      cb.checked = !!sget("Piano");
+      namesCb.checked = !!sget("Names");
+      stretchCb.checked = !!sget("Stretch");
+      if(degCb) degCb.checked = !!sget("Degrees");
+      if(zoomCb) zoomCb.checked = !!sget("Zoom");
+      btnRow.style.display = sget("Piano") ? "none" : "";
+      piano.style.display = sget("Piano") ? "" : "none";
+      clearHl();
+      if(SCALES) redrawScale();
+    }
+    cb.addEventListener("change", () => {
+      sset("Piano", cb.checked);
+      saveSettings();
+      applyMode();
+      syncPiano();
+    });
+    // «Показать ноты» и «Растянуть ноты» — только одна из двух (или ни одной)
+    namesCb.addEventListener("change", () => {
+      sset("Names", namesCb.checked);
+      if(namesCb.checked && !SCALES){ sset("Stretch", false); stretchCb.checked = false; }
+      saveSettings();
+      buildStaff();
+      layout();
+    });
+    stretchCb.addEventListener("change", () => {
+      sset("Stretch", stretchCb.checked);
+      if(stretchCb.checked){ sset("Names", false); namesCb.checked = false; }
+      saveSettings();
+      buildStaff();
+      layout();
+    });
+    if(modeSel) modeSel.addEventListener("change", () => {
+      sset("Mode", modeSel.value);
+      saveSettings();
+      redrawScale();
+      layout();
+    });
+    // «Лады»: прокрутка колеса мыши в окне — смена лада: вниз — следующий по списку
+    // (Лидийский → … → Мелод минор), вверх — предыдущий; на краях списка дальше не идёт.
+    // Страница при этом не прокручивается. Тачпад шлёт много мелких событий — шаг
+    // делается, когда накопилось SH_WHEEL_STEP.
+    const SH_WHEEL_STEP = 40;
+    let wheelAcc = 0;
+    if(SCALES) popup.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      // увеличенный вид, мышь над станом, без Shift — прокрутка стана вверх-вниз
+      if(zoomActive() && !e.shiftKey && svgWrap.contains(e.target)){
+        const dy = e.deltaY || e.deltaX;
+        if(dy) zoomCamTarget = clampCam(zoomCamTarget + Math.sign(dy) * ZOOM_SCROLL);
+        return;
+      }
+      wheelAcc += e.deltaY || e.deltaX;
+      if(Math.abs(wheelAcc) < SH_WHEEL_STEP) return;
+      const dir = wheelAcc > 0 ? 1 : -1;
+      wheelAcc = 0;
+      const list = scaleTypes();
+      const cur = currentType();
+      const i = list.indexOf(cur);
+      const next = list[Math.max(0, Math.min(list.length - 1, i + dir))];
+      if(!next || next === cur) return;
+      sset("Mode", next.key);
+      saveSettings();
+      if(modeSel) modeSel.value = next.key;
+      if(tipBox && tipBox.style.display === "block") tipBox.textContent = modeTitle();
+      redrawScale();
+    }, { passive: false });
+    function fillModes(){
+      if(!modeSel) return;
+      modeSel.innerHTML = "";
+      scaleTypes().forEach(tp => {
+        const o = document.createElement("option");
+        o.value = tp.key; o.textContent = tp.label;
+        modeSel.appendChild(o);
+      });
+      const cur = currentType();
+      if(cur) modeSel.value = cur.key;
+    }
+    ledgerSel.addEventListener("change", () => {
+      sset("Ledgers", parseInt(ledgerSel.value, 10));
+      saveSettings();
+      buildStaff();
+      layout();
+    });
+
+    // «Лады»: мышь ушла из окна — показать последний лад во всех октавах (как при
+    // наведении на кнопку ноты)
+    if(SCALES) popup.addEventListener("pointerleave", () => {
+      markBetterButton(null);
+      if(lastScale && lastScale.octave != null){ lastScale.octave = null; redrawScale(); }
+    });
+
+    // ---- размер и положение окна ----
+    function layout(){
+      // масштаб — как у основного стана на экране (с учётом +/-): пикселей на единицу стана
+      let k = 0;
+      const mainR = el.staffSvg.getBoundingClientRect();
+      if(mainR.width > 0) k = mainR.width / STAFF_VIEW_W;   // пикселей на единицу основного стана
+      if(!(k > 0)) k = BASE_STAFF_WIDTH / REFERENCE_VIEWBOX_WIDTH;
+      svg.style.width = (vbW() * k) + "px";
+      // подгонку клавиатуры под столбцы («Растянуть ноты») снимаем ДО замера окна —
+      // иначе её старая ширина сбивает размер окна и оно встаёт не по центру
+      piano.style.marginLeft = ""; piano.style.width = "";
+      popup.style.left = "0px"; popup.style.top = "0px";
+      // не влезает по высоте экрана — уменьшаем, чтобы окно было видно целиком
+      const over = popup.offsetHeight - (window.innerHeight - 16);
+      if(over > 0){
+        const h = svg.getBoundingClientRect().height;
+        if(h > over) svg.style.width = (vbW() * k * (h - over) / h) + "px";
+      }
+      const pw = popup.offsetWidth, ph = popup.offsetHeight;
+      popup.style.left = Math.max(8, (window.innerWidth - pw) / 2) + "px";
+      popup.style.top = Math.max(8, (window.innerHeight - ph) / 2) + "px";
+      syncPiano();
+    }
+    // клавиатура в окне всегда во всю ширину (раньше в «Растянуть ноты» подстраивалась
+    // под столбцы нот) — здесь только сбрасывается старая подгонка
+    function syncPiano(){
+      piano.style.marginLeft = ""; piano.style.width = "";
+    }
+
+    // ---- открытие / закрытие ----
+    let isOpen = false;
+    let openedByKey = false;   // открыто клавишей U / Г (тогда «?» может быть не виден)
+    function notesTabActive(){
+      return SCALES ? (!!window.__scaleLevelActive && !window.__durLevelActive)
+                    : (!window.__scaleLevelActive && !window.__durLevelActive);
+    }
+    function iconGone(){
+      const r = icon.getBoundingClientRect();
+      return r.width === 0 || r.bottom < 0 || r.top > window.innerHeight ||
+             r.right < 0 || r.left > window.innerWidth ||
+             getComputedStyle(icon).visibility === "hidden";
+    }
+    function watchIcon(){
+      if(!isOpen) return;
+      // открыто по «?» — закрываем, если «?» пропал; открыто клавишей — если ушли с «Нот»
+      if(openedByKey ? !notesTabActive() : iconGone()){ closeHelp(); return; }
+      requestAnimationFrame(watchIcon);
+    }
+    function openHelp(byKey){
+      openedByKey = !!byKey;
+      ledgerSel.value = String(ledgerCount());
+      fillModes();
+      // «Лады»: при каждом открытии — выбранный лад от C во всех октавах
+      if(SCALES) lastScale = { letter: "C", acc: null, octave: null };
+      buildStaff();
+      // подписи кнопок/клавиш — по текущей настройке «Названия нот»
+      buildButtons();
+      buildPiano();
+      applyMode();
+      shade.style.display = "block";
+      popup.style.display = "block";
+      buildNames();   // подложкам под названиями нужен уже видимый стан (меряется ширина текста)
+      if(SCALES) redrawScale();
+      layout();
+      isOpen = true;
+      requestAnimationFrame(watchIcon);
+    }
+    function closeHelp(){
+      popup.style.display = "none";
+      if(tipBox) tipBox.style.display = "none";
+      hideZoom(true);
+      shade.style.display = "none";
+      clearHl();
+      cancelNamesRestore(); namesG.style.display = "";
+      isOpen = false;
+    }
+    icon.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if(document.body.classList.contains("mobile-mode")) return;
+      if(isOpen) closeHelp(); else openHelp();
+    });
+    // клик по затемнению — закрыть (только окно подсказки, настройки остаются)
+    shade.addEventListener("click", (e) => { e.stopPropagation(); closeHelp(); });
+    // правая кнопка мыши/пера при открытом окне (на окне, на затемнении — где угодно):
+    // окно закрывается, а дальше, как везде в приложении, открываются/закрываются настройки
+    document.addEventListener("contextmenu", () => { if(isOpen) closeHelp(); }, true);
+    document.addEventListener("pointerdown", (e) => {
+      if(!isOpen) return;
+      if(popup.contains(e.target) || icon.contains(e.target) || e.target === shade) return;
+      closeHelp();
+    }, true);
+    document.addEventListener("keydown", (e) => { if(isOpen && e.key === "Escape") closeHelp(); });
+    // U / Г (по коду клавиши — работает и в русской раскладке) — открыть / закрыть,
+    // в «Нотах» — окно «Нот», в «Ладах» — окно «Ладов»
+    document.addEventListener("keydown", (e) => {
+      if(e.code !== "KeyU" || e.repeat || e.ctrlKey || e.altKey || e.metaKey) return;
+      const tg = e.target;
+      if(tg && (tg.tagName === "INPUT" && tg.type !== "checkbox" || tg.tagName === "TEXTAREA" || tg.tagName === "SELECT")) return;
+      if(document.body.classList.contains("mobile-mode")) return;
+      if(isOpen){ closeHelp(); return; }
+      if(notesTabActive()) openHelp(true);
+    });
+    window.addEventListener("scroll", (e) => {
+      if(isOpen && !(e.target && e.target.nodeType === 1 && popup.contains(e.target))) closeHelp();
+    }, true);
+    window.addEventListener("resize", () => { if(isOpen) closeHelp(); });
+  }
+  createStaffHelp({ kind: "notes", iconId: "staffHelpIcon" });
+  createStaffHelp({ kind: "scales", iconId: "scaleHelpIcon" });
+
+
   function render(){
     const grand = settings.clef === "both";
 
@@ -5338,15 +6916,23 @@
     const w = document.getElementById("noChordsWarning");
     if(!w) return;
     if(settings.activeLevel !== "notes" || !current){ w.classList.remove("show", "partial"); return; }
+    const clefsW = settings.clef === "both" ? ["treble", "bass"] : [settings.clef];
+    const doubleMissing = settings.modes.includes("double") && !clefsW.some(c => doubleBuildable(c));
+    const missing = unbuildableChordModes();
     if(current.noChords){
-      w.textContent = t("msg_no_chords");
+      const parts = [];
+      if(doubleMissing) parts.push(t("msg_no_double"));
+      if(missing.length) parts.push(t("msg_no_chords"));
+      w.textContent = parts.join(" ");
       w.classList.add("show");
       w.classList.remove("partial");
       return;
     }
-    const missing = unbuildableChordModes();
-    if(missing.length){
-      w.textContent = t("msg_some_chords").replace("{list}", missing.map(modeButtonLabel).join(", "));
+    if(missing.length || doubleMissing){
+      const parts = [];
+      if(doubleMissing) parts.push(t("msg_no_double"));
+      if(missing.length) parts.push(t("msg_some_chords").replace("{list}", missing.map(modeButtonLabel).join(", ")));
+      w.textContent = parts.join(" ");
       w.classList.add("show", "partial");
     } else {
       w.classList.remove("show", "partial");
@@ -5535,6 +7121,11 @@
     }
     return null;
   }
+  // Ширина одной белой клавиши — такая же, как у клавиатуры в окне-подсказке «?»
+  // (там 43 белые клавиши C1–C7 на ширину стана подсказки — 736 единиц стана, — плюс
+  // 18px отступов). Используется и в «Нотах», и в «Ладах». Если в подсказке поменяется
+  // ширина стана (SH_ST_* в staffHelpModule), это число надо поправить.
+  const PIANO_KEY_W_CSS = "((var(--staff-width, 640px) * 736 / 470 + 18px) / 43)";
   function buildBigPiano(){
     el.bigPiano.innerHTML = "";
     const whites = [];
@@ -5559,11 +7150,12 @@
     // Ширина — как у клавиш при 29 основных на ширину стана, но не шире экрана
     // (на узких экранах пианино целиком помещается, клавиши чуть уже).
     el.bigPiano.style.width = "100%";
-    el.bigPiano.style.maxWidth = `calc(var(--staff-width, 640px) * ${scale})`;
+    // Размер клавиш — как на клавиатуре в подсказке «?» (см. PIANO_KEY_W_CSS)
+    el.bigPiano.style.maxWidth = `calc(${n} * ${PIANO_KEY_W_CSS} + 2px)`;
     // Слева добавлено на одну клавишу больше, чем справа, — сдвигаем пианино влево,
     // чтобы основной диапазон C2–C6 стоял там же, где и раньше. Если места мало,
     // сдвиг уменьшается, чтобы левый край не уходил за экран.
-    el.bigPiano.style.marginLeft = `calc(-1 * max(0px, min(var(--staff-width, 640px) * ${2 / PIANO_CORE_COUNT}, 100% - var(--staff-width, 640px) * ${scale})))`;
+    el.bigPiano.style.marginLeft = `calc(-1 * max(0px, min(2 * ${PIANO_KEY_W_CSS}, 100% - (${n} * ${PIANO_KEY_W_CSS} + 2px))))`;
     whites.forEach((w, i) => {
       const btn = document.createElement("button");
       btn.className = "white-key key";
@@ -5705,6 +7297,21 @@
     return settings.showPiano ? findBigPianoKey(letter, accidental, octave) : findButton(letter, accidental);
   }
 
+  // «Места» для ответа из нескольких нот. Обычно у каждой ноты вопроса свой ключ (noteKey).
+  // Но в «2 нотах» может выпасть одна нота в двух октавах (C4 + C5); без галки «Указывать
+  // октаву» у них один ключ. Тогда второе место получает ключ с суффиксом "#1", и ответ
+  // требует двух нажатий: та же клавиша дважды или две клавиши этой ноты в разных октавах.
+  function slotKeysFor(notes){
+    const cnt = Object.create(null);
+    return notes.map(n => {
+      const b = noteKey(n.letter, n.octave, n.accidental);
+      const k = cnt[b] || 0;
+      cnt[b] = k + 1;
+      return k ? b + "#" + k : b;
+    });
+  }
+  function slotBase(k){ return String(k).split("#")[0]; }
+
   function toggleMulti(letter, accidental, octave){
     const acc = accidental || null;
     // ответ без октавы (с клавиатуры компьютера) на клавиатуре-пианино: подсвечиваем клавишу
@@ -5719,7 +7326,8 @@
       }
     }
     const key = noteKey(letter, octave, acc);
-    const requiredCount = new Set(current.notes.map(n => noteKey(n.letter, n.octave, n.accidental))).size;
+    const slots = slotKeysFor(current.notes);
+    const requiredCount = slots.length;
     const btn = findAnswerButton(letter, acc, octave);
     // Галка "Переходить к новому вопросу только после правильного ответа":
     // нота, которой нет в вопросе, сразу мигает красным и не выбирается;
@@ -5733,14 +7341,27 @@
           current._hadMistake = true;
           // в ошибки идут ноты вопроса, которые на момент ошибки ещё не были выбраны
           current._missedKeys = new Set();
-          current._positions.forEach(p => {
-            const k = noteKey(p.note.letter, p.note.octave, p.note.accidental);
+          const posSlots = slotKeysFor(current._positions.map(p => p.note));
+          current._positions.forEach((p, pi) => {
+            const k = posSlots[pi];
             if(!selectedLetters.has(k)){ current._missedKeys.add(k); logError(current.clef, p.note.letter, p.note.accidental, p.note.octave); }
           });
           recordAnswer(false);
         }
         return;
       }
+    }
+    // нота встречается в вопросе несколько раз (C4 + C5 без галки октавы): каждое нажатие
+    // занимает следующее свободное место, снимать выбор повторным нажатием здесь нельзя
+    const sameSlots = slots.filter(sk => slotBase(sk) === key);
+    if(sameSlots.length > 1){
+      const free = sameSlots.find(sk => !selectedLetters.has(sk));
+      if(!free) return;
+      selectedLetters.set(free, acc);
+      selectedInfo.set(free, { letter, octave });
+      if(btn) btn.classList.add("selected");
+      if(selectedLetters.size >= requiredCount) gradeMulti();
+      return;
     }
     if(selectedLetters.has(key)){
       const prev = selectedInfo.get(key) || { letter, octave };
@@ -5771,7 +7392,7 @@
       const info = selectedInfo.get(key) || {};
       const btn = findAnswerButton(info.letter, acc, info.octave);
       if(settings.showPiano && btn) btn.classList.remove("selected");
-      colorButton(btn, correctNotes.has(key));
+      colorButton(btn, correctNotes.has(slotBase(key)));
     });
     correctNotes.forEach((n, key) => {
       if(!selectedLetters.has(key)){
@@ -5783,8 +7404,9 @@
     const hadMistake = !!current._hadMistake;
     staffFlashRestore();
     const missed = current._missedKeys || new Set();
-    current._positions.forEach(p => {
-      const gotIt = selectedLetters.has(noteKey(p.note.letter, p.note.octave, p.note.accidental));
+    const posSlots = slotKeysFor(current._positions.map(p => p.note));
+    current._positions.forEach((p, pi) => {
+      const gotIt = selectedLetters.has(posSlots[pi]);
       if(!gotIt){ allCorrect = false; logError(current.clef, p.note.letter, p.note.accidental, p.note.octave); }
       colorNoteHead(p, gotIt);
       colorStem(p.stemEl, gotIt);
@@ -5799,7 +7421,7 @@
 
     lastResult = {
       clef: current.clef,
-      notes: current.notes.map(n => { const k = noteKey(n.letter, n.octave, n.accidental); return { letter: n.letter, accidental: n.accidental, octave: n.octave, step: n.step, correct: selectedLetters.has(k) && !missed.has(k) }; }),
+      notes: current.notes.map((n, ni) => { const k = slotKeysFor(current.notes)[ni]; return { letter: n.letter, accidental: n.accidental, octave: n.octave, step: n.step, correct: selectedLetters.has(k) && !missed.has(k) }; }),
       chordName: current.chordName, chordRootLetter: current.chordRootLetter, chordRootAccidental: current.chordRootAccidental
     };
     if(revealPinned) renderReveal();
@@ -5890,6 +7512,11 @@
 
   function nextQuestion(){
     if(staffFlash){ clearTimeout(staffFlash.timer); staffFlash = null; }
+    // новый вопрос (в т.ч. после смены настройки посреди ответа) — выбор нот прошлого
+    // вопроса сбрасывается, иначе он засчитывался бы в ответ на новый
+    selectedLetters = new Map();
+    selectedInfo = new Map();
+    document.querySelectorAll(".note-btn.selected, .piano-sharp.selected, .big-piano .key.selected").forEach(b => b.classList.remove("selected"));
     generateQuestion();
     render();
     applyAnswersVisibility();
@@ -6121,6 +7748,9 @@
       applyScaleVar(); saveSettings(); scheduleBottomAnchorAfterScale();
       return;
     }
+
+    // сочетания с Ctrl/Alt/Cmd (Ctrl+A, Ctrl+C ...) — это команды браузера, не ответы и не горячие клавиши
+    if(e.ctrlKey || e.altKey || e.metaKey) return;
 
     if((lower === "w" || lower === "ц") && !e.repeat){
       toggleSettings();
@@ -6667,13 +8297,15 @@
       const saved = JSON.parse(localStorage.getItem(LS_SCALE) || "null");
       if(saved) scaleSettings = Object.assign(scaleSettings, saved);
     }catch(e){}
-    SCALE_TONICS.forEach(t => { if(typeof scaleSettings.tonics[t.key] !== "boolean") scaleSettings.tonics[t.key] = true; });
+    // при первом запуске (ничего не сохранено) по умолчанию выбрана только C
+    const scTonicsFresh = !Object.keys(scaleSettings.tonics).length;
+    SCALE_TONICS.forEach(t => { if(typeof scaleSettings.tonics[t.key] !== "boolean") scaleSettings.tonics[t.key] = scTonicsFresh ? (t.key === "C") : true; });
     SCALE_TYPES.forEach(t => { if(typeof scaleSettings.types[t.key] !== "boolean") scaleSettings.types[t.key] = (t.key === "major"); });
     if(scaleSettings.clef !== "treble" && scaleSettings.clef !== "bass" && scaleSettings.clef !== "both") scaleSettings.clef = "treble";
     if(typeof scaleSettings.labelTop !== "number") scaleSettings.labelTop = 90;
     if(typeof scaleSettings.labelLeft !== "number") scaleSettings.labelLeft = 50;
     if(typeof scaleSettings.labelSize !== "number") scaleSettings.labelSize = 30;
-    scaleSettings.labelSize = Math.min(50, Math.max(30, scaleSettings.labelSize));
+    scaleSettings.labelSize = Math.min(100, Math.max(10, scaleSettings.labelSize));
     if(typeof scaleSettings.hintTop !== "number") scaleSettings.hintTop = 7;
     if(typeof scaleSettings.hintLeft !== "number") scaleSettings.hintLeft = 23;
     if(typeof scaleSettings.hintSize !== "number") scaleSettings.hintSize = 42;
@@ -6758,7 +8390,7 @@
     wireScaleRangeField(elS.scaleLabelLeft, elS.scaleLabelLeftVal, 0, 100,
       () => scaleSettings.labelLeft, v => scaleSettings.labelLeft = v,
       () => { applyScaleLabelVars(); saveScaleSettings(); });
-    wireScaleRangeField(elS.scaleLabelSize, elS.scaleLabelSizeVal, 30, 50,
+    wireScaleRangeField(elS.scaleLabelSize, elS.scaleLabelSizeVal, 10, 100,
       () => scaleSettings.labelSize, v => scaleSettings.labelSize = v,
       () => { applyScaleLabelVars(); saveScaleSettings(); });
     wireScaleRangeField(elS.scaleHintTop, elS.scaleHintTopVal, 0, 100,
@@ -6840,6 +8472,10 @@
       elS.scaleTonicGrid.appendChild(b);
     });
 
+    // на телефоне длинное название не помещается в кнопку — там оно сокращено
+    function scTypeBtnLabel(type){
+      return (IS_MOBILE && type.key === "mixo" && window.__t) ? window.__t("lad_mixo_short") : type.label;
+    }
     SCALE_TYPES.forEach(t => {
       // ячейка: кнопка лада + отдельный значок (i) справа (значок больше НЕ внутри кнопки)
       const cell = document.createElement("div");
@@ -6848,7 +8484,7 @@
       const labelSpan = document.createElement("span");
       labelSpan.className = "scale-type-label";
       labelSpan.dataset.scaleTypeKey = t.key;
-      labelSpan.textContent = t.label;
+      labelSpan.textContent = scTypeBtnLabel(t);
       b.appendChild(labelSpan);
       const icon = document.createElement("span");
       icon.className = "info-icon";
@@ -6880,7 +8516,7 @@
     window.__i18nRefresh.push(() => {
       elS.scaleTypeGrid.querySelectorAll(".scale-type-label").forEach(span => {
         const type = SCALE_TYPES.find(x => x.key === span.dataset.scaleTypeKey);
-        if(type) span.textContent = type.label;
+        if(type) span.textContent = scTypeBtnLabel(type);
       });
     });
 
@@ -6933,6 +8569,10 @@
       }
       return arr;
     }
+
+    // для окна-подсказки «?» в «Ладах» (staffHelpModule)
+    window.__ntScaleTypes = SCALE_TYPES;
+    window.__ntBuildFullScale = buildFullScale;
 
     let scaleCurrent = null;   // { tonic, type, target:[8 notes], progress }
     const scPianoMarks = new Map(); // пианино Ладов: индекс клавиши -> "correct" | "wrong"
@@ -7479,12 +9119,12 @@
       const wPct = 100 / n;
       const scale = n / NOTES_PIANO_CORE_COUNT;
       el.bigPiano.style.width = (scale * 100) + "%";
-      el.bigPiano.style.maxWidth = `calc(var(--staff-width, 640px) * ${scale})`;
+      el.bigPiano.style.maxWidth = `calc(${n} * ${PIANO_KEY_W_CSS} + 2px)`;   // клавиши — как в подсказке «?»
       // Пианино центрируется по середине, а белых клавиш слева от второй C на одну меньше,
       // чем справа (B + 7 | 7 + C + D), поэтому сдвигаем его вправо на полклавиши
       // (отступ слева в центрированном ряду = 1 клавиша): левая октава — слева от центра,
       // правая — справа.
-      el.bigPiano.style.marginLeft = `calc((min(${scale * 100}%, var(--staff-width, 640px) * ${scale}) - 2px) / ${n})`;
+      el.bigPiano.style.marginLeft = `calc((min(${scale * 100}%, ${n} * ${PIANO_KEY_W_CSS} + 2px) - 2px) / ${n})`;
       whites.forEach((w, i) => {
         const pitch = absolutePitch(w.letter, null, w.oct);
         const btn = document.createElement("button");
@@ -7841,8 +9481,8 @@
     });
     let rhCalibClicks = [];
     let rhCalibTaps = [];
-    const RH_CALIB_LEAD = 4;   // клики разгона, не участвуют в замере
-    const RH_CALIB_MEASURE = 8; // клики замера
+    const RH_CALIB_LEAD = 3;    // клики отсчёта 3, 2, 1 (цифры в поле под кнопкой), не участвуют в замере
+    const RH_CALIB_MEASURE = 12; // клики замера — после отсчёта, считаются все
 
     function rhUpdateCalibrateUI(){
       if(elD.rhCalibrateVal && document.activeElement !== elD.rhCalibrateVal) elD.rhCalibrateVal.value = Math.round(durSettings.rhLatencyMs);
@@ -7854,6 +9494,7 @@
       const ctx = await rhEnsureAudioReady();
       if(!ctx) return;
       rhCalibrating = true;
+      rhSetPadActive(true);
       rhCalibTaps = [];
       if(elD.rhCalibrateBtn) elD.rhCalibrateBtn.disabled = true;
       if(elD.rhCalibrateStatus) elD.rhCalibrateStatus.textContent = t("calib_listen");
@@ -7866,6 +9507,16 @@
         const t = t0 + i * beat;
         rhClick(t, false);
         if(i >= RH_CALIB_LEAD) rhCalibClicks.push(t);
+      }
+      // отсчёт: с каждым кликом отсчёта в поле крупно 3, 2, 1; с первым кликом замера —
+      // обычная надпись поля (с этого клика удары и считаются)
+      const rhPadEl = document.getElementById("rhCalibratePad");
+      const atClick = (i, fn) => setTimeout(fn, Math.max(0, (t0 + i * beat - ctx.currentTime) * 1000));
+      if(rhPadEl){
+        for(let i = 0; i < RH_CALIB_LEAD; i++){
+          atClick(i, () => { if(!rhCalibrating) return; rhPadEl.classList.add("counting"); rhPadEl.textContent = String(RH_CALIB_LEAD - i); });
+        }
+        atClick(RH_CALIB_LEAD, () => { rhPadEl.classList.remove("counting"); rhPadEl.textContent = t("calib_pad"); });
       }
 
       setTimeout(() => {
@@ -7885,6 +9536,8 @@
           }
         });
         rhCalibrating = false;
+        rhSetPadActive(false);
+        if(rhPadEl){ rhPadEl.classList.remove("counting"); rhPadEl.textContent = t("calib_pad"); }
         if(elD.rhCalibrateBtn) elD.rhCalibrateBtn.disabled = false;
         if(diffs.length < RH_CALIB_MEASURE * 0.5){
           if(elD.rhCalibrateStatus) elD.rhCalibrateStatus.textContent = t("calib_failed");
@@ -7903,6 +9556,27 @@
       if(rhCalibrating && rhAudioCtx){ rhCalibTaps.push(rhAudioCtx.currentTime); }
     }
     window.__rhTap = rhTap;
+    // Поле под кнопкой «Откалибровать»: во время калибровки удар засчитывается по клику /
+    // касанию этого поля (а также пробелом и клавишей MIDI). Ширина — как у кнопки,
+    // высота — 4 высоты кнопки (пересчитывается, когда кнопка видна / меняет размер).
+    const rhPad = document.getElementById("rhCalibratePad");
+    function rhSetPadActive(on){ if(rhPad) rhPad.classList.toggle("calibrating", !!on); }
+    if(rhPad){
+      rhPad.addEventListener("pointerdown", (e) => {
+        if(e.button === 1 || e.button === 2) return;
+        e.preventDefault();
+        if(!rhCalibrating) return;
+        rhTap();
+        rhPad.classList.add("hit");
+        setTimeout(() => rhPad.classList.remove("hit"), 80);
+      });
+      const fitPad = () => {
+        const h = elD.rhCalibrateBtn ? elD.rhCalibrateBtn.offsetHeight : 0;
+        if(h) rhPad.style.height = (h * 4) + "px";
+      };
+      if(elD.rhCalibrateBtn && window.ResizeObserver) new ResizeObserver(fitPad).observe(elD.rhCalibrateBtn);
+      fitPad();
+    }
 
     // пробел — тап (в "Потоке") или отметка калибровки
     document.addEventListener("keydown", (e) => {
@@ -8154,7 +9828,14 @@
       { id:"c_ere",  units:36, tags:["e","rest"],       items:[nrN("1/8"), nrR("1/8"), nrN("1/8")] },
       { id:"c_dqr",  units:36, tags:["q","rest","dot"], items:[nrR("1/4.")] },
       { id:"c_ssee", units:36, tags:["e","s"],          items:[nrN("1/16"), nrN("1/16"), nrN("1/8"), nrN("1/8")] },
-      { id:"c_dh",   units:72, tags:["half","dot"],     items:[nrN("1/2.")] }
+      { id:"c_dh",   units:72, tags:["half","dot"],     items:[nrN("1/2.")] },
+      { id:"c_s6",   units:36, tags:["s"],              items:[nrN("1/16"),nrN("1/16"),nrN("1/16"),nrN("1/16"),nrN("1/16"),nrN("1/16")] },
+      { id:"c_ess4", units:36, tags:["e","s"],          items:[nrN("1/8"), nrN("1/16"),nrN("1/16"),nrN("1/16"),nrN("1/16")] },
+      { id:"c_t12",  units:36, tags:["t32"],            items:[nrN("1/32"),nrN("1/32"),nrN("1/32"),nrN("1/32"),nrN("1/32"),nrN("1/32"),nrN("1/32"),nrN("1/32"),nrN("1/32"),nrN("1/32"),nrN("1/32"),nrN("1/32")] },
+      { id:"c_eet4", units:36, tags:["e","t32"],        items:[nrN("1/8"), nrN("1/8"), nrN("1/32"),nrN("1/32"),nrN("1/32"),nrN("1/32")] },
+      { id:"c_sst8", units:36, tags:["s","t32"],        items:[nrN("1/16"),nrN("1/16"), nrN("1/32"),nrN("1/32"),nrN("1/32"),nrN("1/32"),nrN("1/32"),nrN("1/32"),nrN("1/32"),nrN("1/32")] },
+      { id:"c_hq",   units:72, tags:["half","q"],       items:[nrN("1/2"), nrN("1/4")] },
+      { id:"c_qh",   units:72, tags:["half","q","sync"],items:[nrN("1/4"), nrN("1/2")] }
     ];
 
     // основные размеры; редкие сюда не берём — на слух они не отличаются
@@ -8225,22 +9906,90 @@
       return x;
     }
 
-    function nrFigurePool(ts){
+    // Длительности, которые могут играть сами по себе. «С точкой», «Синкопы», «Паузы»
+    // сами такт не заполняют — они работают только вместе с этими.
+    const NR_BASE_TAGS = ["whole", "half", "q", "e", "s", "t32", "trip"];
+
+    function nrSelectedTimeSigs(){
+      const list = NR_TIME_SIGS.filter(t => durSettings.nrTimeSigs[t.key]);
+      return list.length ? list : [NR_TIME_SIGS[0]];
+    }
+    // фигуры размера ts, все длительности которых отмечены в tags
+    function nrPoolFor(ts, tags){
       const src = ts.compound ? NR_COMPOUND_FIGURES : NR_SIMPLE_FIGURES;
-      const pool = src.filter(f => f.units <= ts.units && f.tags.every(t => durSettings.nrTags[t]));
-      if(!pool.some(f => f.units === ts.beat)){
-        const base = src.find(f => f.id === (ts.compound ? "c_eee" : "q"));
-        if(base) pool.push(base);
+      return src.filter(f => f.units <= ts.units && f.tags.every(t => tags[t]));
+    }
+    // с каких мест такта его можно дозаполнить фигурами pool до конца
+    function nrCanFinish(ts, pool){
+      const U = ts.units;
+      const back = new Array(U + 1).fill(false);
+      back[U] = true;
+      for(let p = U - 1; p >= 0; p--){
+        back[p] = pool.some(f => p % f.units === 0 && p + f.units <= U && back[p + f.units]);
       }
-      return pool;
+      return back;
+    }
+    // фигуры, которые реально могут встретиться в целиком заполненном такте
+    function nrUsableFigures(ts, pool){
+      const U = ts.units;
+      const back = nrCanFinish(ts, pool);
+      if(!back[0]) return [];
+      const fwd = new Array(U + 1).fill(false);
+      fwd[0] = true;
+      for(let p = 0; p < U; p++){
+        if(!fwd[p]) continue;
+        pool.forEach(f => { if(p % f.units === 0 && p + f.units <= U && back[p + f.units]) fwd[p + f.units] = true; });
+      }
+      return pool.filter(f => {
+        for(let p = 0; p + f.units <= U; p += f.units){ if(fwd[p] && back[p + f.units]) return true; }
+        return false;
+      });
+    }
+    // Будет ли длительность key звучать, если её включить при остальных отмеченных tags
+    // (хотя бы в одном из отмеченных размеров такта)
+    function nrTagPlays(key, tags){
+      const tg = Object.assign({}, tags);
+      tg[key] = true;
+      return nrSelectedTimeSigs().some(ts => nrUsableFigures(ts, nrPoolFor(ts, tg)).some(f => f.tags.includes(key)));
+    }
+    // Снимает отметку с длительностей, которым при текущем выборе не с чем играть
+    // (повторяет, пока набор не перестанет меняться). Меняет tags, возвращает его же.
+    function nrDropUnplayable(tags){
+      let changed = true, guard = 0;
+      while(changed && guard++ < 20){
+        changed = false;
+        NR_TAGS.forEach(t => {
+          if(tags[t.key] && !nrTagPlays(t.key, tags)){ tags[t.key] = false; changed = true; }
+        });
+      }
+      return tags;
+    }
+    function nrHasBase(tags){ return NR_BASE_TAGS.some(k => tags[k]); }
+    // Приводит выбор к рабочему: лишнее снимается; если не осталось ни одной длительности —
+    // включается 1/4 (а если она в отмеченных размерах не играет — первая играющая).
+    function nrNormalizeTags(){
+      const tags = durSettings.nrTags;
+      nrDropUnplayable(tags);
+      if(!nrHasBase(tags)){
+        NR_TAGS.forEach(t => { tags[t.key] = false; });
+        const order = ["q", "e"].concat(NR_BASE_TAGS);
+        const first = order.find(k => nrTagPlays(k, tags));
+        if(first) tags[first] = true;
+      }
+    }
+
+    function nrFigurePool(ts){
+      return nrUsableFigures(ts, nrPoolFor(ts, durSettings.nrTags));
     }
 
     function nrGenerateBar(ts, pool){
       const figs = [];
+      const back = nrCanFinish(ts, pool);
+      if(!back[0]) return null;
       let pos = 0, guard = 0;
       while(pos < ts.units && guard++ < 200){
-        const rest = ts.units - pos;
-        const fit = pool.filter(f => f.units <= rest && pos % f.units === 0);
+        // только фигуры, после которых такт ещё можно заполнить до конца
+        const fit = pool.filter(f => pos % f.units === 0 && pos + f.units <= ts.units && back[pos + f.units]);
         if(!fit.length) return null;
         // длинные фигуры реже, иначе такт постоянно занимает одна целая нота
         const weighted = [];
@@ -8274,7 +10023,10 @@
     function nrGenerateBars(count){
       const list = NR_TIME_SIGS.filter(t => durSettings.nrTimeSigs[t.key]);
       if(!list.length) return { error: t("err_choose_time_sig") };
-      const ts = nrRnd(list);
+      // размер — только из тех отмеченных, в которых из выбранных длительностей собирается такт
+      const buildable = list.filter(x => nrFigurePool(x).length);
+      if(!buildable.length) return { error: t("err_cant_build_bar") };
+      const ts = nrRnd(buildable);
       const pool = nrFigurePool(ts);
       for(let attempt = 0; attempt < 60; attempt++){
         const bars = [];
@@ -8285,7 +10037,6 @@
           bars.push(b);
         }
         if(!ok) continue;
-        if(nrSoundSig(bars, ts).split("|").filter(Boolean).length < 2) continue;
         return { ts: ts, bars: bars, pool: pool };
       }
       return { error: t("err_cant_build_bar") };
@@ -8835,8 +10586,11 @@
           const on = NR_TIME_SIGS.filter(x => durSettings.nrTimeSigs[x.key]).length;
           if(durSettings.nrTimeSigs[t.key] && on === 1) return; // хотя бы один должен остаться
           durSettings.nrTimeSigs[t.key] = !durSettings.nrTimeSigs[t.key];
+          // длительности, которые в отмеченных размерах не играют, снимаются
+          nrNormalizeTags();
           saveDurSettings();
           nrBuildTsGrid();
+          nrBuildTagGrid();
           nrRefreshCurrent();
         });
         box.appendChild(b);
@@ -8853,8 +10607,21 @@
         b.className = "note-btn";
         b.textContent = t.label;
         if(durSettings.nrTags[t.key]) b.classList.add("active");
+        // длительность, которой при текущем выборе не с чем играть, — погашена
+        if(!durSettings.nrTags[t.key] && !nrTagPlays(t.key, durSettings.nrTags)) b.disabled = true;
         b.addEventListener("click", () => {
-          durSettings.nrTags[t.key] = !durSettings.nrTags[t.key];
+          if(b.disabled) return;
+          if(durSettings.nrTags[t.key]){
+            // снимаем: вместе с ней снимется то, чему больше не с чем играть;
+            // хотя бы одна длительность (не считая «С точкой», «Синкопы», «Паузы») должна остаться
+            const test = Object.assign({}, durSettings.nrTags);
+            test[t.key] = false;
+            nrDropUnplayable(test);
+            if(!nrHasBase(test)) return;
+            durSettings.nrTags = test;
+          } else {
+            durSettings.nrTags[t.key] = true;
+          }
           saveDurSettings();
           nrBuildTagGrid();
           nrRefreshCurrent();
@@ -8887,6 +10654,7 @@
       if(nrLevel === "flow") nrFlowStop();
     }
 
+    nrNormalizeTags();
     nrBuildTsGrid();
     nrBuildTagGrid();
     nrBuildMetroDivGrid();
@@ -9086,6 +10854,8 @@
         applyTheme(sel.value);
         try { localStorage.setItem(KEY, sel.value); } catch(e){}
         sels.forEach(function(other){ if(other !== sel) other.value = sel.value; });
+        // фокус со списка снимаем сразу — иначе буквы-ответы листали бы темы
+        sel.blur();
       });
     });
   }
@@ -9129,6 +10899,203 @@
   }
   if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();
+})();
+</script>
+<script>
+/* ===== Инерция прокрутки пером (графический планшет, Windows Ink) =====
+   Колесо мыши после остановки ещё немного «доскролливает» список, а при прокрутке
+   пером (провёл пером по настройкам и поднял) браузер останавливается сразу.
+   Здесь это добавлено: пока перо тянет список, запоминается скорость прокрутки; когда
+   перо поднято (оно снова висит над планшетом без нажатия), список продолжает ехать
+   с этой скоростью и плавно замедляется. Если перед подъёмом перо остановили — инерции
+   нет. Любое нажатие, колесо или клавиша останавливают доскролл сразу.
+   PEN_FRICTION — как быстро гаснет (ближе к 1 — дольше едет), PEN_MIN_SPEED — порог. */
+(function(){
+  var PEN_FRICTION = 0.95;     // множитель скорости за кадр (16 мс)
+  var PEN_MIN_SPEED = 0.03;    // px/мс — медленнее этого инерция не начинается / заканчивается
+  var SAMPLE_MS = 100;         // скорость считается по прокрутке за последние 100 мс
+  var panEl = null, samples = [], penDown = false, anim = 0;
+
+  function scrollableParent(el){
+    while(el && el !== document.body && el !== document.documentElement){
+      if(el.nodeType === 1){
+        var st = getComputedStyle(el);
+        if(/(auto|scroll)/.test(st.overflowY) && el.scrollHeight > el.clientHeight + 1) return el;
+      }
+      el = el.parentNode;
+    }
+    return null;
+  }
+  function stopMomentum(){ if(anim){ cancelAnimationFrame(anim); anim = 0; } }
+
+  window.addEventListener("pointerdown", function(e){
+    stopMomentum();
+    if(e.pointerType !== "pen") return;
+    penDown = true;
+    panEl = scrollableParent(e.target);
+    samples = panEl ? [{ t: performance.now(), y: panEl.scrollTop }] : [];
+  }, true);
+  // прокрутка пером: запоминаем положение и время
+  document.addEventListener("scroll", function(e){
+    if(!penDown || !panEl || e.target !== panEl || anim) return;
+    var now = performance.now();
+    samples.push({ t: now, y: panEl.scrollTop });
+    while(samples.length > 2 && now - samples[0].t > SAMPLE_MS) samples.shift();
+  }, true);
+  function release(){
+    if(!penDown) return;
+    penDown = false;
+    if(!panEl || samples.length < 2) return;
+    var now = performance.now();
+    var last = samples[samples.length - 1];
+    if(now - last.t > 60) return;            // перед подъёмом перо остановили — без инерции
+    var first = samples[0];
+    var dt = last.t - first.t;
+    if(dt <= 0) return;
+    var v = (last.y - first.y) / dt;         // px/мс
+    if(Math.abs(v) < PEN_MIN_SPEED) return;
+    var el = panEl, prev = now;
+    stopMomentum();
+    var step = function(t){
+      var d = Math.min(50, t - prev); prev = t;
+      var before = el.scrollTop;
+      el.scrollTop = before + v * d;
+      v *= Math.pow(PEN_FRICTION, d / 16);
+      // упёрлись в край или скорость погасла — стоп
+      if(Math.abs(v) < PEN_MIN_SPEED || el.scrollTop === before){ anim = 0; return; }
+      anim = requestAnimationFrame(step);
+    };
+    anim = requestAnimationFrame(step);
+  }
+  // перо поднято: обычный pointerup или (после прокрутки, когда браузер забрал жест
+  // себе) первое движение пера над планшетом без нажатия
+  window.addEventListener("pointerup", function(e){ if(e.pointerType === "pen") release(); }, true);
+  ["pointermove", "pointerover"].forEach(function(type){
+    window.addEventListener(type, function(e){
+      if(e.pointerType === "pen" && penDown && e.buttons === 0) release();
+    }, true);
+  });
+  window.addEventListener("wheel", stopMomentum, { capture: true, passive: true });
+  window.addEventListener("keydown", stopMomentum, true);
+})();
+</script>
+<script>
+/* ===== Ctrl+клик по заголовку блока настроек — сброс этого блока к значениям по умолчанию =====
+   Работает во всех вкладках. Не сбрасываются: MIDI, язык и тема, «Все горячие клавиши».
+   Сброс делается «нажатием» тех же кнопок, галок и ползунков, что и вручную, поэтому всё
+   сохраняется и перерисовывается обычным путём. Значения по умолчанию — в RESETS ниже
+   (ключ — data-i18n заголовка, отдельно для каждой вкладки). */
+(function(){
+  var panel = document.getElementById("settingsPanel");
+  if(!panel) return;
+  function $(id){ return document.getElementById(id); }
+  // одна кнопка из нескольких (segmented)
+  function seg(box, value){
+    var b = box && box.querySelector('button[data-value="' + value + '"]');
+    if(b && !b.classList.contains("active")) b.click();
+  }
+  // сетка с несколькими вариантами: want(index, button) — должна ли кнопка быть включена.
+  // Сначала включаем нужные, потом выключаем лишние (последнюю включённую снять нельзя).
+  // Кнопки ищутся заново перед каждым нажатием: некоторые сетки перестраиваются после клика.
+  function grid(container, sel, onCls, want){
+    if(!container) return;
+    [true, false].forEach(function(turnOn){
+      var n = container.querySelectorAll(sel).length;
+      for(var i = 0; i < n; i++){
+        var b = container.querySelectorAll(sel)[i];
+        if(!b || b.disabled) continue;
+        var w = !!want(i, b), on = b.classList.contains(onCls);
+        if(w === turnOn && on !== w) b.click();
+      }
+    });
+  }
+  function check(id, val){
+    var c = $(id);
+    if(c && c.checked !== val) c.click();
+  }
+  function setVal(id, val){
+    var r = $(id);
+    if(!r) return;
+    r.value = String(val);
+    r.dispatchEvent(new Event("input", { bubbles: true }));
+    r.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  function naming(box){ seg(box, "letters"); }
+
+  var RESETS = {
+    noteSettingsBlocks: {
+      h_variants: function(){ grid($("modeGrid"), "button", "active", function(i, b){ return b.dataset.value === "single"; }); },
+      h_clef: function(box){ seg(box, "treble"); },
+      h_allowed_notes: function(){ grid($("noteGrid"), "button", "active", function(i, b){ return b.textContent === "C"; }); },
+      h_ledger_lines: function(box){ seg(box, "0"); },
+      h_inversions: function(){ grid($("invGrid"), "button", "active", function(i, b){ return b.dataset.value === "0"; }); },
+      h_answer_buttons: function(box){ seg(box, "show"); },
+      h_note_names: naming,
+      h_accuracy: function(){
+        check("showOctaveToggle", false);
+        check("showPianoToggle", false);
+        setVal("pianoWhiteColorInput", "#68665e");
+        setVal("pianoBlackColorInput", "#1a1a1c");
+        check("onlyAfterCorrectToggle", false);
+      },
+      h_durations_appearance: function(){ check("showDurationsToggle", false); },
+      h_hint_colors: function(){
+        setVal("revealTop", 7); setVal("revealLeft", 23); setVal("revealSize", 42);
+        check("revealShowNoteIconToggle", true);
+      },
+      h_errpos_notes: function(){ setVal("errorsPosX", -753); setVal("errorsPosY", 0); }
+    },
+    scaleSettingsBlocks: {
+      h_clef: function(box){ seg(box, "treble"); },
+      h_tonics: function(){ grid($("scaleTonicGrid"), "button", "selected", function(i, b){ return b.textContent === "C"; }); },
+      h_scales_modes: function(){
+        grid($("scaleTypeGrid"), ".scale-type-cell > button", "selected", function(i, b){
+          var l = b.querySelector(".scale-type-label");
+          return !!l && l.dataset.scaleTypeKey === "major";
+        });
+        // галка «Начинать со случайной ступени» стоит под этим блоком без своего заголовка
+        check("scaleRandomStartToggle", false);
+      },
+      h_accuracy: function(){ check("scaleShowPianoToggle", false); },
+      h_scale_label_pos: function(){ setVal("scaleLabelTop", 90); setVal("scaleLabelLeft", 50); setVal("scaleLabelSize", 30); },
+      h_hint_colors_scales: function(){ setVal("scaleHintTop", 7); setVal("scaleHintLeft", 23); setVal("scaleHintSize", 42); },
+      h_errpos_scales: function(){ setVal("errorsScalePosX", -753); setVal("errorsScalePosY", 0); },
+      h_note_names: naming
+    },
+    durSettingsBlocks: {
+      // порядок кнопок — как в DURATIONS: 1, 1•, 1/2, 1/2•, 1/4 ... ; по умолчанию 1, 1/2, 1/4
+      h_allowed_durations: function(){ grid($("durGrid"), "button", "active", function(i){ return i === 0 || i === 2 || i === 4; }); },
+      h_errpos_rhythm: function(){ setVal("errorsDurPosX", -753); setVal("errorsDurPosY", 0); },
+      h_note_names: naming
+    },
+    nrSettingsBlocks: {
+      h_time_signature: function(){ grid($("nrTsGrid"), "button", "active", function(i, b){ return b.textContent === "4/4"; }); },
+      // порядок как в NR_TAGS: целая, половинная, 1/4, 1/8, ... ; по умолчанию 1/4 и 1/8
+      h_can_occur: function(){ grid($("nrTagGrid"), "button", "active", function(i){ return i === 2 || i === 3; }); },
+      h_scroll_speed: function(){ setVal("nrFlowSpeed", 100); },
+      h_sound: function(){
+        setVal("nrBpm", 60); setVal("nrMetroVolume", 80);
+        check("nrMetroPlay", true);
+        grid($("nrMetroDivGrid"), "button", "active", function(i){ return i === 0; });
+      },
+      h_calibration: function(){ setVal("rhCalibrateVal", 0); },
+      h_note_names: naming
+    }
+  };
+
+  panel.addEventListener("click", function(e){
+    if(!e.ctrlKey || e.button !== 0 || !e.target.closest) return;
+    if(e.target.closest(".info-icon")) return;
+    var h = e.target.closest("h3");
+    if(!h || !panel.contains(h)) return;
+    var keyEl = h.hasAttribute("data-i18n") ? h : h.querySelector(":scope > [data-i18n]");
+    var tab = h.closest("#noteSettingsBlocks, #scaleSettingsBlocks, #durSettingsBlocks, #nrSettingsBlocks");
+    if(!keyEl || !tab) return;
+    var fn = RESETS[tab.id] && RESETS[tab.id][keyEl.getAttribute("data-i18n")];
+    if(!fn) return;
+    e.preventDefault();
+    fn(h.nextElementSibling);
+  });
 })();
 </script>
 </body>
