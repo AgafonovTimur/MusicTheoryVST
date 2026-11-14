@@ -84,6 +84,7 @@
   });
 })();
 </script>
+
 <title>Кварто-квинтовый круг</title>
 <style>
 
@@ -1028,7 +1029,7 @@
   /* Верхние вкладки "Практика 1 / Практика 2 / Обучение" — как на макете.
      Переключают, какой уровень/режим отображается ниже; настройки
      каждого уровня сохраняются отдельно и не сбрасываются при переходах. */
-  /* Ряд переключения приложений (оболочка index.html). Оформлен теми же
+    /* Ряд переключения приложений (оболочка index.html). Оформлен теми же
      кнопками .topTabBtn, что и вкладки. По ширине 4px между кнопками,
      вертикальный отступ не задаём — его даёт gap самой панели настроек. */
   #appSwitchBar{
@@ -1037,7 +1038,7 @@
     gap:4px;
     width:100%;
   }
-  #topTabBar{
+#topTabBar{
     display:grid;
     grid-template-columns:1fr 1fr 1fr;
     gap:8px;
@@ -1545,12 +1546,11 @@
   /* ===== Кнопки обращений под мини-клавиатурой "Обучения" =====
      НАСТРОЙКА ПОЛОЖЕНИЯ (всё в пикселях, отсчёт — от самой мини-
      клавиатуры, а не от круга/экрана):
-       --train-inv-offset-x : сдвиг ряда кнопок вправо от ЛЕВОГО КРАЯ
-                              клавиатуры. 6px = ровно левый край самой
-                              левой (первой) клавиши мини-пианино
-                              (столько же, сколько TRAIN_PIANO_MARGIN_X
-                              в JS). Больше — весь ряд едет вправо,
-                              меньше (можно и отрицательное) — влево.
+       --train-inv-offset-x : сдвиг ряда кнопок от ЦЕНТРА клавиатуры
+                              (кнопки стоят по центру клавиатуры).
+                              0px — ровно по центру. Больше — весь ряд
+                              едет вправо, меньше (можно и
+                              отрицательное) — влево.
        --train-inv-offset-y : расстояние от НИЖНЕГО КРАЯ клавиш до
                               кнопок. Больше — кнопки ниже.
        --train-inv-btn-gap   : зазор между кнопками.
@@ -1558,7 +1558,7 @@
      Т.к. блок лежит внутри #trainPianoWrap, при движении/масштабе
      клавиатуры кнопки едут вместе с ней. */
   #trainPianoWrap{
-    --train-inv-offset-x:6px;
+    --train-inv-offset-x:0px;
     --train-inv-offset-y:14px;
     --train-inv-btn-gap:6px;
     --train-inv-btn-width:96px;
@@ -1566,8 +1566,9 @@
   #trainInversionBtns{
     position:absolute;
     top:100%;
-    left:0;
-    margin-left:var(--train-inv-offset-x);
+    /* по центру клавиатуры (слева-справа) */
+    left:50%;
+    transform:translateX(calc(-50% + var(--train-inv-offset-x)));
     margin-top:var(--train-inv-offset-y);
     display:flex;
     gap:var(--train-inv-btn-gap);
@@ -1794,10 +1795,8 @@
     transform-origin:center var(--piano-key-center-y, 204px);
   }
   body.piano-left:not(.is-mobile) #trainInversionBtns{
-    left:auto;
-    right:0;
-    margin-left:0;
-    margin-right:var(--train-inv-offset-x);
+    left:50%;
+    right:auto;
   }
   body.piano-left:not(.is-mobile) #l3NameAnswers{
     transform-origin:right top;
@@ -1841,10 +1840,8 @@
     transform-origin:center var(--piano-key-center-y, 204px);
   }
   body.train-piano-below:not(.is-mobile) #trainInversionBtns{
-    left:0;
+    left:50%;
     right:auto;
-    margin-right:0;
-    margin-left:var(--train-inv-offset-x);
   }
   /* стрелки клавиатуры, заходящие на круг, прячутся ПОД круг — ноты на
      круге остаются видны (круг рисуется поверх клавиатуры) */
@@ -2761,24 +2758,13 @@
   #trainRelModesPopup .relRow:hover{ background:var(--btn-bg-hover); }
   #trainRelModesPopup .relRow.active{ background:var(--green); color:#fff; }
   #trainRelModesPopup .relRowNote{ width:calc(34px * var(--rel-scale) * var(--rel-font)); text-align:right; font-weight:bold; }
-  /* Галка "Показать drop2 и 3" — строкой на всю ширину под m(Maj13) */
-  #trainShowDropsRow{
-    grid-column:1 / -1;
-    display:flex;
-    align-items:center;
-    gap:6px;
-    width:fit-content;
+  /* кнопки "Киношное осн./1е/..." — название длиннее, чем у Drop: в одну строку */
+  .ringBtn.cineBtn{
+    white-space:nowrap;
+    font-size:0.88em;
+    padding-left:2px;
+    padding-right:2px;
   }
-  #trainShowDropsRow label{
-    display:flex;
-    align-items:center;
-    gap:6px;
-    font-family:var(--font);
-    font-size:16px;
-    color:var(--app-text-color);
-    cursor:pointer;
-  }
-  #trainShowDropsRow input{ cursor:pointer; }
   #trainModeGroups{
     margin-top:0;   /* было 10px — отступ легенда→лады теперь равен аккорды→легенда */
   }
@@ -4026,7 +4012,6 @@
     <button class="topTabBtn" data-switch-level="frameNotes" data-i18n="switchNotes">Ноты</button>
     <button class="topTabBtn" data-switch-level="frameEar" data-i18n="switchEar">Слух</button>
   </div>
-
   <div id="topTabBar">
     <button class="topTabBtn" id="topTabTrainingBtn" data-tab="training" data-i18n="tabTraining">Обучение</button>
     <button class="topTabBtn" id="topTabPractice1Btn" data-tab="p1" data-i18n="tabNotes">Ноты</button>
@@ -4470,6 +4455,12 @@
                 <span data-i18n="chooseInversion">Выбор обращения</span>
                 <span class="infoIcon" data-i18n-tip="tipInversions" data-tip="Нажимать ноты нужно в порядке как они идут в обращении - @@иначе будет засчитано как неверная нота@@&#10;&#10;@@Drop 2@@ — Мажор, Минор, Sus2, Sus4, dim, aug&#10;&#10;@@Drop 2 и Drop 3@@ — 7, maj7, m7, m(Maj7), 7b5, 7#5, 7sus4, dim7, m7b5&#10;&#10;Если у аккорда нет выбранного дропа (и других выбранных обращений) — он выпадает в основном виде.">i</span>
               </div>
+              <!-- "Киношное" / "Показать drop2 и 3": какие кнопки добавляются после
+                   обращений. Включена одна из двух или ни одной (см. l3VoicingKind) -->
+              <div id="level3VoicingKindRow" class="invStyleRow" style="margin-left:48px;">
+                <span class="invStyleItem"><label class="invStyleOption"><input type="checkbox" id="level3CineCheckbox"><span data-i18n="cineCb">Киношное</span></label><span class="infoIcon" data-i18n-tip="tipCineL3" data-tip="Вторая снизу нота аккорда поднимается на октаву вверх: C осн. C-E-G → C-G-E. Кнопки «Киношное» — после кнопок обращений.&#10;&#10;Ноты те же, что у Drop 2 (C-G-E = Drop 2 2е), поэтому включается либо Киношное, либо Drop 2 и 3 (или ни одна).&#10;&#10;@@Трезвучия@@ — Мажор, Минор, Sus2, Sus4, dim, aug&#10;&#10;@@Аккорды из 4 нот@@ — 7, maj7, m7, m(Maj7), 7b5, 7#5, 7sus4, dim7, m7b5">i</span></span>
+                <span class="invStyleItem"><label class="invStyleOption"><input type="checkbox" id="level3DropsCheckbox"><span data-i18n="showDrops">Показать drop2 и 3</span></label><span class="infoIcon" data-i18n-tip="tipShowDropsL3" data-tip="Кнопки Drop 2 и Drop 3 — после кнопок обращений. Включается либо Drop 2 и 3, либо Киношное (или ни одна).&#10;&#10;@@Drop 2@@ — Мажор, Минор, Sus2, Sus4, dim, aug&#10;&#10;@@Drop 2 и Drop 3@@ — 7, maj7, m7, m(Maj7), 7b5, 7#5, 7sus4, dim7, m7b5">i</span></span>
+              </div>
               <div id="level3InvStyleRow" class="invStyleRow" style="margin-left:24px;">
                 <span class="invStyleItem"><label class="invStyleOption"><input type="checkbox" id="level3InvStyleAccCheckbox"><span data-i18n="invStyleAcc">С бемолями\диезами</span></label><span class="infoIcon" data-i18n-tip="tipInvStyleAcc" data-tip="Ноты расположены близко друг к другу чтобы проще запоминать, некоторые ноты заменены на ступень выше или ниже">i</span></span>
                 <span class="invStyleItem"><label class="invStyleOption"><input type="checkbox" id="level3InvStyleCorrectCheckbox"><span data-i18n="invStyleCorrect">Правильно</span></label><span class="infoIcon" data-i18n-tip="tipInvStyleCorrect" data-tip="Точный вариант от первой ноты до последней">i</span></span>
@@ -4690,6 +4681,7 @@
               <label><input type="checkbox" class="vlSepCb"><span data-i18n="vlSep">Трезвучия и септаккорды отдельно</span></label>
               <div class="vlSubHeader" data-i18n="vlGroupsHeader">Изменяемое количество нот при переходе из аккорда в аккорд:</div>
               <div class="vlGroupsRow"><label class="invStyleOption"><input type="checkbox" data-g="1"><span data-i18n="vlGroup1">1 нота</span></label><label class="invStyleOption"><input type="checkbox" data-g="2"><span data-i18n="vlGroup2">2 ноты</span></label><label class="invStyleOption"><input type="checkbox" data-g="3"><span data-i18n="vlGroup3">3 ноты</span></label><label class="invStyleOption"><input type="checkbox" data-g="4"><span data-i18n="vlGroup4">4 ноты</span></label></div>
+              <div class="vlTipRow vlPairCineRow"><label><input type="checkbox" class="vlPairCineCb"><span data-i18n="cineCb">Киношное</span></label><span class="infoIcon" data-tip-mid data-i18n-tip="tipVlPairCine" data-tip="Первый аккорд вопроса выпадает в основном виде, в обращении или в «Киношном» расположении (случайно): вторая снизу нота поднята на октаву вверх (C осн. C-E-G → C-G-E). Дальше аккорды идут по голосоведению — расположение нот сохраняется.&#10;&#10;Ноты те же, что у Drop 2, поэтому включается либо Киношное, либо Drop 2\3.&#10;&#10;Мажор, Минор, Sus2, Sus4, 7, maj7, m7, 7sus4&#10;&#10;В прогрессии не учитывается.">i</span></div>
               <div class="vlTipRow vlPairDropsRow"><label><input type="checkbox" class="vlPairDropsCb"><span data-i18n="vlPairDrops">Добавить дроп 2\3</span></label><span class="infoIcon" data-tip-mid data-i18n-tip="tipVlPairDrops" data-tip="Первый аккорд вопроса выпадает в основном виде, в обращении или в Drop 2 / Drop 3 (случайно). Дальше аккорды идут по голосоведению — расположение нот сохраняется.&#10;&#10;@@Drop 2@@ — Мажор, Минор, Sus2, Sus4&#10;&#10;@@Drop 2 и Drop 3@@ — 7, maj7, m7, 7sus4&#10;&#10;В прогрессии не учитывается.">i</span></div>
               <div class="vlTipRow"><label><input type="checkbox" class="vlKeepCb"><span data-i18n="vlKeep">После ошибки не возвращать к предыдущему аккорду</span></label><span class="infoIcon" data-i18n-tip="tipVlKeep" data-tip="Без галки: ошибка в правом аккорде — набранные ноты сбрасываются, и нужно снова сыграть левый аккорд, потом правый.&#10;&#10;С галкой — после ошибки остаёмся на правом аккорде: набрать нужно только его.">i</span></div>
               <div class="vlTipRow"><label><input type="checkbox" class="vlHidePrevCb"><span data-i18n="vlHidePrev">Не показывать предыдущий аккорд</span></label><span class="infoIcon" data-i18n-tip="tipVlHidePrev" data-tip="«В кругу» — после того как левый аккорд сыгран, левый кружок и стрелка к правому не показываются.&#10;&#10;«На клавиатуре» — сыгранный левый аккорд не показывается синими клавишами.">i</span></div>
@@ -5040,9 +5032,6 @@
                    <span class="infoIcon" data-tip="m(Maj13) = Минор + большая 7-я ступень + большая 9-я ступень + чистая 11-я ступень + большая 13-я ступень - @@1 b3 5 7 9(2) 11(4) 13(6).@@" data-i18n-tip="tipMMaj13L3">i</span>
                  </div>
 
-                 <!-- Галка "Показать drop2 и 3": выключена — кнопок Drop 2 / Drop 3
-                      под клавиатурой нет (см. trainShowDrops / trainVariantList) -->
-                 <span id="trainShowDropsRow"><label><input type="checkbox" id="trainShowDropsCheckbox"><span data-i18n="showDrops">Показать drop2 и 3</span></label><span class="infoIcon" data-i18n-tip="tipShowDrops" data-tip="Кнопки Drop 2 и Drop 3 под клавиатурой, после обращений.&#10;&#10;@@Drop 2@@ — Мажор, Минор, Sus2, Sus4, dim, aug&#10;&#10;@@Drop 2 и Drop 3@@ — 7, maj7, m7, m(Maj7), 7b5, 7#5, 7sus4, dim7, m7b5">i</span></span>
 
 
                </div>
@@ -5053,6 +5042,13 @@
                    Подпункты — схема круга: "С бемолями\диезами" (по умолчанию)
                    или "Правильно", нажата всегда одна. -->
               <div id="trainShowInversionsRow"><span data-i18n="chooseInversion">Выбор обращения</span></div>
+              <!-- "Киношное" / "Показать drop2 и 3": кнопки после обращений под
+                   клавиатурой (см. trainShowCine / trainShowDrops / trainVariantList).
+                   Включена может быть одна из двух или ни одной. -->
+              <div id="trainVoicingKindRow" class="invStyleRow" style="margin-left:48px;">
+                <span class="invStyleItem"><label class="invStyleOption"><input type="checkbox" id="trainShowCineCheckbox"><span data-i18n="cineCb">Киношное</span></label><span class="infoIcon" data-i18n-tip="tipCine" data-tip="Вторая снизу нота аккорда поднимается на октаву вверх: C осн. C-E-G → C-G-E. Кнопки — под клавиатурой, после обращений.&#10;&#10;Ноты те же, что у Drop 2 (C-G-E = Drop 2 2е), поэтому включается либо Киношное, либо Drop 2 и 3.&#10;&#10;@@Трезвучия@@ — Мажор, Минор, Sus2, Sus4, dim, aug&#10;&#10;@@Аккорды из 4 нот@@ — 7, maj7, m7, m(Maj7), 7b5, 7#5, 7sus4, dim7, m7b5">i</span></span>
+                <span class="invStyleItem"><label class="invStyleOption"><input type="checkbox" id="trainShowDropsCheckbox"><span data-i18n="showDrops">Показать drop2 и 3</span></label><span class="infoIcon" data-i18n-tip="tipShowDrops" data-tip="Кнопки Drop 2 и Drop 3 под клавиатурой, после обращений.&#10;&#10;@@Drop 2@@ — Мажор, Минор, Sus2, Sus4, dim, aug&#10;&#10;@@Drop 2 и Drop 3@@ — 7, maj7, m7, m(Maj7), 7b5, 7#5, 7sus4, dim7, m7b5">i</span></span>
+              </div>
               <div id="trainInvStyleRow" class="invStyleRow" style="margin-left:24px;">
                 <span class="invStyleItem"><label class="invStyleOption"><input type="checkbox" id="trainInvStyleAccCheckbox"><span data-i18n="invStyleAcc">С бемолями\диезами</span></label><span class="infoIcon" data-i18n-tip="tipInvStyleAcc" data-tip="Ноты расположены близко друг к другу чтобы проще запоминать, некоторые ноты заменены на ступень выше или ниже">i</span></span>
                 <span class="invStyleItem"><label class="invStyleOption"><input type="checkbox" id="trainInvStyleCorrectCheckbox"><span data-i18n="invStyleCorrect">Правильно</span></label><span class="infoIcon" data-i18n-tip="tipInvStyleCorrect" data-tip="Точный вариант от первой ноты до последней">i</span></span>
@@ -5186,6 +5182,7 @@
               </div>
               <div class="vlSubHeader" data-i18n="vlGroupsHeader">Изменяемое количество нот при переходе из аккорда в аккорд:</div>
               <div class="vlGroupsRow"><label class="invStyleOption"><input type="checkbox" data-g="1"><span data-i18n="vlGroup1">1 нота</span></label><label class="invStyleOption"><input type="checkbox" data-g="2"><span data-i18n="vlGroup2">2 ноты</span></label><label class="invStyleOption"><input type="checkbox" data-g="3"><span data-i18n="vlGroup3">3 ноты</span></label><label class="invStyleOption"><input type="checkbox" data-g="4"><span data-i18n="vlGroup4">4 ноты</span></label></div>
+              <div class="vlTipRow"><label><input type="checkbox" class="vlCineCb"><span data-i18n="cineCb">Киношное</span></label><span class="infoIcon" data-i18n-tip="tipVlCine" data-tip="Под клавиатурой, после обращений — кнопки «Киношное» для аккорда в центре: вторая снизу нота поднимается на октаву вверх (C осн. C-E-G → C-G-E).&#10;&#10;Ноты те же, что у Drop 2, поэтому включается либо Киношное, либо Drop 2 и 3.&#10;&#10;Мажор, Минор, Sus2, Sus4, 7, maj7, m7, 7sus4">i</span></div>
               <div class="vlTipRow"><label><input type="checkbox" class="vlDropsCb"><span data-i18n="showDrops">Показать drop2 и 3</span></label><span class="infoIcon" data-i18n-tip="tipVlDrops" data-tip="Под клавиатурой, после обращений — кнопки Drop 2 и Drop 3 для аккорда в центре.&#10;&#10;Drop 2 — Мажор, Минор, Sus2, Sus4&#10;&#10;Drop 2 и Drop 3 — 7, maj7, m7, 7sus4">i</span></div>
               <div class="vlTipRow"><label><input type="checkbox" class="vlSubCb"><span data-i18n="vlSub">Аккорды второго уровня</span></label><span class="infoIcon" data-i18n-tip="tipVlSub" data-tip="Вокруг каждого аккорда схемы показываются аккорды, в которые из него можно перейти дальше (кроме возврата к аккорду в центре).&#10;&#10;Работает, когда вокруг аккорда в центре не больше 10 аккордов.">i</span></div>
               <div class="vlTipRow"><label><input type="checkbox" class="vlPopupCb"><span data-i18n="vlPopup">Окно с разницей в аккордах</span></label><span class="infoIcon" data-i18n-tip="tipVlPopup" data-tip="При наведении на аккорд схемы появляется окно с двумя клавиатурами: сверху — аккорд в центре, снизу — аккорд, на который навели.&#10;&#10;Стрелка — нота сдвигается, «+» — нота добавляется, «−» — нота убирается.">i</span></div>
@@ -5911,6 +5908,7 @@ const I18N = {
   switchCircle:        { ru:'Квинтовый круг', en:'Circle of Fifths', zh:'五度圈' },
   switchNotes:         { ru:'Ноты', en:'Notes', zh:'音符' },
   switchEar:           { ru:'Слух', en:'Ear', zh:'听觉' },
+
   hotkeysHelp:         HOTKEYS_HELP_TEXT,
   tabTraining:        { ru:'Обучение',  en:'Training',  zh:'训练' },
   tabNotes:            { ru:'Ноты',      en:'Notes',     zh:'音符' },
@@ -6197,6 +6195,24 @@ const I18N = {
   dropSfx1:            { ru:'1е', en:'1st', zh:'第一' },
   dropSfx2:            { ru:'2е', en:'2nd', zh:'第二' },
   dropSfx3:            { ru:'3е', en:'3rd', zh:'第三' },
+  // "Киношное" (Cinematic): название на кнопках ("Киношное осн.") и галка
+  cineName:            { ru:'Киношное', en:'Cinematic', zh:'电影感' },
+  cineCb:              { ru:'Киношное', en:'Cinematic', zh:'电影感' },
+  tipCine: {
+    ru:'Вторая снизу нота аккорда поднимается на октаву вверх: C осн. C-E-G → C-G-E. Кнопки — под клавиатурой, после обращений.\n\nНоты те же, что у Drop 2 (C-G-E = Drop 2 2е), поэтому включается либо Киношное, либо Drop 2 и 3.\n\n@@Трезвучия@@ — Мажор, Минор, Sus2, Sus4, dim, aug\n\n@@Аккорды из 4 нот@@ — 7, maj7, m7, m(Maj7), 7b5, 7#5, 7sus4, dim7, m7b5',
+    en:'The second note from the bottom goes up an octave: C root C-E-G → C-G-E. The buttons are under the keyboard, after the inversions.\n\nThe notes are the same as in Drop 2 (C-G-E = Drop 2 2nd), so either Cinematic or Drop 2 and 3 is on.\n\n@@Triads@@ — Major, Minor, Sus2, Sus4, dim, aug\n\n@@4-note chords@@ — 7, maj7, m7, m(Maj7), 7b5, 7#5, 7sus4, dim7, m7b5',
+    zh:'和弦从下往上第二个音升高八度：C 原位 C-E-G → C-G-E。按钮在键盘下方、转位之后。\n\n音与 Drop 2 相同（C-G-E = Drop 2 第二），因此只能开启电影感或 Drop 2 和 3 其中之一。\n\n@@三和弦@@ — 大三、小三、Sus2、Sus4、dim、aug\n\n@@四音和弦@@ — 7、maj7、m7、m(Maj7)、7b5、7#5、7sus4、dim7、m7b5'
+  },
+  tipCineL3: {
+    ru:'Вторая снизу нота аккорда поднимается на октаву вверх: C осн. C-E-G → C-G-E. Кнопки «Киношное» — после кнопок обращений.\n\nНоты те же, что у Drop 2 (C-G-E = Drop 2 2е), поэтому включается либо Киношное, либо Drop 2 и 3 (или ни одна).\n\n@@Трезвучия@@ — Мажор, Минор, Sus2, Sus4, dim, aug\n\n@@Аккорды из 4 нот@@ — 7, maj7, m7, m(Maj7), 7b5, 7#5, 7sus4, dim7, m7b5',
+    en:'The second note from the bottom goes up an octave: C root C-E-G → C-G-E. The Cinematic buttons come after the inversion buttons.\n\nThe notes are the same as in Drop 2 (C-G-E = Drop 2 2nd), so either Cinematic or Drop 2 and 3 is on (or neither).\n\n@@Triads@@ — Major, Minor, Sus2, Sus4, dim, aug\n\n@@4-note chords@@ — 7, maj7, m7, m(Maj7), 7b5, 7#5, 7sus4, dim7, m7b5',
+    zh:'和弦从下往上第二个音升高八度：C 原位 C-E-G → C-G-E。电影感按钮在转位按钮之后。\n\n音与 Drop 2 相同（C-G-E = Drop 2 第二），因此只能开启电影感或 Drop 2 和 3 其中之一（或都不开）。\n\n@@三和弦@@ — 大三、小三、Sus2、Sus4、dim、aug\n\n@@四音和弦@@ — 7、maj7、m7、m(Maj7)、7b5、7#5、7sus4、dim7、m7b5'
+  },
+  tipShowDropsL3: {
+    ru:'Кнопки Drop 2 и Drop 3 — после кнопок обращений. Включается либо Drop 2 и 3, либо Киношное (или ни одна).\n\n@@Drop 2@@ — Мажор, Минор, Sus2, Sus4, dim, aug\n\n@@Drop 2 и Drop 3@@ — 7, maj7, m7, m(Maj7), 7b5, 7#5, 7sus4, dim7, m7b5',
+    en:'Drop 2 and Drop 3 buttons come after the inversion buttons. Either Drop 2 and 3 or Cinematic is on (or neither).\n\n@@Drop 2@@ — Major, Minor, Sus2, Sus4, dim, aug\n\n@@Drop 2 and Drop 3@@ — 7, maj7, m7, m(Maj7), 7b5, 7#5, 7sus4, dim7, m7b5',
+    zh:'Drop 2 和 Drop 3 按钮在转位按钮之后。只能开启 Drop 2 和 3 或电影感其中之一（或都不开）。\n\n@@Drop 2@@ — 大三、小三、Sus2、Sus4、dim、aug\n\n@@Drop 2 和 Drop 3@@ — 7、maj7、m7、m(Maj7)、7b5、7#5、7sus4、dim7、m7b5'
+  },
   tipInvStyleCorrect: { ru:'Точный вариант от первой ноты до последней', en:'Exact version from the first note to the last', zh:'从第一个音到最后一个音的精确版本' },
   tipInvStyleAcc: { ru:'Ноты расположены близко друг к другу чтобы проще запоминать, некоторые ноты заменены на ступень выше или ниже', en:'Notes are placed close to each other to make them easier to remember; some notes are replaced by a step higher or lower', zh:'音符彼此靠近排列，便于记忆；部分音符被替换为高一级或低一级' },
   tipInvStyleEasy: { ru:'Удобный вариант запоминания : мажор/минор всегда одинаковый для всех аккордов + добавочные ноты каждого аккорда (beta)', en:'Easy way to memorize: the major/minor triad is always the same for all chords + the added notes of each chord (beta)', zh:'便于记忆的版本：所有和弦的大/小三和弦始终相同 + 每个和弦的附加音 (beta)' },
@@ -6442,9 +6458,9 @@ const APP_TITLE_I18N = { ru: 'Кварто-квинтовый круг', en: 'Ci
 // Язык, пришедший из соседнего приложения через оболочку —
 // применяется тем же путём, что и клик по кнопке языка.
 window.__setUiLangExternal = function(lang){ applyLanguage(lang); };
-
 function applyLanguage(lang){
   if(window.__appBridgeSend) window.__appBridgeSend({ type:'uiLang', lang: (lang === 'en' || lang === 'zh') ? lang : 'ru' });
+
   appLang = (lang === 'en' || lang === 'zh') ? lang : 'ru';
   localStorage.setItem(APP_LANG_KEY, appLang);
   document.title = APP_TITLE_I18N[appLang] || APP_TITLE_I18N.ru;
@@ -10505,22 +10521,48 @@ const INVERSION_BTN_I18N = ['invRoot','inv1','inv2','inv3','inv4','inv5','inv6']
 const DROP_TRIAD_TYPES = new Set(['triad','triadMaj','triadMin','triadMajX','triadMinX','sus2','sus4','dim','aug']);
 const DROP_SEVENTH_TYPES = new Set(['dom7','maj7','min7','mmaj7','dom7b5','dom7s5','dom7sus4','dim7','m7b5']);
 const DROP_SUFFIX_I18N = ['dropSfx0','dropSfx1','dropSfx2','dropSfx3'];
+/* ===== КИНОШНОЕ (Cinematic) =====
+   Зеркало Drop 2: вторая СНИЗУ нота обращения k уходит на октаву ВВЕРХ
+   (C осн.: C E G -> C G E; Cmaj7 осн.: C E G B -> C G B E). Номер варианта
+   40+k. Ноты совпадают с одним из Drop 2 (C G E = Drop 2 2е), поэтому
+   включается либо "Киношное", либо "Drop 2 и 3" (галки взаимоисключаются).
+   Те же типы аккордов, что и у дропов. isDropVariant() true и для него —
+   везде, где важен "свой порядок нот снизу вверх", работает как дроп. */
 function isDropVariant(v){ return (v || 0) >= 20; }
+function isCineVariant(v){ return (v || 0) >= 40 && (v || 0) < 50; }
+// только Drop 2 / Drop 3 (без "Киношного")
+function isDrop23Variant(v){ return (v || 0) >= 20 && (v || 0) < 40; }
 function dropVariantsFor(type, ring){
   const n = trainChordFormula(type, ring || 'major').length;
   if(n === 3 && DROP_TRIAD_TYPES.has(type)) return [20, 21, 22];
   if(n === 4 && DROP_SEVENTH_TYPES.has(type)) return [20, 21, 22, 23, 30, 31, 32, 33];
   return [];
 }
-// все варианты аккорда по порядку кнопок: обращения, затем Drop 2, Drop 3
+function cineVariantsFor(type, ring){
+  const n = trainChordFormula(type, ring || 'major').length;
+  if(n === 3 && DROP_TRIAD_TYPES.has(type)) return [40, 41, 42];
+  if(n === 4 && DROP_SEVENTH_TYPES.has(type)) return [40, 41, 42, 43];
+  return [];
+}
+// все варианты аккорда по порядку кнопок: обращения, затем Drop 2, Drop 3, Киношное
 function chordVariantsFor(type, ring){
   const n = trainChordFormula(type, ring || 'major').length;
   const out = [];
   for(let i = 0; i < n; i++) out.push(i);
-  return out.concat(dropVariantsFor(type, ring));
+  return out.concat(dropVariantsFor(type, ring), cineVariantsFor(type, ring));
 }
 // порядок нот (номера по формуле) снизу вверх для варианта v
 function chordVariantOrder(n, v){
+  if(isCineVariant(v)){
+    const k = v % 10;
+    if((n === 3 || n === 4) && k < n){
+      const close = [];
+      for(let i = 0; i < n; i++) close.push((k + i) % n);
+      const raised = close.splice(1, 1)[0];   // вторая снизу — наверх
+      return close.concat([raised]);
+    }
+    v = 0;
+  }
   if(isDropVariant(v)){
     const d = Math.floor(v / 10), k = v % 10;
     // обращение k (снизу вверх) -> нота, d-я сверху, уходит вниз
@@ -10541,12 +10583,14 @@ function chordVariantOrder(n, v){
 // к последнему существующему (как раньше)
 function normalizeChordVariant(v, type, ring){
   v = v || 0;
+  if(isCineVariant(v)) return cineVariantsFor(type, ring).includes(v) ? v : 0;
   if(isDropVariant(v)) return dropVariantsFor(type, ring).includes(v) ? v : 0;
   const n = trainChordFormula(type, ring || 'major').length;
   return Math.max(0, Math.min(v, n - 1));
 }
 function chordVariantLabel(v){
   if(!isDropVariant(v)) return t(INVERSION_BTN_I18N[v]);
+  if(isCineVariant(v)) return t('cineName') + ' ' + t(DROP_SUFFIX_I18N[v % 10]);
   return 'Drop ' + Math.floor(v / 10) + ' ' + t(DROP_SUFFIX_I18N[v % 10]);
 }
 
@@ -10588,6 +10632,12 @@ let trainInversion = 0;
 var TRAIN_SHOW_DROPS_KEY = 'circleTrainShowDrops';
 var trainShowDrops = false;
 try{ trainShowDrops = localStorage.getItem(TRAIN_SHOW_DROPS_KEY) === '1'; }catch(e){ trainShowDrops = false; }
+// галка "Киношное" (над "Показать drop2 и 3", по умолчанию выключена);
+// включена может быть только одна из двух
+var TRAIN_SHOW_CINE_KEY = 'circleTrainShowCine';
+var trainShowCine = false;
+try{ trainShowCine = localStorage.getItem(TRAIN_SHOW_CINE_KEY) === '1'; }catch(e){ trainShowCine = false; }
+if(trainShowCine && trainShowDrops) trainShowDrops = false;
 try{ localStorage.removeItem(TRAIN_INVERSION_KEY); }catch(e){}
 
 function saveTrainInversion(){ /* выбор обращения не сохраняется */ }
@@ -10672,9 +10722,9 @@ function trainInversionBtnCount(){
 // Все варианты (обращения + Drop 2/3) текущего аккорда "Обучения"
 function trainVariantList(){
   if(trainModeType || !pressedTrainTonicRing) return [];
-  // галка "Показать drop2 и 3" снята — только обращения
-  if(!trainShowDrops) return chordVariantsFor(trainChordType, pressedTrainTonicRing).filter(v => !isDropVariant(v));
-  return chordVariantsFor(trainChordType, pressedTrainTonicRing);
+  // обращения + Drop 2/3 (галка "Показать drop2 и 3") или "Киношное"
+  return chordVariantsFor(trainChordType, pressedTrainTonicRing).filter(v =>
+    !isDropVariant(v) || (isCineVariant(v) ? trainShowCine : trainShowDrops));
 }
 
 // Ноты для клавиатуры в выбранном обращении — ровно один вариант
@@ -10718,7 +10768,7 @@ function updateTrainInversionButtons(){
   variants.forEach(i=>{
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'ringBtn' + (trainInversion === i ? ' active' : '');
+    btn.className = 'ringBtn' + (trainInversion === i ? ' active' : '') + (isCineVariant(i) ? ' cineBtn' : '');
     btn.dataset.variant = String(i);
     btn.textContent = chordVariantLabel(i);
     btn.addEventListener('click', ()=>{
@@ -10998,9 +11048,11 @@ function gtrAlignInversionButtons(){
     ib.style.right = (gi.svgW - gi.stripLeft - gi.stripW) + 'px';
     ib.style.left = 'auto';
     ib.style.marginRight = '0px';
+    ib.style.transform = 'none';
   } else {
     ib.style.left = gi.stripLeft + 'px';
     ib.style.marginLeft = '0px';
+    ib.style.transform = 'none';
   }
 }
 
@@ -15589,11 +15641,23 @@ function l3MaxInversionCount(){
 }
 // кнопки "Выбор обращения": обращения (по самому длинному типу), затем
 // Drop 2 / Drop 3 — если они есть хотя бы у одного из выбранных типов
+/* Галки "Киношное" / "Показать drop2 и 3" под "Выбор обращения": какие
+   кнопки идут после обращений. 'drop' — Drop 2/3, 'cine' — "Киношное",
+   'none' — ни те, ни другие (по умолчанию). Выбор сохраняется. */
+const L3_VOICING_KIND_KEY = 'circleL3VoicingKind';
+let l3VoicingKind = (function(){
+  let v = null;
+  try{ v = localStorage.getItem(L3_VOICING_KIND_KEY); }catch(e){ v = null; }
+  return (v === 'cine' || v === 'drop') ? v : 'none';
+})();
 function l3VariantButtonList(){
   const out = [];
   for(let i = 0; i < l3MaxInversionCount(); i++) out.push(i);
   const drops = new Set();
-  l3EffectiveChordTypes().forEach(tp => dropVariantsFor(tp, 'major').forEach(v => drops.add(v)));
+  l3EffectiveChordTypes().forEach(tp => {
+    if(l3VoicingKind === 'drop') dropVariantsFor(tp, 'major').forEach(v => drops.add(v));
+    if(l3VoicingKind === 'cine') cineVariantsFor(tp, 'major').forEach(v => drops.add(v));
+  });
   return out.concat(Array.from(drops).sort((a, b) => a - b));
 }
 
@@ -15634,6 +15698,15 @@ function renderL3InversionButtons(){
   //   level3InvStyleEasyCheckbox.disabled = !enabled;
   // }
   if(level3InvStyleRow) level3InvStyleRow.classList.toggle('disabled', !enabled);
+  // "Киношное" / "Показать drop2 и 3"
+  {
+    const cc = document.getElementById('level3CineCheckbox');
+    const dc = document.getElementById('level3DropsCheckbox');
+    if(cc){ cc.checked = l3VoicingKind === 'cine'; cc.disabled = !enabled; }
+    if(dc){ dc.checked = l3VoicingKind === 'drop'; dc.disabled = !enabled; }
+    const vr = document.getElementById('level3VoicingKindRow');
+    if(vr) vr.classList.toggle('disabled', !enabled);
+  }
   const variantList = l3VariantButtonList();
   const count = variantList.length;
   // выбранных обращений, которых у нынешних типов аккорда нет, быть не
@@ -15655,7 +15728,8 @@ function renderL3InversionButtons(){
     btn.type = 'button';
     btn.className = 'ringBtn'
       + (l3Inversions.has(i) ? ' active' : '')
-      + (enabled ? '' : ' disabled');
+      + (enabled ? '' : ' disabled')
+      + (isCineVariant(i) ? ' cineBtn' : '');
     btn.textContent = chordVariantLabel(i);
     btn.addEventListener('click', ()=>{
       // при выбранном ладе (и в "Назови аккорд/лад") выбирать нельзя
@@ -15689,6 +15763,23 @@ function setL3InvStyle(style){
     renderL3InversionButtons();
   }
 }
+// "Киношное" / "Показать drop2 и 3": включена одна из двух или ни одной;
+// смена — кнопки перестраиваются и загадывается новый вопрос
+function setL3VoicingKind(kind){
+  if(!l3InversionsEnabled()){ renderL3InversionButtons(); return; }
+  l3VoicingKind = kind;
+  try{ localStorage.setItem(L3_VOICING_KIND_KEY, kind); }catch(e){}
+  renderL3InversionButtons();
+  saveL3Inversions();
+  currentL3 = null;
+  if(practiceLevel === 3) pickNewChordL3();
+}
+(function(){
+  const cc = document.getElementById('level3CineCheckbox');
+  const dc = document.getElementById('level3DropsCheckbox');
+  if(cc) cc.addEventListener('change', ()=> setL3VoicingKind(cc.checked ? 'cine' : 'none'));
+  if(dc) dc.addEventListener('change', ()=> setL3VoicingKind(dc.checked ? 'drop' : 'none'));
+})();
 if(level3InvStyleCorrectCheckbox) level3InvStyleCorrectCheckbox.addEventListener('change', ()=> setL3InvStyle('correct'));
 if(level3InvStyleAccCheckbox) level3InvStyleAccCheckbox.addEventListener('change', ()=> setL3InvStyle('acc'));
 // ВРЕМЕННО ОТКЛЮЧЕНО "удобно":
@@ -20588,17 +20679,32 @@ if(typeof updateTrainPianoOffset === 'function') updateTrainPianoOffset();
 (function(){
   const cb = document.getElementById('trainShowDropsCheckbox');
   if(!cb) return;
+  const cine = document.getElementById('trainShowCineCheckbox');
   cb.checked = trainShowDrops;
-  cb.addEventListener('change', ()=>{
-    trainShowDrops = cb.checked;
+  if(cine) cine.checked = trainShowCine;
+  // включена может быть только одна из двух галок ("Киношное" / "Показать drop2 и 3")
+  const apply = ()=>{
+    cb.checked = trainShowDrops;
+    if(cine) cine.checked = trainShowCine;
     try{ localStorage.setItem(TRAIN_SHOW_DROPS_KEY, trainShowDrops ? '1' : '0'); }catch(e){}
-    const wasDrop = isDropVariant(trainInversion);
-    if(!trainShowDrops && wasDrop){
+    try{ localStorage.setItem(TRAIN_SHOW_CINE_KEY, trainShowCine ? '1' : '0'); }catch(e){}
+    // выбранного варианта больше нет среди кнопок — возврат к основному виду
+    if(isDropVariant(trainInversion) && !trainVariantList().includes(trainInversion)){
       trainInversion = 0;
       if(typeof saveTrainInversion === 'function') saveTrainInversion();
     }
     updateTrainPiano();
     if(typeof refreshTrainCircleArrows === 'function') refreshTrainCircleArrows();
+  };
+  cb.addEventListener('change', ()=>{
+    trainShowDrops = cb.checked;
+    if(trainShowDrops) trainShowCine = false;
+    apply();
+  });
+  if(cine) cine.addEventListener('change', ()=>{
+    trainShowCine = cine.checked;
+    if(trainShowCine) trainShowDrops = false;
+    apply();
   });
 })();
 
@@ -21252,9 +21358,9 @@ window.__setSettingsPositionExternal = function(pos){
 window.__appGetState = function(){
   return { lang: appLang, pos: getSidePanelPositionFor(currentTopTab()) };
 };
-
 function setSidePanelPosition(position){
   if(window.__appBridgeSend) window.__appBridgeSend({ type:'settingsPosition', value: position });
+
   localStorage.setItem(SIDE_PANEL_PIN_KEY, position);
   updateSidePanelLayout();
 }
@@ -23319,6 +23425,7 @@ function onMidiMessage(event){
   // аккорд из «Обучения». Отпускание клавиш обрабатывается всегда,
   // чтобы уже звучащий аккорд не залипал.
   if(window.__appIsActive === false && (event.data[0] & 0xf0) === 0x90 && event.data[2] > 0) return;
+
   const data = event.data;
   const status = data[0] & 0xf0;
   const note = data[1];
@@ -27999,6 +28106,8 @@ Object.assign(I18N, {
   tipVlKeep: { ru:'Без галки: ошибка в правом аккорде — набранные ноты сбрасываются, и нужно снова сыграть левый аккорд, потом правый.\n\nС галкой — после ошибки остаёмся на правом аккорде: набрать нужно только его.', en:'Unchecked: a mistake in the right chord resets the played notes, and you play the left chord again, then the right one.\n\nChecked — after a mistake you stay on the right chord and play only it.', zh:'不勾选：右边和弦出错时，已按的音清零，需要重新弹左边的和弦，再弹右边的。\n\n勾选：出错后停留在右边的和弦，只需弹它。' },
   tipVlHidePrev: { ru:'«В кругу» — после того как левый аккорд сыгран, левый кружок и стрелка к правому не показываются.\n\n«На клавиатуре» — сыгранный левый аккорд не показывается синими клавишами.', en:'“In the circle” — after the left chord is played, the left circle and the arrow to the right one are hidden.\n\n“On the keyboard” — the played left chord is not shown with blue keys.', zh:'“圆中”——弹完左边的和弦后，不显示左边的圆和指向右边的箭头。\n\n“键盘上”——不再用蓝色键显示已弹的左边和弦。' },
   tipVlDrops: { ru:'Под клавиатурой, после обращений — кнопки Drop 2 и Drop 3 для аккорда в центре.\n\nDrop 2 — Мажор, Минор, Sus2, Sus4\n\nDrop 2 и Drop 3 — 7, maj7, m7, 7sus4', en:'Below the keyboard, after the inversions — Drop 2 and Drop 3 buttons for the center chord.\n\nDrop 2 — Major, Minor, Sus2, Sus4\n\nDrop 2 and Drop 3 — 7, maj7, m7, 7sus4', zh:'在键盘下方、转位之后——中心和弦的 Drop 2 和 Drop 3 按钮。\n\nDrop 2 — 大三、小三、Sus2、Sus4\n\nDrop 2 和 Drop 3 — 7、maj7、m7、7sus4' },
+  tipVlCine: { ru:'Под клавиатурой, после обращений — кнопки «Киношное» для аккорда в центре: вторая снизу нота поднимается на октаву вверх (C осн. C-E-G → C-G-E).\n\nНоты те же, что у Drop 2, поэтому включается либо Киношное, либо Drop 2 и 3.\n\nМажор, Минор, Sus2, Sus4, 7, maj7, m7, 7sus4', en:'Below the keyboard, after the inversions — Cinematic buttons for the center chord: the second note from the bottom goes up an octave (C root C-E-G → C-G-E).\n\nThe notes are the same as in Drop 2, so either Cinematic or Drop 2 and 3 is on.\n\nMajor, Minor, Sus2, Sus4, 7, maj7, m7, 7sus4', zh:'在键盘下方、转位之后——中心和弦的电影感按钮：从下往上第二个音升高八度（C 原位 C-E-G → C-G-E）。\n\n音与 Drop 2 相同，因此只能开启电影感或 Drop 2 和 3 其中之一。\n\n大三、小三、Sus2、Sus4、7、maj7、m7、7sus4' },
+  tipVlPairCine: { ru:'Первый аккорд вопроса выпадает в основном виде, в обращении или в «Киношном» расположении (случайно): вторая снизу нота поднята на октаву вверх (C осн. C-E-G → C-G-E). Дальше аккорды идут по голосоведению — расположение нот сохраняется.\n\nНоты те же, что у Drop 2, поэтому включается либо Киношное, либо Drop 2\\3.\n\nМажор, Минор, Sus2, Sus4, 7, maj7, m7, 7sus4\n\nВ прогрессии не учитывается.', en:'The first chord of a question comes up in root position, an inversion or the Cinematic voicing (randomly): the second note from the bottom is an octave higher (C root C-E-G → C-G-E). Then the chords follow the voice leading — the voicing is kept.\n\nThe notes are the same as in Drop 2, so either Cinematic or Drop 2\\3 is on.\n\nMajor, Minor, Sus2, Sus4, 7, maj7, m7, 7sus4\n\nNot used in a progression.', zh:'问题的第一个和弦以原位、转位或电影感排列出现（随机）：从下往上第二个音升高八度（C 原位 C-E-G → C-G-E）。之后和弦按声部进行继续——保持排列方式。\n\n音与 Drop 2 相同，因此只能开启电影感或 Drop 2\\3 其中之一。\n\n大三、小三、Sus2、Sus4、7、maj7、m7、7sus4\n\n在和弦进行中不使用。' },
   vlPairDrops:   { ru:'Добавить дроп 2\\3', en:'Add drop 2\\3', zh:'添加 drop 2\\3' },
   tipVlPairDrops: { ru:'Первый аккорд вопроса выпадает в основном виде, в обращении или в Drop 2 / Drop 3 (случайно). Дальше аккорды идут по голосоведению — расположение нот сохраняется.\n\n@@Drop 2@@ — Мажор, Минор, Sus2, Sus4\n\n@@Drop 2 и Drop 3@@ — 7, maj7, m7, 7sus4\n\nВ прогрессии не учитывается.', en:'The first chord of a question comes up in root position, an inversion or in Drop 2 / Drop 3 (randomly). Then the chords follow the voice leading — the voicing is kept.\n\n@@Drop 2@@ — Major, Minor, Sus2, Sus4\n\n@@Drop 2 and Drop 3@@ — 7, maj7, m7, 7sus4\n\nNot used in a progression.', zh:'问题的第一个和弦以原位、转位或 Drop 2 / Drop 3 出现（随机）。之后和弦按声部进行继续——保持排列方式。\n\n@@Drop 2@@ — 大三、小三、Sus2、Sus4\n\n@@Drop 2 和 Drop 3@@ — 7、maj7、m7、7sus4\n\n在和弦进行中不使用。' },
   vlHidePrev:    { ru:'Не показывать предыдущий аккорд', en:'Do not show the previous chord', zh:'不显示前一个和弦' },
@@ -28307,6 +28416,9 @@ function loadCfg(store, extra){
   delete cfg.speed;
   cfg.hidePrev = cfg.hidePrev === true; cfg.hidePrevCircle = cfg.hidePrevCircle === true; cfg.hidePrevKb = cfg.hidePrevKb === true;
   cfg.drops = cfg.drops === true;
+  // "Киношное" — взаимоисключается с дропами
+  cfg.cine = cfg.cine === true;
+  if(cfg.cine) cfg.drops = false;
   if(!(cfg.tonic >= 0 && cfg.tonic < 12)) cfg.tonic = 0;
   if(!Array.isArray(cfg.types)) cfg.types = ['maj','min'];
   cfg.types = VL_TYPES.filter(x=>cfg.types.includes(x));
@@ -28531,7 +28643,7 @@ function mapKeep(){
   const k = (mapCenter && mapVoicing) ? variantOf(mapCenter, mapVoicing) : 0;
   const c=TE.tonicChord();
   if(!c){ mapReset(); return; }
-  const v = (k>0 && variantsFor(c, true).includes(k) && variantNotes(c,k)) || rootVoicing(c,0);
+  const v = (k>0 && variantsFor(c, true, true).includes(k) && variantNotes(c,k)) || rootVoicing(c,0);
   mapCenter=c; mapVoicing=v; mapBase=v; panX=0; panY=0;
   if(vlTrainActive()) renderMap(false);
 }
@@ -28909,21 +29021,35 @@ function renderMap(anim){
    Drop 2 из обращения k, 30+k — Drop 3 (номера — как в "Обучении"). */
 function variantNotes(c, v){
   if(v<20) return rootVoicing(c, v);
+  // "Киношное" (40+k): вторая снизу нота обращения k — на октаву вверх
+  if(v>=40){
+    const b=rootVoicing(c, v%10).slice().sort((a,b)=>a-b);
+    if(b.length<3) return null;
+    b[1]+=12;
+    return normRange(b.sort((a,b)=>a-b));
+  }
   const k=v%10, d=Math.floor(v/10), base=rootVoicing(c,k).slice().sort((a,b)=>a-b), i=base.length-d;
   if(i<0) return null;
   base[i]-=12;
   return normRange(base.sort((a,b)=>a-b));
 }
-function variantsFor(c, withDrops){
+function variantsFor(c, withDrops, withCine){
   const n=c.tones.length, out=[...Array(n).keys()];
   if(withDrops){ for(let k=0;k<n;k++) out.push(20+k); if(n===4) for(let k=0;k<n;k++) out.push(30+k); }
+  if(withCine && n>=3){ for(let k=0;k<n;k++) out.push(40+k); }
   return out;
 }
-// какой вариант сейчас на клавиатуре (-1 — ни один: расположение пришло после перехода)
+/* какой вариант сейчас на клавиатуре (-1 — ни один: расположение пришло после перехода).
+   Ноты "Киношного" совпадают с Drop 2: при включённом "Киношном" (в "Обучении" —
+   TC, в "Аккорды/Лады" — PC) такое расположение называется "Киношное", иначе — Drop 2. */
 function variantOf(c, v){
   const shape=x=>{ const s=x.slice().sort((a,b)=>a-b); return pcOf(s[0])+'|'+s.map(y=>y-s[0]).join(','); };
   const sh=shape(v);
-  for(const k of variantsFor(c, true)){ const vn=variantNotes(c,k); if(vn && shape(vn)===sh) return k; }
+  let cine=false;
+  try{ cine = vlPairActive() ? !!PC.cine : !!TC.cine; }catch(e){ cine=false; }
+  const all=variantsFor(c, true, true);
+  const list = cine ? all.filter(k=>k<20).concat(all.filter(k=>k>=40), all.filter(k=>k>=20 && k<40)) : all;
+  for(const k of list){ const vn=variantNotes(c,k); if(vn && shape(vn)===sh) return k; }
   return -1;
 }
 // название вида аккорда на кнопке
@@ -28958,13 +29084,13 @@ function renderMapInv(){
   if(!mapCenter) return;
   let cur=variantOf(mapCenter, mapVoicing);
   if(cur<0) cur=invOf(mapVoicing,mapCenter);
-  // ряды: обращения / Drop 2 / Drop 3
+  // ряды: обращения / Drop 2 / Drop 3 / Киношное
   const lines={};
-  variantsFor(mapCenter, !!TC.drops).forEach(i=>{
+  variantsFor(mapCenter, !!TC.drops, !!TC.cine).forEach(i=>{
     const r=i<20?0:Math.floor(i/10);
     if(!lines[r]){ lines[r]=document.createElement('div'); lines[r].className='vlInvLine'; box.appendChild(lines[r]); }
     const b=document.createElement('button');
-    b.type='button'; b.className='ringBtn'+(i===cur?' active':''); b.textContent=chordVariantLabel(i);
+    b.type='button'; b.className='ringBtn'+(i===cur?' active':'')+(i>=40?' cineBtn':''); b.textContent=chordVariantLabel(i);
     b.dataset.variant=String(i);
     // переходы считаются от выбранного расположения (и у Drop 2/3 тоже)
     b.addEventListener('click',()=>{ const vn=variantNotes(mapCenter,i); if(vn) mapSet(mapCenter, vn); });
@@ -29205,6 +29331,8 @@ function invsFor(c){ return c.tones.map((_,i)=>i); }
 function formsFor(c){
   const n=c.tones.length, out=invsFor(c).slice();
   if(PC.drops){ for(let k=0;k<n;k++) out.push(20+k); if(n===4) for(let k=0;k<n;k++) out.push(30+k); }
+  // "Киношное" — ещё 40+k
+  if(PC.cine && n>=3){ for(let k=0;k<n;k++) out.push(40+k); }
   return out;
 }
 function errLabel(){ return Q ? `${cn(Q.c)} → ${cn(Q.target)}` : ''; }
@@ -29568,7 +29696,7 @@ function renderProgSettings(box){
   const off=progActive();
   box.querySelectorAll('.vlGroupsRow:not(.vlHidePrevRow)').forEach(r=>r.classList.toggle('vlProgOff', off));
   box.querySelectorAll('.vlSubHeader').forEach(r=>r.classList.toggle('vlProgOff', off));
-  box.querySelectorAll('.vlPairDropsRow').forEach(r=>r.classList.toggle('vlProgOff', off));
+  box.querySelectorAll('.vlPairDropsRow, .vlPairCineRow').forEach(r=>r.classList.toggle('vlProgOff', off));
 }
 /* Расположения аккордов прогрессии подряд: первый — в основном виде, дальше —
    по правилам голосоведения. moved — сколько нот сдвинулось (для цвета). */
@@ -30075,6 +30203,7 @@ function renderTrainSettings(){
   box.querySelector('.vlPopupCb').checked = TC.popup !== false;
   box.querySelector('.vlLegendCb').checked = !!TC.legend;
   const dcb=box.querySelector('.vlDropsCb'); if(dcb) dcb.checked=!!TC.drops;
+  const ccb=box.querySelector('.vlCineCb'); if(ccb) ccb.checked=!!TC.cine;
 }
 function renderPairSettings(){
   const box=$('level3VlSettings'); if(!box) return;
@@ -30090,6 +30219,7 @@ function renderPairSettings(){
     box.querySelector('.vlHidePrevRow').classList.toggle('disabled', !PC.hidePrev);
   }
   { const pdc=box.querySelector('.vlPairDropsCb'); if(pdc) pdc.checked=!!PC.drops; }
+  { const pcc=box.querySelector('.vlPairCineCb'); if(pcc) pcc.checked=!!PC.cine; }
   renderProgSettings(box);
   try{ if(window.l3RefreshCatCopiesNow) window.l3RefreshCatCopiesNow(); }catch(e){}
 }
@@ -30180,14 +30310,20 @@ function bindSettings(box, which){
     }));
   }
   // "Показать drop2 и 3" ("Обучение")
-  const dcb=box.querySelector('.vlDropsCb');
-  if(dcb) dcb.addEventListener('change', ()=>{
-    C.drops=dcb.checked; saveCfg(which);
-    // галку сняли, а был выбран Drop — остаётся обращение, из которого он сделан
+  const dcb=box.querySelector('.vlDropsCb'), ccb=box.querySelector('.vlCineCb');
+  // "Киношное" / "Показать drop2 и 3": включена одна из двух (или ни одной)
+  const vkChanged=()=>{
+    if(dcb) dcb.checked=!!C.drops;
+    if(ccb) ccb.checked=!!C.cine;
+    saveCfg(which);
+    // выбранного расположения больше нет среди кнопок — остаётся обращение, из которого оно сделано
     const dv = (mapCenter && mapVoicing) ? variantOf(mapCenter, mapVoicing) : -1;
-    if(!C.drops && dv>=20) mapSet(mapCenter, rootVoicing(mapCenter, dv%10));
+    const off = dv>=20 && !variantsFor(mapCenter, !!C.drops, !!C.cine).includes(dv);
+    if(off) mapSet(mapCenter, rootVoicing(mapCenter, dv%10));
     else if(vlTrainActive()){ renderMapInv(); vlLayout(); }
-  });
+  };
+  if(dcb) dcb.addEventListener('change', ()=>{ C.drops=dcb.checked; if(C.drops) C.cine=false; vkChanged(); });
+  if(ccb) ccb.addEventListener('change', ()=>{ C.cine=ccb.checked; if(C.cine) C.drops=false; vkChanged(); });
   const ksc=box.querySelector('.vlKeepScaleCb');
   if(ksc) ksc.addEventListener('change', ()=>{ C.keepScale=ksc.checked; saveCfg(which); vlLayout(); });
   box.querySelectorAll('.vlTypeGrid .ringBtn[data-vltype]').forEach(b=>{
@@ -30203,7 +30339,16 @@ function bindSettings(box, which){
         if(which==='pair' && PE.build(eff, pairAllowed()).length===0) return;
         C.types=C.types.filter(x=>x!==tp);
       } else C.types=VL_TYPES.filter(x=>C.types.includes(x) || x===tp);
+      const added = C.types.includes(tp);
       settingsChanged(which);
+      /* "Обучение": добавили аккорд из 4 нот, а в центре трезвучие — в центр
+         ставится аккорд этого вида (с той же тоникой, если он есть), иначе у
+         кнопок под клавиатурой не появлялись Drop 3 / 4-е варианты */
+      if(which==='train' && added && vlTrainActive() && mapCenter && mapCenter.tones.length===3){
+        const same = centerChordsOf(mapCenter.tones[0]).find(c=>c.type===tp);
+        const c = same || TE.chordList().find(x=>x.type===tp);
+        if(c && c.tones.length===4) mapSet(c, rootVoicing(c,0));
+      }
     });
   });
   box.querySelectorAll('.vlGroupsRow input[data-g]').forEach(cb=>{
@@ -30223,11 +30368,16 @@ function bindSettings(box, which){
   } else {
     box.querySelector('.vlKeepCb').addEventListener('change', e=>{ PC.keep=e.target.checked; saveCfg('pair'); });
     // "Добавить дроп 2\3": к основному виду и обращениям добавляются Drop 2 / Drop 3
-    const pdc=box.querySelector('.vlPairDropsCb');
-    if(pdc) pdc.addEventListener('change', ()=>{
-      PC.drops=pdc.checked; saveCfg('pair');
+    const pdc=box.querySelector('.vlPairDropsCb'), pcc=box.querySelector('.vlPairCineCb');
+    // "Киношное" / "Добавить дроп 2\3": включена одна из двух (или ни одной)
+    const pvk=()=>{
+      if(pdc) pdc.checked=!!PC.drops;
+      if(pcc) pcc.checked=!!PC.cine;
+      saveCfg('pair');
       if(vlPairOnFlag && practiceLevel===3 && !progActive()) newPair();
-    });
+    };
+    if(pdc) pdc.addEventListener('change', ()=>{ PC.drops=pdc.checked; if(PC.drops) PC.cine=false; pvk(); });
+    if(pcc) pcc.addEventListener('change', ()=>{ PC.cine=pcc.checked; if(PC.cine) PC.drops=false; pvk(); });
     // "Прогрессия" (сняли — экран выбора закрывается)
     const pcb=box.querySelector('.vlProgCb');
     const ppc=box.querySelector('.vlProgPopupCb');
@@ -30414,10 +30564,13 @@ function placeKb(wrap, left, top, kz, ox, oy){
 /* left — где стоит C3 (по C3–B4); добавленные октавы не сдвигают C3–B4,
    но если из-за них клавиатура уходит за край экрана — она сдвигается,
    чтобы были видны все ноты */
-function placeKbOct(wrap, id, left, top, kz, ox, oy){
+/* centerX (необязательный) — клавиатура целиком (с добавленными октавами)
+   ставится по центру этой точки ("Обучение" → "Голосоведение", клавиатура снизу) */
+function placeKbOct(wrap, id, left, top, kz, ox, oy, centerX){
   const s=$(id), nat=(s && +s.getAttribute('width')) || KB_NAT_W, vw=window.innerWidth;
   let l=left-kbExtraLeft(id)*kz;
   const w=nat*kz;
+  if(centerX!=null) l=centerX-w/2;
   if(l+w>vw-VL_EDGE) l=vw-VL_EDGE-w;
   if(l<VL_EDGE) l=VL_EDGE;
   placeKb(wrap, l, top, kz, ox, oy);
@@ -30520,7 +30673,8 @@ function layoutTrain(){
   kbTop -= invH - invHnd;
   kbLeft=clamp(kbLeft, VL_EDGE, vw-kbW-VL_EDGE);
   kbTop=clamp(kbTop, VL_EDGE, Math.max(VL_EDGE, vh-kbH-invH-VL_EDGE));
-  placeKbOct($('vlMapKbWrap'), 'vlMapKb', kbLeft, kbTop, kz, ox, oy);
+  // клавиатура снизу — вся (с добавленной октавой) по центру круга; кнопки под ней — тоже по центру, отдельно от неё
+  placeKbOct($('vlMapKbWrap'), 'vlMapKb', kbLeft, kbTop, kz, ox, oy, pos==='below' ? cx : null);
   // строки кнопок — под клавиатурой, по её середине, но не за краем экрана
   const rowX = el=>{ const w=el.offsetWidth||0; return clamp(kbLeft+kbW/2, VL_EDGE+w/2, Math.max(VL_EDGE+w/2, vw-VL_EDGE-w/2)); };
   typ.style.left=(rowX(typ)+ox)+'px'; typ.style.top=(kbTop+kbH+VL_INV_GAP+oy)+'px';
