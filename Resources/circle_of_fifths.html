@@ -84,7 +84,6 @@
   });
 })();
 </script>
-
 <title>Кварто-квинтовый круг</title>
 <style>
 
@@ -875,11 +874,12 @@
   #globalInfoTooltip .tipTableTitle{
     font-weight:bold;
   }
-  /* Список горячих клавиш — в 3 колонки:
-     1) Везде + Ноты, 2) Обучение, 3) Аккорды/Лады + MIDI */
+  /* Список горячих клавиш — в 5 колонок:
+     1) Везде + Ноты, 2) Обучение, 3) Интервалы + Аккорды/Лады,
+     4) Голосоведение, 5) MIDI */
   #globalInfoTooltip .tipCols{
     display:grid;
-    grid-template-columns:repeat(3, 1fr);
+    grid-template-columns:repeat(5, 1fr);
     gap:0 24px;
     align-items:start;
   }
@@ -1029,7 +1029,7 @@
   /* Верхние вкладки "Практика 1 / Практика 2 / Обучение" — как на макете.
      Переключают, какой уровень/режим отображается ниже; настройки
      каждого уровня сохраняются отдельно и не сбрасываются при переходах. */
-    /* Ряд переключения приложений (оболочка index.html). Оформлен теми же
+  /* Ряд переключения приложений (оболочка index.html). Оформлен теми же
      кнопками .topTabBtn, что и вкладки. По ширине 4px между кнопками,
      вертикальный отступ не задаём — его даёт gap самой панели настроек. */
   #appSwitchBar{
@@ -1038,7 +1038,7 @@
     gap:4px;
     width:100%;
   }
-#topTabBar{
+  #topTabBar{
     display:grid;
     grid-template-columns:1fr 1fr 1fr;
     gap:8px;
@@ -1466,6 +1466,30 @@
   }
   body.practice-below:not(.is-mobile) #circleInner{
     top:calc(-1 * var(--practice-below-circle-up));
+  }
+  /* "Ноты" и "Аккорды/Лады", инструмент снизу (клавиатура, гитара,
+     смычковые): панель инструмента не должна перехватывать клики по
+     ячейкам круга. SVG круга поднят над панелью; подложка закрывает
+     инструмент в зазорах между ячейками. */
+  body.practice-below:not(.is-mobile) #circle{
+    position:relative;
+    z-index:1;
+    /* пустые углы квадрата SVG пропускают клики к инструменту под ними */
+    pointer-events:none;
+  }
+  body.practice-below:not(.is-mobile) #circle .wedge,
+  body.practice-below:not(.is-mobile) #circle #centerCircle,
+  body.practice-below:not(.is-mobile) #circle #circleUnderlay,
+  body.practice-below:not(.is-mobile) #circle #l3PickLayer{
+    pointer-events:auto;
+  }
+  #circleUnderlay{
+    display:none;
+    fill:var(--bg);
+    pointer-events:none;
+  }
+  body.practice-below:not(.is-mobile) #circleUnderlay{
+    display:inline;
   }
   body.practice-below:not(.is-mobile) #l3PianoWrap,
   body.practice-below:not(.is-mobile) #l3PianoWrap:not(.underNote){
@@ -3910,9 +3934,94 @@
     opacity:0.4;
     pointer-events:none;
   }
+
+  /* ===== Квадраты выбора ноты ("Аккорды/Лады", "С бемолями\диезами").
+     Цвета для каждой темы — чуть светлее ячеек круга. */
+  body{ --l3pick-bg:#4e4e4e; --l3pick-text:#d8d8d8; }
+  body.theme-t1{ --l3pick-bg:#51515a; --l3pick-text:#e2e2e6; }
+  body.theme-t2{ --l3pick-bg:#3d475c; --l3pick-text:#dfe4ee; }
+  body.theme-t4{ --l3pick-bg:#4a4a4a; --l3pick-text:#dedede; }
+  body.theme-light{ --l3pick-bg:#ececec; --l3pick-text:#222222; }
+  svg#circle{ overflow:visible; }
+  /* пока квадраты открыты, они поверх клавиатуры сбоку */
+  svg#circle.l3PickShown{ position:relative; z-index:20; }
+  .l3PickBtn{ cursor:pointer; user-select:none; -webkit-user-select:none; -webkit-tap-highlight-color:transparent; }
+  .l3PickBtn rect{ fill:var(--l3pick-bg); }
+  .l3PickBtn text{ fill:var(--l3pick-text); font-family:Arial, Helvetica, sans-serif; font-weight:700;
+    text-anchor:middle; dominant-baseline:central; pointer-events:none; }
+  @media (hover:hover){ .l3PickBtn:hover rect{ filter:brightness(1.12); } }
 </style>
 </head>
 <body>
+<script>
+/* =========================================================
+   Перо графического планшета (XP-Pen и т.п.): действие происходит сразу
+   при КАСАНИИ пером, а не при отрыве. Мышь и палец работают как раньше.
+   Браузер должен видеть перо именно как перо (в драйвере планшета
+   включён Windows Ink), иначе оно неотличимо от мыши.
+   ========================================================= */
+// клик человека: настоящий или посланный сразу при касании пером
+function isUserClick(e){ return e.isTrusted || e.penPress === true; }
+(function initPenPress(){
+  let swallow = false;   // клик браузера при отрыве пера уже не нужен
+  let timer = 0;
+  // эти элементы работают как обычно (ввод, ползунки, списки, ссылки)
+  const NATIVE = 'input:not([type=checkbox]):not([type=radio]):not([type=button]), textarea, select, a[href]';
+  // то, что пером тащат, — нажимается по отрыву, чтобы не срабатывать при протягивании
+  function isDragArea(t){
+    if(t.closest('#vlPickMap')) return true;
+    try{
+      if(typeof vlTrainActive === 'function' && vlTrainActive()
+         && !t.closest('#sidePanel, .vlKbWrap, .vlInvRow, #vlMapLegend, button, input, select, label, #errStatsBox, #vlNbKeys, .infoIcon')) return true;
+    }catch(e){}
+    // окно, которое сейчас можно прокрутить протягиванием пера
+    for(let n = t; n && n !== document.body && n !== document.documentElement; n = n.parentElement){
+      const c = getComputedStyle(n);
+      if(/(auto|scroll)/.test(c.overflowY) && n.scrollHeight > n.clientHeight + 1) return true;
+      if(/(auto|scroll)/.test(c.overflowX) && n.scrollWidth > n.clientWidth + 1) return true;
+    }
+    return false;
+  }
+  window.addEventListener('pointerdown', e=>{
+    clearTimeout(timer);
+    swallow = false;
+    // только касание кончиком (боковая кнопка приходит с другим номером кнопки);
+    // на телефоне — как раньше
+    if(e.pointerType !== 'pen' || e.button !== 0) return;
+    if(document.body.classList.contains('is-mobile')) return;
+    const t = e.target;
+    if(!t || !t.closest || t.closest(NATIVE) || isDragArea(t)) return;
+    const control = t.closest('button, label');
+    if(control && (control.disabled || (control.control && control.control.matches(NATIVE)))) return;
+    swallow = true;
+    const init = { bubbles:true, cancelable:true, composed:true, view:window, detail:1,
+      clientX:e.clientX, clientY:e.clientY, screenX:e.screenX, screenY:e.screenY,
+      ctrlKey:e.ctrlKey, shiftKey:e.shiftKey, altKey:e.altKey, metaKey:e.metaKey,
+      pointerType:'pen', pointerId:e.pointerId };
+    // после всех обработчиков самого касания
+    setTimeout(()=>{
+      const click = new PointerEvent('click', init);
+      click.penPress = true;
+      t.dispatchEvent(click);
+    }, 0);
+  }, true);
+  function release(e){
+    if(e.pointerType !== 'pen') return;
+    // звук: браузер разрешает его включить только в момент отрыва пера
+    try{ if(soundAudioCtx && soundAudioCtx.state === 'suspended') soundAudioCtx.resume(); }catch(err){}
+    clearTimeout(timer);
+    timer = setTimeout(()=>{ swallow = false; }, 400);
+  }
+  window.addEventListener('pointerup', release, true);
+  window.addEventListener('pointercancel', release, true);
+  window.addEventListener('click', e=>{
+    if(!swallow || !e.isTrusted || e.detail === 0) return;   // detail 0 — клик с клавиатуры
+    swallow = false;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+  }, true);
+})();
+</script>
 
 <div id="globalInfoTooltip"></div>
 
@@ -4094,8 +4203,8 @@
         <div class="cofBox" id="notesPairsBox">
         <div id="notesPairsRow" style="display:none;">
           <div class="notesPairsMainOption">
-            <label><input type="checkbox" id="notesPairsCheckbox"><span data-i18n="pairsLabel">Пары</span></label>
-            <span class="infoIcon" data-i18n-tip="tipPairs" data-tip="Заучивание пары на мажорном/минорном кольце&#10;&#10;«Скрыть круг» работает только при ответе «На MIDI/ПК клавиатуре».">i</span>
+            <label><input type="checkbox" id="notesPairsCheckbox"><span data-i18n="pairsLabel">Параллельный мажор/минор</span></label>
+            <span class="infoIcon" data-i18n-tip="tipPairs" data-tip="Заучивание пары на мажорном+минорном кольцах">i</span>
           </div>
         </div>
         </div>
@@ -5908,7 +6017,6 @@ const I18N = {
   switchCircle:        { ru:'Квинтовый круг', en:'Circle of Fifths', zh:'五度圈' },
   switchNotes:         { ru:'Ноты', en:'Notes', zh:'音符' },
   switchEar:           { ru:'Слух', en:'Ear', zh:'听觉' },
-
   hotkeysHelp:         HOTKEYS_HELP_TEXT,
   tabTraining:        { ru:'Обучение',  en:'Training',  zh:'训练' },
   tabNotes:            { ru:'Ноты',      en:'Notes',     zh:'音符' },
@@ -5918,12 +6026,12 @@ const I18N = {
   notesInputMidi:      { ru:'На MIDI/ПК клавиатуре', en:'On MIDI/computer keyboard', zh:'MIDI/电脑键盘' },
   sidePanelPin:        { ru:'Отображать настройки:', en:'Show settings:', zh:'显示设置：' },
   crosshairLabel:      { ru:'Чёрточки', en:'Crosshair ticks', zh:'准星刻度' },
-  pairsLabel:          { ru:'Пары', en:'Pairs', zh:'配对' },
+  pairsLabel:          { ru:'Параллельный мажор/минор', en:'Relative major/minor', zh:'关系大调/小调' },
   hideCircleLabel:     { ru:'Скрыть круг', en:'Hide circle', zh:'隐藏圆环' },
   tipPairs: {
-    ru:'Заучивание пары на мажорном/минорном кольце\n\n«Скрыть круг» работает только при ответе «На MIDI/ПК клавиатуре».',
-    en:'Memorising the pair on the major/minor ring\n\n«Hide circle» works only when answering «On MIDI/computer keyboard».',
-    zh:'记忆大调/小调圆环上的配对\n\n「隐藏圆环」仅在使用「MIDI/电脑键盘」作答时有效。'
+    ru:'Заучивание пары на мажорном+минорном кольцах',
+    en:'Memorising the pair on the major + minor rings',
+    zh:'记忆大调环+小调环上的这一对调性'
   },
   crosshairBelow:      { ru:'Под кругом', en:'Under circle', zh:'圆环下方' },
   crosshairAbove:      { ru:'Над кругом', en:'Above circle', zh:'圆环上方' },
@@ -6460,7 +6568,6 @@ const APP_TITLE_I18N = { ru: 'Кварто-квинтовый круг', en: 'Ci
 window.__setUiLangExternal = function(lang){ applyLanguage(lang); };
 function applyLanguage(lang){
   if(window.__appBridgeSend) window.__appBridgeSend({ type:'uiLang', lang: (lang === 'en' || lang === 'zh') ? lang : 'ru' });
-
   appLang = (lang === 'en' || lang === 'zh') ? lang : 'ru';
   localStorage.setItem(APP_LANG_KEY, appLang);
   document.title = APP_TITLE_I18N[appLang] || APP_TITLE_I18N.ru;
@@ -6709,6 +6816,9 @@ function el(tag, attrs){
    ========================================================= */
 const svg = document.getElementById('circle');
 const wedgeMap = {};
+// Подложка под секторами: когда клавиатура снизу, она закрывает её
+// в небольших промежутках между ячейками круга (как в «Обучении»).
+svg.appendChild(el('circle', {cx:CX, cy:CY, r:R3, id:'circleUnderlay'}));
 
 /* ===== Режим "Назови аккорд/лад" (вкладка "Аккорды/Лады") =====
    Галка level3NameModeCheckbox. На круге (и на клавиатуре, если она
@@ -7774,8 +7884,8 @@ function onWedgeClick(e){
   if(practiceLevel !== 3 && begGuard()) return;
   // "Ноты" -> "Интервалы": свой ответ (см. блок "ИНТЕРВАЛЫ")
   if(practiceLevel !== 3 && ivNotesGuard()){
-    if(practiceLevel === 2 && e.isTrusted) return;
-    if(practiceLevel === 1) ivOnWedge(e.currentTarget.getAttribute('data-ring'), parseInt(e.currentTarget.getAttribute('data-index'), 10));
+    if(practiceLevel === 2 && isUserClick(e)) return;
+    if(practiceLevel === 1) ivOnWedge(e.currentTarget.getAttribute('data-ring'), parseInt(e.currentTarget.getAttribute('data-index'), 10), isUserClick(e));
     return;
   }
   if(practiceLevel === 2){
@@ -7784,7 +7894,7 @@ function onWedgeClick(e){
     // ПК/MIDI отвечают через тот же клик — они шлют его программно
     // (clickWedgeByRing -> dispatchEvent(new Event('click'))), такое
     // событие НЕ trusted, поэтому его по-прежнему обрабатываем.
-    if(e.isTrusted) return;
+    if(isUserClick(e)) return;
     onWedgeClickLevel2New(e);
     return;
   }
@@ -15978,6 +16088,7 @@ function l3RememberQuestion(kind, cell){
 }
 
 function pickNewChordL3(){
+  l3PickClose();
   // "Голосоведение": свой вопрос (два кружка), обычный не загадывается
   if(vlPairOnFlag){
     try{ if(typeof vlPairNewQuestion === 'function') vlPairNewQuestion(); }catch(e){}
@@ -16092,6 +16203,10 @@ function pickNewChordL3(){
   // в котором нужно нажимать ноты; null, если проверка порядка не нужна.
   const inversionL3 = pickL3Inversion(chordType, chosen.ring);
 
+  // кольцо схемы ответа: нота выбрана на минорном кольце — схема от него
+  // (как в "Обучении"); с галкой "Выбрать тональность" — всегда мажорное
+  const schemeRingL3 = (!l3KeyMode && (chosen.srcRing || chosen.ring) === 'minor') ? 'minor' : 'major';
+
   currentL3 = {
     ring: chosen.ring,
     index: chosen.index,
@@ -16117,7 +16232,10 @@ function pickNewChordL3(){
     // ячейки со знаком (♯/♭/♮), на которых нажимаются изменённые ноты —
     // из той же схемы, что и ответ с клавиатуры ПК / MIDI
     accAliases: l3AltFifthAliases(chosen.ring, chosen.index, chordType,
-      !l3NameMode ? getChordAccAliasesL3(chosen.ring, chosen.index, chordType, inversionL3) : null)
+      !l3NameMode ? getChordAccAliasesL3(chosen.ring, chosen.index, chordType, inversionL3, schemeRingL3) : null,
+      schemeRingL3),
+    clickAliases: (!l3NameMode && l3InvStyle === 'acc')
+      ? l3BothRingsAliases(chosen.ring, chosen.index, chordType, inversionL3) : null
   };
   if(practiceLevel === 3) setNoteText(centerText, l3CenterDisplayName());
   updateL3CenterModeLabel();
@@ -16286,6 +16404,18 @@ function getModeRaiseAliasesL3(ring, tonicIndex, modeId){
   return aliases;
 }
 
+// Ответ мышью и пером принимается на обоих кругах, где бы ни была
+// тоника: повышенные ступени с мажорного и с минорного кольца
+function l3BothRingsRaise(ring, tonicIndex, modeId){
+  const own = ring === 'minor' ? minorsSemitone : majorsSemitone;
+  const pc = own[tonicIndex];
+  const out = new Map();
+  [['major', majorsSemitone], ['minor', minorsSemitone]].forEach(([r, semis])=>{
+    getModeRaiseAliasesL3(r, semis.indexOf(pc), modeId).forEach((L, k)=> out.set(k, L));
+  });
+  return out;
+}
+
 function updateLevel3ModeButtonsActive(){
   // у "Модуляции" свой набор ладов — отдельные кнопки (renderL3ModModeButtons)
   Object.entries(LEVEL3_MODE_BTN_IDS).forEach(([id, btnId])=>{
@@ -16358,6 +16488,7 @@ function pickNewModeL3(){
     name: chosen.name.replace(/m$/, ''),
     letters: getModeNoteLettersL3(chosen.ring, chosen.index, modeType),
     raiseAliases: getModeRaiseAliasesL3(chosen.ring, chosen.index, modeType),
+    clickRaise: l3BothRingsRaise(chosen.ring, chosen.index, modeType),
     rootLetter: rootLetter,
     found: new Set()
   };
@@ -16662,8 +16793,8 @@ renderL3InversionButtons();
    из l3SchemeCellsFor — той же схемы, что и для клавиатуры ПК / MIDI,
    поэтому мышь и клавиатура всегда совпадают.
    Возвращает Map "кольцо-индекс" -> { letter, pc, text, sign } или null. */
-function getChordAccAliasesL3(ring, index, chordType, inversion){
-  const cells = l3SchemeCellsFor(ring, index, chordType, inversion);
+function getChordAccAliasesL3(ring, index, chordType, inversion, schemeRing){
+  const cells = l3SchemeCellsFor(ring, index, chordType, inversion, schemeRing);
   if(!cells) return null;
   const map = new Map();
   cells.forEach(c=>{
@@ -16675,13 +16806,29 @@ function getChordAccAliasesL3(ring, index, chordType, inversion){
 }
 // 7b5 / 7#5: к ячейкам со знаком добавляется ячейка квинты (G с ♭/♯) —
 // в любом режиме, не только в "с бемолями\\диезами"
-function l3AltFifthAliases(ring, index, chordType, map){
+function l3AltFifthAliases(ring, index, chordType, map, schemeRing){
   if(l3NameMode) return map;
+  // схема на минорном кольце — тоника и квинта берутся с этого кольца
+  if(schemeRing === 'minor' && ring !== 'minor'){
+    const pc = majorsSemitone[index];
+    ring = 'minor'; index = minorsSemitone.indexOf(pc);
+  }
   const c = altFifthCell(chordType, ring, index);
   if(!c) return map;
   const out = map || new Map();
   out.set(c.ring + '-' + c.idx, { letter: noteNames[c.pc], pc: c.pc, text: c.letter, sign: c.sign });
   return out;
+}
+// Ответ мышью принимается по схемам ОБОИХ кругов, где бы ни была выбрана
+// тоника: ячейки со знаком из схемы от мажорного и от минорного круга
+function l3BothRingsAliases(ring, index, chordType, inversion){
+  const out = new Map();
+  ['major','minor'].forEach(sr=>{
+    const m = l3AltFifthAliases(ring, index, chordType,
+      getChordAccAliasesL3(ring, index, chordType, inversion, sr), sr);
+    if(m) m.forEach((a, k)=> out.set(k, a));
+  });
+  return out.size ? out : null;
 }
 // буква изменённой ноты -> её ячейка (или null)
 function l3AccCellForLetter(letter){
@@ -16718,6 +16865,7 @@ function l3RegisterAnswer(letter){
   const expected = l3ExpectedLetter();
   if(expected && letter !== expected){ errStatsWrong('l3', errL3Label()); return false; }
   if(!currentL3.found.has(letter)){
+    l3PickClose();
     currentL3.found.add(letter);
     renderLevel3Hint();
     if(typeof updateL3Piano === 'function') updateL3Piano();
@@ -18041,14 +18189,31 @@ function onWedgeClickLevel3(e){
   // С MIDI и клавиатуры ПК засчитывается только настоящая нажатая нота
   // (G в A гарм. миноре — неверно, нужна G♯), поэтому замена не работает.
   const raiseKey = ring + '-' + index;
-  if(!l3PhysicalNoteAnswer && currentL3.raiseAliases && currentL3.raiseAliases.has(raiseKey)){
-    letter = currentL3.raiseAliases.get(raiseKey);
+  const raises = (isUserClick(e) && currentL3.clickRaise) || currentL3.raiseAliases;
+  if(!l3PhysicalNoteAnswer && raises && raises.has(raiseKey)){
+    const raised = raises.get(raiseKey);
+    // клик мышью/пером/пальцем: сначала нужно выбрать повышенную ноту
+    // из трёх квадратов (пока нота ещё не найдена)
+    if(isUserClick(e) && currentL3.modeType && !l3NameMode && !currentL3.found.has(raised)){
+      l3PickOpen(ring, index, { letter: raised, pc: noteNames.indexOf(raised) });
+      return;
+    }
+    letter = raised;
   }
   // изменённая нота (ячейка со знаком ♯/♭/♮ по схеме) засчитывается в
   // двух местах: на ячейке со знаком (напр. E♭ на ячейке Em в Cm) и на
   // своей собственной ячейке (E♭)
-  if(currentL3.accAliases && currentL3.accAliases.has(raiseKey)){
-    letter = currentL3.accAliases.get(raiseKey).letter;
+  const aliases = (isUserClick(e) && currentL3.clickAliases) || currentL3.accAliases;
+  if(aliases && aliases.has(raiseKey)){
+    const alias = aliases.get(raiseKey);
+    // "С бемолями\диезами", клик мышью/пальцем: сначала нужно выбрать
+    // правильную ноту из трёх квадратов (пока нота ещё не найдена)
+    if(isUserClick(e) && l3InvStyle === 'acc' && currentL3.chordType && !currentL3.modeType
+       && !currentL3.found.has(alias.letter)){
+      l3PickOpen(ring, index, alias);
+      return;
+    }
+    letter = alias.letter;
   }
 
   // Верная нота — зелёным (аккорд и лад), неверная — красным
@@ -18068,6 +18233,147 @@ function onWedgeClickLevel3(e){
   flashWedge(flashRing, flashIndex, l3LastWedgeAnswerColor, 300);
   l3RegisterAnswer(letter);
 }
+/* ===== Выбор ноты из трёх квадратов ("С бемолями\диезами") =====
+   Открывается поверх ячейки, на которой нота аккорда выше или ниже ноты
+   самой ячейки. Размеры — в единицах круга (viewBox 480×480), поэтому
+   квадраты масштабируются вместе с ним. Цвета — переменные --l3pick-*
+   (свои у каждой темы оформления). */
+const L3_PICK_SIZE = 45;   // сторона квадрата
+const L3_PICK_GAP = 4;     // зазор между квадратами
+const L3_PICK_RADIUS = 4;  // скругление углов
+const L3_PICK_FONT = 23;   // размер буквы
+let l3PickLayer = null;
+
+/* Три варианта по возрастанию. Обычно это буква ячейки: ♭, без знака, ♯
+   (ячейка E♭ -> E♭ E E♯). Вместо C♭ пишется B, вместо F♭ — E (B C C♯).
+   Если нужной высоты среди них нет (E♭ ещё понижена), — три соседних
+   полутона вокруг ноты самой ячейки (D E♭ E). */
+function l3PickOptions(ring, index, answerPc){
+  const cellName = String((ring === 'minor' ? minors : majors)[index]).replace(/m$/, '');
+  const cellPc = (ring === 'minor' ? minorsSemitone : majorsSemitone)[index];
+  const base = cellName.charAt(0);
+  const basePc = noteNames.indexOf(base);
+  const pc12 = v => (v + 12) % 12;
+  const opts = [
+    base === 'C' ? { text:'B', pc:11 } : base === 'F' ? { text:'E', pc:4 }
+      : { text: base + '♭', pc: pc12(basePc - 1) },
+    { text: base, pc: basePc },
+    { text: base + '♯', pc: pc12(basePc + 1) }
+  ];
+  if(opts.some(o => o.pc === answerPc)) return opts;
+  const near = (pc, sharp) => {
+    const n = noteNames[pc];
+    if(n.length === 1 || sharp) return { text: n, pc };
+    return { text: noteNames[pc12(pc + 1)] + '♭', pc };
+  };
+  return [near(pc12(cellPc - 1), false), { text: cellName, pc: cellPc }, near(pc12(cellPc + 1), true)];
+}
+
+/* Пока квадраты открыты, названия нот под ними (подсказка) не
+   показываются — иначе они сливаются с буквами в квадратах. */
+function pickLabelNodes(){
+  const out = [];
+  svg.querySelectorAll('#level3HintLayer, #ivHintLayer, #ivAccLayer').forEach(layer=>{
+    out.push(...layer.children);
+  });
+  return out;
+}
+function l3PickHideLabels(){
+  if(!l3PickLayer) return;
+  const a = l3PickLayer.getBBox();
+  pickLabelNodes().forEach(t=>{
+    const b = t.getBBox();
+    const under = b.x < a.x + a.width && b.x + b.width > a.x
+               && b.y < a.y + a.height && b.y + b.height > a.y;
+    t.style.visibility = under ? 'hidden' : '';
+  });
+}
+function l3PickClose(){
+  if(l3PickLayer){ l3PickLayer.remove(); l3PickLayer = null; svg.classList.remove('l3PickShown');
+    pickLabelNodes().forEach(t=>{ t.style.visibility = ''; }); }
+}
+
+/* cell: ring, index — ячейка круга; pc — правильная высота ноты.
+   answer.choose(right) вызывается при выборе квадрата и возвращает true,
+   если ответ засчитан (квадраты закрываются), и false — если нет. */
+function pickSquaresOpen(ring, index, pc, answer){
+  l3PickClose();
+  const radius = ring === 'major' ? LEVEL3_HINT_RADIUS_MAJOR : LEVEL3_HINT_RADIUS_MINOR;
+  const p = polar(CX, CY, radius, index * 30);
+  const total = 3 * L3_PICK_SIZE + 2 * L3_PICK_GAP;
+  // центральный квадрат — по центру ячейки; крайние могут выходить за круг.
+  // Сдвиг только если ряд не помещается на экране (узкий телефон)
+  const box = svg.getBoundingClientRect(), k = box.width / (2 * CX) || 1;
+  const minX = (4 - box.left) / k;
+  const maxX = (document.documentElement.clientWidth - 4 - box.left) / k - total;
+  const x0 = Math.min(Math.max(p.x - total / 2, minX), maxX);
+  const y0 = p.y - L3_PICK_SIZE / 2;
+  const layer = el('g', { id:'l3PickLayer' });
+  svg.appendChild(layer);
+  l3PickLayer = layer;
+  svg.classList.add('l3PickShown');
+  l3PickOptions(ring, index, pc).forEach((opt, i)=>{
+    const x = x0 + i * (L3_PICK_SIZE + L3_PICK_GAP);
+    const g = el('g', { class:'l3PickBtn', 'data-pc': opt.pc });
+    const rect = el('rect', { x, y:y0, width:L3_PICK_SIZE, height:L3_PICK_SIZE, rx:L3_PICK_RADIUS });
+    const text = el('text', { x: x + L3_PICK_SIZE / 2, y: p.y + 1, 'font-size': L3_PICK_FONT });
+    text.textContent = noteDisplay(opt.text);
+    // подложка: цвет вспышки полупрозрачный, сквозь него ничего не видно
+    const back = el('rect', { x, y:y0, width:L3_PICK_SIZE, height:L3_PICK_SIZE, rx:L3_PICK_RADIUS, class:'l3PickBack' });
+    g.appendChild(back); g.appendChild(rect); g.appendChild(text);
+    layer.appendChild(g);
+    // длинные названия ("Соль♯") уменьшаются, чтобы помещались в квадрат
+    const w = text.getComputedTextLength(), max = L3_PICK_SIZE - 5;
+    if(w > max) text.setAttribute('font-size', L3_PICK_FONT * max / w);
+    g.addEventListener('click', ev=>{
+      ev.stopPropagation();
+      if(answer.choose(opt.pc === pc)) return;
+      // неверно — мигает только квадрат, ячейка круга — нет; можно выбрать снова
+      rect.style.fill = FLASH_RED;
+      setTimeout(()=>{ rect.style.fill = ''; }, 300);
+    });
+  });
+  l3PickHideLabels();
+}
+
+// "Аккорды/Лады"
+function l3PickOpen(ring, index, alias){
+  const question = currentL3;
+  pickSquaresOpen(ring, index, alias.pc, { choose(right){
+    if(currentL3 !== question){ l3PickClose(); return true; }
+    // верный вариант не в свою очередь (порядок нот) — тоже неверный ответ
+    const color = right ? l3AnswerFlashColor(alias.letter) : FLASH_RED;
+    l3LastWedgeAnswerColor = color;
+    if(color === FLASH_RED){ errStatsWrong('l3', errL3Label()); return false; }
+    // верно: квадраты закрываются, зелёным мигает только ячейка круга
+    l3PickClose();
+    flashWedge(ring, index, color, 300);
+    l3RegisterAnswer(alias.letter);
+    return true;
+  }});
+}
+
+// "Ноты" -> "Интервалы": вторая нота на ячейке со знаком
+function ivPickOpen(){
+  const question = ivQ;
+  const note = ivLastNote();
+  pickSquaresOpen(note.ring, note.idx, note.pc, { choose(right){
+    if(ivQ !== question || ivBusy || !ivNotesShown()){ l3PickClose(); return true; }
+    if(!right){ errStatsWrong('notes', ivErrLabel()); return false; }
+    l3PickClose();
+    notesInstrFlash(note.pc, true);
+    ivCorrect();
+    return true;
+  }});
+}
+// нажатие мимо квадратов и клавиша Esc закрывают выбор
+document.addEventListener('pointerdown', e=>{
+  if(l3PickLayer && !l3PickLayer.contains(e.target)) l3PickClose();
+}, true);
+document.addEventListener('keydown', e=>{
+  if(e.key === 'Escape') l3PickClose();
+}, true);
+
 // цвет последнего ответа кликом по кругу (нужен MIDI-ответу, чтобы
 // подсветить неверную ноту красным и на клавиатуре-подсказке)
 let l3LastWedgeAnswerColor = null;
@@ -18092,8 +18398,10 @@ function renderLevel3Hint(){
   // знаком ♯/♭/♮ и ячейка-заменитель гарм./мелод. минора): обычную
   // подпись на них не ставим — у них своя подпись ниже.
   const aliasCellKeys = new Set();
-  if(currentL3.accAliases) currentL3.accAliases.forEach((a, k)=> aliasCellKeys.add(k));
-  if(currentL3.raiseAliases) currentL3.raiseAliases.forEach((L, k)=> aliasCellKeys.add(k));
+  const hintAliases = currentL3.clickAliases || currentL3.accAliases;
+  if(hintAliases) hintAliases.forEach((a, k)=> aliasCellKeys.add(k));
+  const hintRaise = currentL3.clickRaise || currentL3.raiseAliases;
+  if(hintRaise) hintRaise.forEach((L, k)=> aliasCellKeys.add(k));
 
   currentL3.letters.forEach(letter=>{
     if(currentL3.found.has(letter)) return;
@@ -18101,8 +18409,10 @@ function renderLevel3Hint(){
     // знаком, И обычная подпись на своей собственной ячейке ноты (напр.
     // в Cm — "E" с красным ♭ на ячейке Em и "E♭" на ячейке E♭), т.к.
     // засчитывается клик по любой из них.
-    const accCell = l3AccCellForLetter(letter);
-    if(accCell){
+    (hintAliases || new Map()).forEach((alias, key)=>{
+      if(alias.letter !== letter) return;
+      const dash = key.lastIndexOf('-');
+      const accCell = { ring: key.slice(0, dash), index: parseInt(key.slice(dash + 1)), alias };
       const r = accCell.ring === 'major' ? LEVEL3_HINT_RADIUS_MAJOR : LEVEL3_HINT_RADIUS_MINOR;
       const p = polar(CX, CY, r, accCell.index * 30);
       const t = el('text', {x:p.x, y:p.y, class:'level3HintLabel'});
@@ -18112,20 +18422,20 @@ function renderLevel3Hint(){
       ts.textContent = accCell.alias.sign;
       t.appendChild(ts);
       level3HintLayer.appendChild(t);
-    }
+    });
     // Гарм./мелод. минор: на ячейке-заменителе (напр. B♭ в C гарм.
     // миноре) — повышенная нота лада ("B") красным, как на круге "Обучения"
-    if(currentL3.raiseAliases && currentL3.modeType){
+    if(hintRaise && currentL3.modeType){
       const cfg = trainModeCfg(currentL3.modeType);
-      currentL3.raiseAliases.forEach((L, k)=>{
+      const tonicPc = (currentL3.ring === 'minor' ? minorsSemitone : majorsSemitone)[currentL3.index];
+      hintRaise.forEach((L, k)=>{
         if(L !== letter) return;
         const dash = k.lastIndexOf('-');
         const ring = k.slice(0, dash);
         const idx = parseInt(k.slice(dash + 1));
         let text = letter;
         try{
-          const off = ((idx - currentL3.index) % 12 + 12) % 12;
-          const rr = cfg && cfg.raise ? cfg.raise.find(x => ((x.cellOffset % 12) + 12) % 12 === off) : null;
+          const rr = cfg && cfg.raise ? cfg.raise.find(x => (tonicPc + x.semitone) % 12 === noteNames.indexOf(L)) : null;
           // та же нота, что на клавиатуре-подсказке (максимум 1 знак)
           if(rr){
             const lt = trainModeLettersMinSigns(currentL3.tonicNoteRaw, currentL3.modeType);
@@ -18168,6 +18478,7 @@ function setLevel3HintVisible(v){
   level3HintVisible = v;
   if(level3HintBtn) level3HintBtn.classList.toggle('active', v);
   renderLevel3Hint();
+  l3PickHideLabels();
 }
 
 function toggleLevel3Hint(){
@@ -21360,7 +21671,6 @@ window.__appGetState = function(){
 };
 function setSidePanelPosition(position){
   if(window.__appBridgeSend) window.__appBridgeSend({ type:'settingsPosition', value: position });
-
   localStorage.setItem(SIDE_PANEL_PIN_KEY, position);
   updateSidePanelLayout();
 }
@@ -22540,7 +22850,9 @@ function instrFitAll(){
       const below = bc.contains('train-piano-below');
       instrFit(trainPianoWrapEl, {
         horizontal: inTrain && gtr,
-        vertical: inTrain && below,
+        // клавиатуру под экран не подгоняем: она всегда растёт от середины
+        // белых клавиш, а кнопки обращений могут уходить за нижний край
+        vertical: inTrain && below && gtr,
         originV: 'center top',
         extra: [trainPianoSvgEl, document.getElementById('trainInversionBtns')]
       });
@@ -23425,7 +23737,6 @@ function onMidiMessage(event){
   // аккорд из «Обучения». Отпускание клавиш обрабатывается всегда,
   // чтобы уже звучащий аккорд не залипал.
   if(window.__appIsActive === false && (event.data[0] & 0xf0) === 0x90 && event.data[2] > 0) return;
-
   const data = event.data;
   const status = data[0] & 0xf0;
   const note = data[1];
@@ -25373,6 +25684,7 @@ function ivHintRender(){
 function ivToggleHint(){
   ivHintVisible = !ivHintVisible;
   ivHintRender();
+  l3PickHideLabels();
 }
 
 // подпись под тоникой в центре круга
@@ -25435,6 +25747,7 @@ function ivPool(){
 
 function ivPickNew(){
   if(!ivNotesGuard()) return;
+  l3PickClose();
   ivClearPaint();
   const pool = ivPool();
   const pick = pickNoRepeat(pool, c => c.k, ivHistory, pool.length);
@@ -25463,6 +25776,7 @@ function ivPlayQuestion(){
 }
 
 function ivCorrect(){
+  l3PickClose();
   ivBusy = true;
   if(!ivWedgesHidden()){
     const f = ivFirstNote(), l = ivLastNote();
@@ -25490,7 +25804,7 @@ function ivWrong(ring, idx){
 }
 
 // клик мышью по кругу ("Клик мыши"): засчитывается только ячейка схемы
-function ivOnWedge(ring, index){
+function ivOnWedge(ring, index, byPointer){
   if(!ivQ || ivBusy || notesIvName) return;
   const cellPc = (ring === 'major' ? majorsSemitone : minorsSemitone)[index];
   // первая нота — тоника, вторая — нота интервала (и при "Вверх", и при "Вниз")
@@ -25504,6 +25818,8 @@ function ivOnWedge(ring, index){
   }
   if(isFirst) return;   // первая нота уже нажата
   if(ring === l.ring && index === l.idx){
+    // нота выше или ниже ноты ячейки — сначала выбор из трёх квадратов
+    if(byPointer && ivQ.cell.alter && !ivQ.rev){ ivPickOpen(); return; }
     notesInstrFlash(l.pc, true);
     ivCorrect();
     return;
@@ -26250,6 +26566,7 @@ function notesIvSetOn(on){
     ivQ = null;
     if(ivNotesShown()) ivPickNew();
   } else {
+    l3PickClose();
     ivClearPaint();
     ivQ = null;
     ivBusy = false;
@@ -26944,9 +27261,16 @@ if(circleIsFirstLaunch){
     if(icon.hasAttribute('data-tip-plain')){
       if(icon.hasAttribute('data-tip-wide')){
         // список горячих клавиш: блоки через пустую строку раскладываем
-        // в 3 колонки — [Везде, Ноты], [Обучение], [остальное]
+        // в 5 колонок — [Везде, Ноты], [Обучение], [Интервалы, Аккорды/Лады],
+        // [Голосоведение], [MIDI]
         var parts = text.split(/\n\s*\n/);
-        var cols = [parts.slice(0, 2), parts.slice(2, 3), parts.slice(3)];
+        var cols = [
+          parts.slice(0, 2),
+          parts.slice(2, 3),
+          parts.slice(3, 5),
+          parts.slice(5, 6),
+          parts.slice(6)
+        ];
         tip.textContent = '';
         var wrap = document.createElement('div');
         wrap.className = 'tipCols';
